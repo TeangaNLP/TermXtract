@@ -12,7 +12,7 @@ authors = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["sphinx", "sphinx-rtd-theme"]
+dev = ["sphinx", "sphinx-rtd-theme", "sphinx-autobuild"]
 
 [tool.setuptools]
 packages = ["src"]
