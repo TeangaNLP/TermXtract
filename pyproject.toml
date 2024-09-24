@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "TermXtract"
+version = "0.1"
+description = "A package for automatic term extraction"
+authors = [
+    { name = "Shubhanker Banerjee", email = "shubcode1@gmail.com" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["sphinx", "sphinx-rtd-theme"]
+
+[tool.setuptools]
+packages = ["find:"]
+package-dir = {"" = "src"}
+
