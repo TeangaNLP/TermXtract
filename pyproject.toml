@@ -15,6 +15,5 @@ dependencies = []
 dev = ["sphinx", "sphinx-rtd-theme"]
 
 [tool.setuptools]
-packages = ["find:"]
-package-dir = {"" = "src"}
+packages = ["src"]
 
