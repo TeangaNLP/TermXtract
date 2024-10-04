@@ -1,0 +1,12 @@
+site_name: TermXtract
+
+
+theme:
+  name: material
+
+plugins:
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        paths: [src/termxtract]
