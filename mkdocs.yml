@@ -9,4 +9,4 @@ plugins:
     default_handler: python
     handlers:
       python:
-        paths: [src/termxtract]
+        paths: [termxtract]
