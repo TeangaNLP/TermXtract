@@ -31,14 +31,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
 
-      # Step 3: Install dependencies using Poetry and MkDocs
+      # Step 3: Install dependencies using Poetry, including dev dependencies
       - name: Install dependencies
         run: |
           pip install poetry
-          poetry install
-          pip install mkdocs-material mkdocstrings  # Ensure MkDocs, Material theme, and mkdocstrings are installed
+          poetry install --with dev  # Ensure dev dependencies, including mkdocstrings and handlers, are installed
 
       # Step 4: Run project tests using unittest
       - name: Run Tests
