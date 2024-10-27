@@ -1,4 +1,4 @@
-name: CI/CD Pipeline for TermXtract
+name: CI/CD Pipeline for Project TermXtract
 
 on:
   push:
