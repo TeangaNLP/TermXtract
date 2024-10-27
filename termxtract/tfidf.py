@@ -1,10 +1,11 @@
 from collections import Counter
 import math
+from typing import List, Dict
 
 class TFIDFTermExtractor:
     """TF-IDF based term extraction."""
 
-    def compute_tf(self, text):
+    def compute_tf(self, text: str) -> Dict[str, float]:
         """Compute term frequency for a given text.
 
         Args:
@@ -20,7 +21,7 @@ class TFIDFTermExtractor:
         tf = {word: count / word_count for word, count in term_frequencies.items()}
         return tf
 
-    def compute_idf(self, corpus):
+    def compute_idf(self, corpus: List[str]) -> Dict[str, float]:
         """Compute inverse document frequency for a given corpus of documents.
 
         Args:
@@ -39,7 +40,7 @@ class TFIDFTermExtractor:
 
         return idf
 
-    def compute_tfidf(self, corpus):
+    def compute_tfidf(self, corpus: List[str]) -> List[Dict[str, float]]:
         """Compute TF-IDF scores for all terms in a corpus of documents.
 
         Args:
