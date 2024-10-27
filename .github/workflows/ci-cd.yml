@@ -1,12 +1,9 @@
-name: CI/CD Pipeline for TermXtract Project
+name: CI/CD Pipeline for TermXtract
 
 on:
   push:
     branches:
-      - main  # Trigger the workflow on push to main branch
-    paths:
-      - '**.md'  # Trigger only when Markdown files are updated
-      - 'mkdocs.yml'  # Also trigger when mkdocs configuration changes
+      - main  # Trigger the workflow on any push to the main branch
   pull_request:
     branches:
       - main  # Trigger the workflow on PRs to main
