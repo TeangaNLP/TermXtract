@@ -38,7 +38,7 @@ jobs:
         run: |
           pip install poetry
           poetry install
-          pip install mkdocs-material  # Ensure MkDocs and the Material theme are installed
+          pip install mkdocs-material mkdocstrings  # Ensure MkDocs, Material theme, and mkdocstrings are installed
 
       # Step 4: Run project tests using unittest
       - name: Run Tests
