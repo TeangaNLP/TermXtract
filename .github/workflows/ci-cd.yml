@@ -1,0 +1,48 @@
+name: CI/CD Pipeline for TermXtract
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on push to main branch
+  pull_request:
+    branches:
+      - main  # Trigger the workflow on PRs to main
+
+jobs:
+  build-test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      # Step 3: Install dependencies using Poetry
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install
+
+      # Step 4: Run project tests using unittest
+      - name: Run Tests
+        run: |
+          python -m unittest discover tests
+
+      # Step 5: Build MkDocs site
+      - name: Build MkDocs Site
+        run: poetry run mkdocs build --strict
+
+      # Step 6: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        if: success()  # Deploy only if all previous steps pass
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+
