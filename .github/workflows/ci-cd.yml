@@ -43,6 +43,6 @@ jobs:
         if: success()  # Deploy only if all previous steps pass
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.ACTIONS_DEPLOY_KEY }}  # Use the PAT instead of GITHUB_TOKEN
           publish_dir: ./site
 
