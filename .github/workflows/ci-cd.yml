@@ -8,6 +8,16 @@ on:
     branches:
       - main  # Trigger the workflow on PRs to main
 
+  # Allows manual triggers from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build-test-and-deploy:
     runs-on: ubuntu-latest
@@ -43,6 +53,7 @@ jobs:
         if: success()  # Deploy only if all previous steps pass
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.ACTIONS_DEPLOY_KEY }}  # Use the PAT instead of GITHUB_TOKEN
+          personal_token: ${{ secrets.ACTIONS_DEPLOY_KEY }}  # Use PAT instead of GITHUB_TOKEN
           publish_dir: ./site
+          publish_branch: gh-pages
 
