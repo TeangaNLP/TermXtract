@@ -42,10 +42,11 @@ jobs:
       # Step 4: Run project tests using unittest
       - name: Run Tests
         run: |
-          python -m unittest discover tests
+          poetry run python -m unittest discover tests
 
       # Step 5: Build and Deploy MkDocs Site
       - name: Deploy to GitHub Pages
         if: success()  # Deploy only if all previous steps pass
-        run: mkdocs gh-deploy --force
+        run: |
+          poetry run mkdocs gh-deploy --force  # Use Poetry to ensure mkdocs is available
 
