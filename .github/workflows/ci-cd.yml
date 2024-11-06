@@ -44,9 +44,22 @@ jobs:
         run: |
           poetry run python -m unittest discover tests
 
-      # Step 5: Build and Deploy MkDocs Site
-      - name: Deploy to GitHub Pages
-        if: success()  # Deploy only if all previous steps pass
+      # Step 5: Build MkDocs Site
+      - name: Build MkDocs Site
+        if: success()  # Build only if all previous steps pass
         run: |
-          poetry run mkdocs gh-deploy --force  # Use Poetry to ensure mkdocs is available
+          poetry run mkdocs build  # Builds the site in 'site/' directory
 
+      # Step 6: Upload MkDocs Site for GitHub Pages Deployment
+      - name: Upload to GitHub Pages Artifact
+        if: success()  # Upload only if build step succeeded
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: site  # Directory to upload for deployment
+
+      # Step 7: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        if: success()  # Deploy only if upload step succeeded
+        uses: actions/deploy-pages@v1
+        with:
+          token: ${{ secrets.ACTIONS_DEPLOY_KEY }}
