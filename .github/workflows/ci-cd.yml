@@ -21,6 +21,9 @@ concurrency:
 jobs:
   build-test-and-deploy:
     runs-on: ubuntu-latest
+    environment:  # Specify environment for deployment
+      name: github-pages  # Use a unique environment name; can be "github-pages" or another custom name
+      url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"  # Define deployment URL directly in environment
 
     steps:
       # Step 1: Checkout the repository
