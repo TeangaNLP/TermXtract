@@ -1,12 +1,19 @@
 site_name: TermXtract
 
-
 theme:
   name: material
 
 plugins:
-- mkdocstrings:
-    default_handler: python
-    handlers:
-      python:
-        paths: [termxtract]
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [termxtract]
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: tutorials/getting_started.md
+      - TF-IDF Tutorial: tutorials/tfidf_tutorial.md
+      # Additional methods can be added here as new tutorials
+
