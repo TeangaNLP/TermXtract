@@ -12,6 +12,7 @@ plugins:
 
 nav:
   - Home: index.md
+  - TFIDFTermExtractor: docs/code/code1.md
   - Getting Started:
       - Overview: tutorials/getting_started.md
       - TF-IDF Tutorial: tutorials/tfidf_tutorial.md
