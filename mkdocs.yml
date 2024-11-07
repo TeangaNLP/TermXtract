@@ -6,7 +6,7 @@ theme:
 
 plugins:
 - mkdocstrings:
-	default_handler: python
-	handlers:
-  	python:
-    	paths: [termxtract]
+    default_handler: python
+    handlers:
+      python:
+        paths: [termxtract]
