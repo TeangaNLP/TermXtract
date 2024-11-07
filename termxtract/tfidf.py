@@ -1,3 +1,4 @@
+import re
 from collections import Counter
 import math
 from typing import List, Dict, Optional
@@ -16,6 +17,18 @@ class TFIDFTermExtractor(BaseTermExtractor):
         """
         self.threshold = threshold
     
+    def clean_text(self, text: str) -> str:
+        """Remove punctuation from the text and convert it to lowercase.
+
+        Args:
+            text (str): The input text.
+
+        Returns:
+            str: The cleaned text without punctuation.
+        """
+        # Remove punctuation using regex and convert to lowercase
+        return re.sub(r'[^\w\s]', '', text).lower()
+    
     def compute_tf(self, text: str) -> Dict[str, float]:
         """Compute term frequency for a given text.
 
@@ -26,7 +39,9 @@ class TFIDFTermExtractor(BaseTermExtractor):
             Dict[str, float]: A dictionary of term frequencies where the keys are words 
             and the values are their respective frequencies.
         """
-        words = text.split()
+        # Clean the text to remove punctuation
+        cleaned_text = self.clean_text(text)
+        words = cleaned_text.split()
         word_count = len(words)
         term_frequencies = Counter(words)
         return {word: count / word_count for word, count in term_frequencies.items()}
@@ -43,9 +58,9 @@ class TFIDFTermExtractor(BaseTermExtractor):
         """
         num_docs = len(corpus)
         idf = {}
-        all_words = set(word for doc in corpus for word in doc.split())
+        all_words = set(word for doc in corpus for word in self.clean_text(doc).split())
         for word in all_words:
-            doc_count = sum(1 for doc in corpus if word in doc.split())
+            doc_count = sum(1 for doc in corpus if word in self.clean_text(doc).split())
             idf[word] = math.log(num_docs / (1 + doc_count))
         return idf
 
@@ -71,4 +86,3 @@ class TFIDFTermExtractor(BaseTermExtractor):
             
             tfidf_list.append(tfidf)
         return tfidf_list
-
