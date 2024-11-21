@@ -6,7 +6,7 @@ authors = ["shubhanker"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8.1,<4.0"
 teanga = { git = "https://github.com/teangaNLP/teanga2" }
 
 [tool.poetry.group.dev.dependencies]
