@@ -1,36 +1,34 @@
-from typing import List, Dict, Optional
+from typing import Optional
+from teanga import Corpus
 from .tfidf import TFIDFTermExtractor
-# from .rake import RAKEExtractor  # Future extractors can be added here
 
 class TermExtractor:
     """A wrapper class for selecting the term extraction method."""
 
-    def __init__(self, method: str = "tfidf", threshold: Optional[float] = None):
-        """Initialize the term extractor with the specified method and threshold.
+    def __init__(self, method: str = "tfidf", threshold: Optional[float] = None, n: int = 1):
+        """Initialize the term extractor with the specified method and parameters.
 
         Args:
             method (str): The method for term extraction (e.g., 'tfidf').
             threshold (Optional[float]): Minimum score threshold for term inclusion.
+            n (int): Maximum length of n-grams to consider.
         
         Raises:
             ValueError: If the specified method is not supported.
         """
         if method == "tfidf":
-            self.extractor = TFIDFTermExtractor(threshold=threshold)
-        # elif method == "rake":
-        #     self.extractor = RAKEExtractor()  # Uncomment once RAKE is implemented
+            self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
-    def extract(self, corpus: List[str]) -> List[Dict[str, float]]:
-        """Extract terms from the corpus using the chosen method.
+    def extract(self, corpus: Corpus) -> dict:
+        """Extract terms from a Teanga corpus and add them as a layer to each document.
 
         Args:
-            corpus (List[str]): A list of documents.
+            corpus (Corpus): A Teanga corpus with text and words layers.
 
         Returns:
-            List[Dict[str, float]]: A list of dictionaries containing extracted terms 
-            and their scores for each document.
+            dict: A dictionary where keys are document IDs, and values are lists of 
+            dictionaries containing terms and their respective offsets.
         """
         return self.extractor.extract_terms(corpus)
-

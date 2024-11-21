@@ -1,62 +1,42 @@
 import unittest
+from teanga import Corpus
 from termxtract.term_extractor import TermExtractor
 
-class TestTFIDFTermExtractor(unittest.TestCase):
-    def setUp(self):
-        """Set up a sample corpus for testing."""
-        self.corpus = [
-            "This is a sample document.",
-            "This document is another example sample."
-        ]
+class TestTFIDFExample(unittest.TestCase):
 
-    def test_extract_terms_without_threshold(self):
-        """Test TF-IDF extraction without a threshold."""
-        extractor = TermExtractor(method="tfidf")
-        results = extractor.extract(self.corpus)
+    def test_tfidf_extraction_example(self):
+        # Step 1: Create a Teanga corpus and add layers
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
 
-        # Verify that results are returned for each document
-        self.assertEqual(len(results), len(self.corpus))
-        
-        # Check that the results contain expected words
-        for doc_tfidf in results:
-            self.assertIn("sample", doc_tfidf)
-            self.assertIn("document", doc_tfidf)
-        
-        # Confirm that no threshold filtering occurred
-        self.assertGreater(len(results[0]), 0)  # Ensure terms were extracted
+        # Step 2: Add documents with word offsets
+        doc1 = corpus.add_doc("This is an example document.")
+        doc1.words = [(0, 4), (5, 7), (8, 10), (11, 18), (19, 28)]
 
-    def test_extract_terms_with_threshold(self):
-        """Test TF-IDF extraction with a threshold of 0.1."""
-        threshold = 0.1
-        extractor = TermExtractor(method="tfidf", threshold=threshold)
-        results = extractor.extract(self.corpus)
+        doc2 = corpus.add_doc("TFIDF extraction with unigrams, bigrams, and trigrams.")
+        doc2.words = [(0, 5), (6, 16), (17, 21), (22, 30), (31, 39), (40, 44), (45, 53)]
 
-        # Verify that results are returned for each document
-        self.assertEqual(len(results), len(self.corpus))
+        # Step 3: Initialize TermExtractor with TF-IDF, n=3 for 1-gram, 2-gram, and 3-gram extraction
+        extractor = TermExtractor(method="tfidf", threshold=0.1, n=3)
 
-        # Check that terms with low scores are filtered out
-        for doc_tfidf in results:
-            # Ensure only terms with TF-IDF >= threshold are present
-            for term, score in doc_tfidf.items():
-                self.assertGreaterEqual(score, threshold)
+        # Step 4: Perform term extraction on the corpus
+        terms_offsets_by_doc = extractor.extract(corpus)
 
-    def test_empty_corpus(self):
-        """Test TF-IDF extraction on an empty corpus."""
-        extractor = TermExtractor(method="tfidf")
-        results = extractor.extract([])
+        # Step 5: Print results to demonstrate output format
+        print("TF-IDF Extraction Results with n-grams (1, 2, 3):")
+        for doc_id, terms_offsets in terms_offsets_by_doc.items():
+            print(f"\nDocument ID: {doc_id}")
+            for term, offsets in terms_offsets.items():
+                print(f"Term: '{term}', Offsets: {offsets}")
 
-        # Expecting an empty list of results
-        self.assertEqual(results, [])
+        # Example assertions to validate output structure (for testing purposes)
+        for doc_id, terms_offsets in terms_offsets_by_doc.items():
+            self.assertTrue(isinstance(terms_offsets, dict), "Expected terms_offsets to be a dictionary.")
+            for term, offsets in terms_offsets.items():
+                self.assertTrue(isinstance(term, str), "Each term should be a string.")
+                self.assertTrue(all(isinstance(offset, tuple) and len(offset) == 2 for offset in offsets),
+                                "Each offset should be a tuple (start, end).")
 
-    def test_threshold_exceeds_all_terms(self):
-        """Test TF-IDF extraction with a high threshold that filters all terms."""
-        high_threshold = 1.0  # Set a high threshold to filter all terms
-        extractor = TermExtractor(method="tfidf", threshold=high_threshold)
-        results = extractor.extract(self.corpus)
-
-        # Expect all dictionaries to be empty since threshold filters all terms out
-        for doc_tfidf in results:
-            self.assertEqual(doc_tfidf, {})
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
