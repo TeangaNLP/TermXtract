@@ -64,6 +64,7 @@ class TFIDFTermExtractor(BaseTermExtractor):
             Dict[str, List[Dict[str, Tuple[int, int]]]]: A dictionary where keys are document IDs, and values
             are lists of dictionaries containing terms and their respective offsets.
         """
+        corpus.add_layer_meta("terms", layer_type="span", base="text")
         # Step 1: Generate and store n-grams once for each document
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
@@ -89,7 +90,7 @@ class TFIDFTermExtractor(BaseTermExtractor):
                 tfidf = {ngram: score for ngram, score in tfidf.items() if score >= self.threshold}
 
             # Step 3: Add "terms" layer based on filtered TF-IDF terms
-            doc.add_layer_meta("terms", layer_type="span", base="text")
+            # doc.add_layer_meta("terms", layer_type="span", base="text")
             terms_with_offsets = {}
             for ngram, score in tfidf.items():
                 # Get the offsets from the precomputed n-grams with offsets
