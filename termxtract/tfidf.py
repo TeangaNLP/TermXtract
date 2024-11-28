@@ -2,7 +2,7 @@ import re
 from collections import Counter
 import math
 from typing import List, Dict, Optional
-from utils import ATEResults
+from .utils import ATEResults
 
 class TFIDFTermExtractor:
     """TF-IDF based term extraction with n-gram support and a threshold option."""
