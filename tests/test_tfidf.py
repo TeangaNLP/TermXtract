@@ -1,7 +1,7 @@
 import unittest
 from teanga import Corpus
 from termxtract.term_extractor import TermExtractor
-from utils import ATEResults
+from termxtract.utils import ATEResults
 
 
 class TestTFIDFExample(unittest.TestCase):
