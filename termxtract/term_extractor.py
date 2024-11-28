@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Optional
 from teanga import Corpus
 from .utils import ATEResults
 from .tfidf import TFIDFTermExtractor
