@@ -1,23 +1,16 @@
 import re
 from collections import Counter
 import math
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Optional, Tuple
 from .utils import ATEResults
-from .base_extractor import BaseTermExtractor
 
 
-class RIDFTermExtractor(BaseTermExtractor):
+class RIDFTermExtractor:
     """RIDF-based term extraction with n-gram support."""
 
-    def __init__(self, threshold: float = 0.1, n: int = 1):
-        """
-        Initialize the RIDF extractor.
-
-        Args:
-            threshold (float): Minimum RIDF score for terms to be included.
-            n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
-        """
-        super().__init__(threshold=threshold, n=n)
+    def __init__(self, threshold: Optional[float] = None, n: int = 1):
+        self.threshold = threshold
+        self.n = n
 
     def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
         """
@@ -103,21 +96,6 @@ class RIDFTermExtractor(BaseTermExtractor):
                 ridf[ngram] = 0.0
 
         return ridf
-
-    def extract_terms(self, corpus: Union["Corpus", List[str]]) -> ATEResults:
-        """
-        Extract terms from either a Teanga corpus or a plain list of strings.
-
-        Args:
-            corpus (Union[Corpus, List[str]]): The input corpus.
-
-        Returns:
-            ATEResults: Results containing terms and scores.
-        """
-        if isinstance(corpus, list):
-            return self.extract_terms_strings(corpus)
-        else:
-            return self.extract_terms_teanga(corpus)
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """
