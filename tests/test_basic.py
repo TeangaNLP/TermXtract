@@ -1,3 +1,8 @@
+import unittest
+from teanga import Corpus
+from termxtract.term_extractor import TermExtractor
+
+
 class TestBasicExtraction(unittest.TestCase):
     """Test cases for Basic term extraction method."""
 
