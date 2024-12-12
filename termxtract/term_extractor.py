@@ -5,6 +5,7 @@ from .tfidf import TFIDFTermExtractor
 from .ridf import RIDFTermExtractor
 from .cvalue import CValueTermExtractor
 from .combobasic import ComboBasicTermExtractor
+from .basic import BasicTermExtractor
 
 
 class TermExtractor:
@@ -15,10 +16,10 @@ class TermExtractor:
         Initialize the extractor with the specified method.
 
         Args:
-            method (str): Extraction method, either "tfidf", "ridf", "cvalue", or "combobasic".
+            method (str): Extraction method, either "tfidf", "ridf", "cvalue", "combobasic", or "basic".
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size.
-            kwargs: Additional parameters for ComboBasicTermExtractor.
+            kwargs: Additional parameters for the specific method.
         """
         if method == "tfidf":
             self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
@@ -28,6 +29,8 @@ class TermExtractor:
             self.extractor = CValueTermExtractor(threshold=threshold, n=n)
         elif method == "combobasic":
             self.extractor = ComboBasicTermExtractor(threshold=threshold, n=n, **kwargs)
+        elif method == "basic":
+            self.extractor = BasicTermExtractor(alpha=kwargs.get("alpha", 0.5), threshold=threshold, n=n)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
