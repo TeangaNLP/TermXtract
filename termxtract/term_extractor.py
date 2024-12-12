@@ -4,19 +4,21 @@ from .utils import ATEResults
 from .tfidf import TFIDFTermExtractor
 from .ridf import RIDFTermExtractor
 from .cvalue import CValueTermExtractor
+from .combobasic import ComboBasicTermExtractor
 
 
 class TermExtractor:
     """A wrapper class for selecting the term extraction method."""
 
-    def __init__(self, method: str = "tfidf", threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, method: str = "tfidf", threshold: Optional[float] = None, n: int = 1, **kwargs):
         """
         Initialize the extractor with the specified method.
 
         Args:
-            method (str): Extraction method, either "tfidf", "ridf", or "cvalue".
+            method (str): Extraction method, either "tfidf", "ridf", "cvalue", or "combobasic".
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size.
+            kwargs: Additional parameters for ComboBasicTermExtractor.
         """
         if method == "tfidf":
             self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
@@ -24,6 +26,8 @@ class TermExtractor:
             self.extractor = RIDFTermExtractor(threshold=threshold, n=n)
         elif method == "cvalue":
             self.extractor = CValueTermExtractor(threshold=threshold, n=n)
+        elif method == "combobasic":
+            self.extractor = ComboBasicTermExtractor(threshold=threshold, n=n, **kwargs)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
