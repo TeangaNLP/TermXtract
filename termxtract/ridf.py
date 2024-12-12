@@ -1,7 +1,7 @@
 import re
 from collections import Counter
 import math
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from .utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -103,6 +103,21 @@ class RIDFTermExtractor(BaseTermExtractor):
                 ridf[ngram] = 0.0
 
         return ridf
+
+    def extract_terms(self, corpus: Union["Corpus", List[str]]) -> ATEResults:
+        """
+        Extract terms from either a Teanga corpus or a plain list of strings.
+
+        Args:
+            corpus (Union[Corpus, List[str]]): The input corpus.
+
+        Returns:
+            ATEResults: Results containing terms and scores.
+        """
+        if isinstance(corpus, list):
+            return self.extract_terms_strings(corpus)
+        else:
+            return self.extract_terms_teanga(corpus)
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """
