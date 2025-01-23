@@ -6,6 +6,7 @@ from .ridf import RIDFTermExtractor
 from .cvalue import CValueTermExtractor
 from .combobasic import ComboBasicTermExtractor
 from .basic import BasicTermExtractor
+from .domaincoherence import DomainCoherenceTermExtractor
 
 
 class TermExtractor:
