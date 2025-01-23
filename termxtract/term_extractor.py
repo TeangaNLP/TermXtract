@@ -31,6 +31,8 @@ class TermExtractor:
             self.extractor = ComboBasicTermExtractor(threshold=threshold, n=n, **kwargs)
         elif method == "basic":
             self.extractor = BasicTermExtractor(alpha=kwargs.get("alpha", 0.5), threshold=threshold, n=n)
+        elif method == "domaincoherence":
+            self.extractor = DomainCoherenceTermExtractor(threshold=threshold, n=n, window_size=kwargs.get("window_size", 5))
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
