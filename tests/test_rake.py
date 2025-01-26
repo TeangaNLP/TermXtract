@@ -63,7 +63,7 @@ class TestRAKEExtraction(unittest.TestCase):
         text_corpus = ["RAKE method identifies key phrases effectively."]
         stoplist = ["method", "identifies"]
 
-        extractor = TermExtractor(method="rake", stoplist, threshold=0.1, n=3)
+        extractor = TermExtractor(method="rake", stoplist=stoplist, threshold=0.1, n=3)
         results = extractor.extract(text_corpus)
 
         # Validate that results are returned correctly
