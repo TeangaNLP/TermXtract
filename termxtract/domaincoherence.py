@@ -45,24 +45,25 @@ class DomainCoherenceTermExtractor:
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using DomainCoherence."""
-
-        # Step 1: Extract top 200 candidates using Basic
+    
+        # Step 1: Extract top 200 candidates using Basic (BasicTermExtractor will add the terms layer itself)
         basic_extractor = BasicTermExtractor(threshold=None, n=self.n)
         basic_results = basic_extractor.extract_terms_teanga(corpus)
-
+    
+        # Extract the top 200 terms from Basic results
         basic_terms = [
             {"term": term["term"], "score": term["score"]}
             for doc in basic_results.terms
             for term in doc["terms"]
         ]
         top_200_terms = sorted(basic_terms, key=lambda x: x["score"], reverse=True)[:200]
-
+    
         # Step 2: Extract context words and compute NPMI
         context_words = self._extract_context_words_teanga(corpus, top_200_terms)
-
+    
         # Step 3: Compute DomainCoherence scores
         term_scores = self._compute_domain_coherence_teanga(corpus, top_200_terms, context_words)
-
+    
         # Prepare results
         terms_by_doc = []
         for doc_id in corpus.doc_ids:
@@ -72,8 +73,9 @@ class DomainCoherenceTermExtractor:
                 if self.threshold is None or score >= self.threshold
             ]
             terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-
+    
         return ATEResults(corpus=corpus, terms=terms_by_doc)
+
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """Extract terms from a plain list of strings using DomainCoherence."""
@@ -146,18 +148,22 @@ class DomainCoherenceTermExtractor:
     def _calculate_npmi_scores(self, context_counter: Counter, term_set: set, num_docs: int) -> List[str]:
         """Calculate NPMI scores for context words and filter top 50."""
         total_terms = sum(context_counter.values())
-        p_term = {term: context_counter[term] / total_terms for term in term_set}
-        p_word = {word: context_counter[word] / total_terms for word in context_counter}
+        if total_terms == 0:
+            return []
+
+        p_term = {term: context_counter[term] / total_terms for term in term_set if total_terms > 0}
+        p_word = {word: context_counter[word] / total_terms for word in context_counter if total_terms > 0}
 
         npmi_scores = {}
         for word in context_counter:
             if word not in term_set:
                 npmi_sum = 0
                 for term in term_set:
-                    p_t_and_w = context_counter[word] / total_terms
-                    if p_t_and_w > 0:
+                    p_t_and_w = context_counter[word] / total_terms if total_terms > 0 else 0
+                    if p_t_and_w > 0 and p_term.get(term, 0) > 0 and p_word.get(word, 0) > 0:
                         npmi_sum += math.log(p_t_and_w / (p_term[term] * p_word[word])) / math.log(p_t_and_w)
-                npmi_scores[word] = npmi_sum / len(term_set)
+                if len(term_set) > 0:
+                    npmi_scores[word] = npmi_sum / len(term_set)
 
         quarter_docs = max(1, num_docs // 4)
         frequent_words = [word for word, count in context_counter.items() if count >= quarter_docs]
@@ -165,47 +171,111 @@ class DomainCoherenceTermExtractor:
             word for word in frequent_words if word in npmi_scores and npmi_scores[word] > 0
         ]
         return sorted(context_words, key=lambda w: npmi_scores[w], reverse=True)[:50]
-
-    def _compute_domain_coherence_teanga(self, corpus, top_terms: List[Dict[str, float]], context_words: List[str]) -> Dict[str, float]:
-        """Compute DomainCoherence scores for a Teanga corpus."""
+    
+    def _compute_domain_coherence_strings(
+        self,
+        tokenized_corpus: List[List[str]],
+        top_terms: List[Dict[str, float]],
+        context_words: List[str]
+    ) -> Dict[str, float]:
+        """
+        Compute DomainCoherence scores for a string-based corpus.
+    
+        Args:
+            tokenized_corpus (List[List[str]]): Tokenized corpus as a list of word lists.
+            top_terms (List[Dict[str, float]]): Top 200 terms from Basic extractor.
+            context_words (List[str]): Top 50 context words based on NPMI.
+    
+        Returns:
+            Dict[str, float]: DomainCoherence scores for terms.
+        """
         term_scores = {}
+        num_docs = len(tokenized_corpus)
+    
+        # Iterate over each term in the top terms
         for term_data in top_terms:
             term = term_data["term"]
-            term_scores[term] = self._calculate_term_npmi(term, context_words, corpus, is_teanga=True)
+            npmi_sum = 0
+    
+            # Calculate NPMI for the term with each context word
+            for word in context_words:
+                p_t_and_w, p_term, p_word = 0, 0, 0
+    
+                # Compute probabilities
+                p_t_and_w = sum(
+                    1 for doc in tokenized_corpus if term in doc and word in doc
+                ) / num_docs if num_docs > 0 else 0
+    
+                p_term = sum(1 for doc in tokenized_corpus if term in doc) / num_docs if num_docs > 0 else 0
+                p_word = sum(1 for doc in tokenized_corpus if word in doc) / num_docs if num_docs > 0 else 0
+    
+                # Avoid division by zero
+                if p_t_and_w > 0 and p_term > 0 and p_word > 0:
+                    npmi_sum += math.log(p_t_and_w / (p_term * p_word)) / math.log(p_t_and_w)
+    
+            # Normalize by the number of context words (if any)
+            term_scores[term] = npmi_sum / len(context_words) if context_words else 0
+    
         return term_scores
 
-    def _compute_domain_coherence_strings(self, tokenized_corpus: List[List[str]], top_terms: List[Dict[str, float]], context_words: List[str]) -> Dict[str, float]:
-        """Compute DomainCoherence scores for a list of strings."""
+    def _compute_domain_coherence_teanga(
+        self,
+        corpus,
+        top_terms: List[Dict[str, float]],
+        context_words: List[str]
+    ) -> Dict[str, float]:
+        """
+        Compute DomainCoherence scores for a Teanga corpus.
+    
+        Args:
+            corpus: Teanga corpus object.
+            top_terms (List[Dict[str, float]]): Top 200 terms from Basic extractor.
+            context_words (List[str]): Top 50 context words based on NPMI.
+    
+        Returns:
+            Dict[str, float]: DomainCoherence scores for terms.
+        """
         term_scores = {}
+        num_docs = len(corpus.doc_ids)
+    
+        # Iterate over each term in the top terms
         for term_data in top_terms:
             term = term_data["term"]
-            term_scores[term] = self._calculate_term_npmi(term, context_words, tokenized_corpus, is_teanga=False)
-        return term_scores
-
-    def _calculate_term_npmi(self, term: str, context_words: List[str], corpus, is_teanga: bool) -> float:
-        """Calculate the NPMI score for a single term."""
-        npmi_sum = 0
-        for word in context_words:
-            p_t_and_w, p_term, p_word = 0, 0, 0
-            if is_teanga:
-                num_docs = len(corpus.doc_ids)
+            npmi_sum = 0
+    
+            # Calculate NPMI for the term with each context word
+            for word in context_words:
+                p_t_and_w, p_term, p_word = 0, 0, 0
+    
+                # Compute probabilities for Teanga corpus
                 for doc_id in corpus.doc_ids:
                     doc = corpus.doc_by_id(doc_id)
                     words = [doc.text[start:end].lower() for start, end in doc.words]
+    
+                    # Joint probability: term and word co-occurrence
                     if term in words and word in words:
                         p_t_and_w += 1
-                p_term = sum(1 for doc_id in corpus.doc_ids if term in [doc.text[start:end].lower() for start, end in corpus.doc_by_id(doc_id).words]) / num_docs
-                p_word = sum(1 for doc_id in corpus.doc_ids if word in [doc.text[start:end].lower() for start, end in corpus.doc_by_id(doc_id).words]) / num_docs
-            else:
-                num_docs = len(corpus)
-                for words in corpus:
-                    if term in words and word in words:
-                        p_t_and_w += 1
-                p_term = sum(1 for words in corpus if term in words) / num_docs
-                p_word = sum(1 for words in corpus if word in words) / num_docs
-
-            p_t_and_w /= num_docs
-            if p_t_and_w > 0:
-                npmi_sum += math.log(p_t_and_w / (p_term * p_word)) / math.log(p_t_and_w)
-        return npmi_sum / len(context_words) if context_words else 0
-
+    
+                # Marginal probabilities
+                p_term = sum(
+                    1 for doc_id in corpus.doc_ids if term in [
+                        doc.text[start:end].lower() for start, end in corpus.doc_by_id(doc_id).words
+                    ]
+                ) / num_docs if num_docs > 0 else 0
+    
+                p_word = sum(
+                    1 for doc_id in corpus.doc_ids if word in [
+                        doc.text[start:end].lower() for start, end in corpus.doc_by_id(doc_id).words
+                    ]
+                ) / num_docs if num_docs > 0 else 0
+    
+                p_t_and_w /= num_docs if num_docs > 0 else 1
+    
+                # Avoid division by zero
+                if p_t_and_w > 0 and p_term > 0 and p_word > 0:
+                    npmi_sum += math.log(p_t_and_w / (p_term * p_word)) / math.log(p_t_and_w)
+    
+            # Normalize by the number of context words (if any)
+            term_scores[term] = npmi_sum / len(context_words) if context_words else 0
+    
+        return term_scores
