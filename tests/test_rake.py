@@ -1,6 +1,6 @@
 import unittest
 from teanga import Corpus
-from termxtract.rake import RAKEExtractor
+from termxtract.rake import RAKETermExtractor
 
 
 class TestRAKE(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestRAKE(unittest.TestCase):
         self.stoplist = ["is", "the", "and", "of", "a", "an", "to", "for"]
         self.delimiters = [".", ",", "!", "?", "-", ";"]
         self.threshold = 1.0  # Default threshold for the tests
-        self.extractor = RAKEExtractor(
+        self.extractor = RAKETermExtractor(
             stoplist=self.stoplist, phrase_delimiters=self.delimiters, threshold=self.threshold
         )
 
@@ -69,7 +69,7 @@ class TestRAKE(unittest.TestCase):
         custom_delimiters = [".", "!"]
 
         # Create a new RAKE extractor with the custom stoplist and delimiters
-        custom_extractor = RAKEExtractor(
+        custom_extractor = RAKETermExtractor(
             stoplist=custom_stoplist, phrase_delimiters=custom_delimiters, threshold=0.5
         )
 
@@ -101,7 +101,7 @@ class TestRAKE(unittest.TestCase):
     def test_rake_with_no_threshold(self):
         """Test RAKE extraction without a threshold."""
         text_corpus = ["RAKE identifies all terms without filtering by score."]
-        extractor_no_threshold = RAKEExtractor(
+        extractor_no_threshold = RAKETermExtractor(
             stoplist=self.stoplist, phrase_delimiters=self.delimiters, threshold=None
         )
 
