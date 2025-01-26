@@ -35,7 +35,7 @@ class TermExtractor:
         elif self.method == "cvalue":
             self.extractor = CValueTermExtractor(**kwargs)
         elif self.method == "rake":
-            self.extractor = RAKE(**kwargs)
+            self.extractor = RAKETermExtractor(**kwargs)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
