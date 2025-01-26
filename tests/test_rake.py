@@ -61,8 +61,9 @@ class TestRAKEExtraction(unittest.TestCase):
     def test_rake_extraction_no_stoplist(self):
         """Test RAKE extraction with no stoplist provided."""
         text_corpus = ["RAKE method identifies key phrases effectively."]
+        stoplist = ["method", "identifies"]
 
-        extractor = TermExtractor(method="rake", threshold=0.1, n=3)
+        extractor = TermExtractor(method="rake", stoplist, threshold=0.1, n=3)
         results = extractor.extract(text_corpus)
 
         # Validate that results are returned correctly
