@@ -44,10 +44,8 @@ class WeirdnessTermExtractor:
         ngrams = []
         for i in range(len(words_with_offsets)):
             for j in range(1, self.n + 1):  # Generate n-grams up to n
-                if i + j <= len(words_with_offsets):
-           
-    
-             ngram = " ".join(word for _, _, word in words_with_offsets[i:i + j])
+                if i + j <= len(words_with_offsets):               
+                    ngram = " ".join(word for _, _, word in words_with_offsets[i:i + j])
                     start_offset = words_with_offsets[i][0]
                     end_offset = words_with_offsets[i + j - 1][1]
                     ngrams.append((ngram, (start_offset, end_offset)))
