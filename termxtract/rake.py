@@ -127,6 +127,7 @@ class RAKETermExtractor:
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             text = doc["text"].text
+            text = text[0]
 
             # Step 1: Generate candidate keywords
             candidates = self.generate_candidate_keywords(text)
