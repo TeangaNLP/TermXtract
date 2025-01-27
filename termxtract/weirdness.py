@@ -74,47 +74,53 @@ class WeirdnessTermExtractor:
             terms_by_doc.append({"doc_id": doc_id, "terms": terms})
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-
+    
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using Weirdness.
-
+    
         Args:
             corpus: A Teanga Corpus object.
-
+    
         Returns:
             ATEResults: Results with terms and scores.
         """
-        # Generate n-grams for reference corpus
-        ref_ngrams = [
-            [ngram for ngram in self.generate_ngrams_strings(
-                [doc.text[start:end].lower() for start, end in ref_doc.words]
-            )]
-            for ref_doc in (self.reference_corpus.doc_by_id(doc_id) for doc_id in self.reference_corpus.doc_ids)
-        ]
-        ref_ntf = self.compute_term_frequencies(ref_ngrams)
-
-        # Generate n-grams for target corpus
+        # Ensure reference corpus is valid and has documents
+        if not self.reference_corpus or not self.reference_corpus.doc_ids:
+            raise ValueError("Reference corpus must be provided and contain documents.")
+    
+        # Generate reference n-grams and compute IDF
+        ref_ngrams = []
+        for doc_id in self.reference_corpus.doc_ids:
+            ref_doc = self.reference_corpus.doc_by_id(doc_id)
+            words_with_offsets = [(start, end, ref_doc.text[start:end]) for start, end in ref_doc.words]
+            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(words_with_offsets)]
+            ref_ngrams.append(ngrams)
+    
+        ref_idf = self.compute_idf(ref_ngrams)
+    
+        # Generate target n-grams
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words = [doc.text[start:end].lower() for start, end in doc.words]
-            ngrams_by_doc[doc_id] = self.generate_ngrams_strings(words)
-
-        target_ntf = self.compute_term_frequencies(list(ngrams_by_doc.values()))
-
-        # Compute Weirdness scores
+            words_with_offsets = [(start, end, doc.text[start:end]) for start, end in doc.words]
+            ngrams_with_offsets = self.generate_ngrams_teanga(words_with_offsets)
+            ngrams_by_doc[doc_id] = ngrams_with_offsets
+    
+        corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
+        target_idf = self.compute_idf(corpus_ngrams)
+    
+        # Calculate weirdness scores
         terms_by_doc = []
-        for doc_id, ngrams in ngrams_by_doc.items():
+        for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
+            tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
-                ngram: target_ntf.get(ngram, 0) / max(ref_ntf.get(ngram, 1e-9), 1e-9)
-                for ngram in ngrams
+                ngram: tf[ngram] / max(ref_idf.get(ngram, 1e-9), 1e-9)  # Avoid division by zero
+                for ngram in tf
             }
-
-            # Filter terms by threshold
+    
             terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
                      if self.threshold is None or score >= self.threshold]
             terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-
+    
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-
