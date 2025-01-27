@@ -30,6 +30,27 @@ class WeirdnessTermExtractor:
                     ngram = " ".join(words[i:i + j])
                     ngrams.append(ngram)
         return ngrams
+    
+    def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
+        """
+        Compute Term Frequency (TF) for a list of n-grams.
+    
+        Args:
+            ngrams (List[str]): List of n-grams.
+    
+        Returns:
+            Dict[str, float]: Term frequency for each n-gram.
+        """
+        term_frequencies = Counter(ngrams)  # Count the occurrences of each n-gram
+        total_count = sum(term_frequencies.values())  # Total number of n-grams
+    
+        if total_count == 0:  # Avoid division by zero
+            return {}
+    
+        # Compute normalized term frequency
+        tf_scores = {term: count / total_count for term, count in term_frequencies.items()}
+        return tf_scores
+
 
     def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
         """
