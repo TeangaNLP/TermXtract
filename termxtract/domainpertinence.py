@@ -92,8 +92,6 @@ class DomainPertinenceTermExtractor:
             terms_by_doc.append({"doc_id": doc_id, "terms": terms})
     
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-    
-            return ATEResults(corpus=corpus, terms=terms_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         # Generate reference IDF from reference corpus
