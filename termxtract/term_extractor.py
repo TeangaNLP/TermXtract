@@ -9,6 +9,7 @@ from .rake import RAKETermExtractor
 from .domainpertinence import DomainPertinenceTermExtractor
 from .cvalue import CValueTermExtractor
 from .domaincoherence import DomainCoherenceTermExtractor
+from .weirdness import WeirdnessTermExtractor
 
 
 class TermExtractor:
@@ -20,8 +21,8 @@ class TermExtractor:
         alpha: Optional[float] = None,
         beta: Optional[float] = None,
         threshold: Optional[float] = None,
-        n: Optional[int] = 1,
-        window_size: Optional[int] = 5,
+        n: int = 1,
+        window_size: int = 5,
         stoplist: Optional[List[str]] = None,
         phrase_delimiters: Optional[List[str]] = None,
         reference_corpus: Optional[Union[Corpus, List[str]]] = None,
@@ -30,15 +31,14 @@ class TermExtractor:
         Initialize the TermExtractor with the desired method and parameters.
 
         Args:
-            method (str): The term extraction method (e.g., 'tfidf', 'ridf', 'basic', 'combobasic', 'rake', 'domainpertinence').
+            method (str): The term extraction method (e.g., 'tfidf', 'ridf', 'basic', 'combobasic', 'rake', 'domainpertinence', 'weirdness').
             alpha (Optional[float]): Weight for \( e_t \) (only for certain methods like 'combobasic').
             beta (Optional[float]): Weight for \( e'_t \) (only for certain methods like 'combobasic').
             threshold (Optional[float]): Minimum score threshold for term inclusion.
             n (int): Maximum length of n-grams to consider.
-            window_size (int): Size of the context window (used by DomainCoherence).
             stoplist (Optional[List[str]]): List of stop words (used by RAKE).
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
-            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for DomainPertinence.
+            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for methods like 'domainpertinence' and 'weirdness'.
         """
         if method == "tfidf":
             self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
@@ -60,6 +60,10 @@ class TermExtractor:
             if reference_corpus is None:
                 raise ValueError("DomainPertinence requires a reference corpus.")
             self.extractor = DomainPertinenceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
+        elif method == "weirdness":
+            if reference_corpus is None:
+                raise ValueError("Weirdness requires a reference corpus.")
+            self.extractor = WeirdnessTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
@@ -77,7 +81,7 @@ class TermExtractor:
             ATEResults: An object containing the corpus, terms, and offsets (if applicable).
 
         Raises:
-            ValueError: If the corpus type is not supported.
+            ValueError: If the corpus type is not supported or if a required reference corpus is missing.
         """
         if isinstance(corpus, Corpus):
             return self.extractor.extract_terms_teanga(corpus)
@@ -85,4 +89,3 @@ class TermExtractor:
             return self.extractor.extract_terms_strings(corpus)
         else:
             raise ValueError("The corpus must be a Teanga Corpus or a list of strings.")
-
