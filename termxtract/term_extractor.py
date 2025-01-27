@@ -10,6 +10,7 @@ from .domainpertinence import DomainPertinenceTermExtractor
 from .cvalue import CValueTermExtractor
 from .domaincoherence import DomainCoherenceTermExtractor
 from .weirdness import WeirdnessTermExtractor
+from .relevance import RelevanceTermExtractor
 
 
 class TermExtractor:
@@ -52,6 +53,8 @@ class TermExtractor:
             self.extractor = ComboBasicTermExtractor(alpha=alpha or 0.5, beta=beta or 0.5, threshold=threshold, n=n)
         elif method == "domaincoherence":
             self.extractor = DomainCoherenceTermExtractor(window_size=window_size or 5, threshold=threshold, n=n)
+        elif method == "relevance":
+            self.extractor = RelevanceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
         elif method == "rake":
             if stoplist is None or phrase_delimiters is None:
                 raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
