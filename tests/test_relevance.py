@@ -4,7 +4,7 @@ from termxtract.term_extractor import TermExtractor
 
 
 class TestRelevanceExtraction(unittest.TestCase):
-    """Test cases for Weirdness term extraction method."""
+    """Test cases for Relevance term extraction method."""
 
     def setUp(self):
         """Prepare test data."""
