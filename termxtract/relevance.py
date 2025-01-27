@@ -61,37 +61,50 @@ class RelevanceTermExtractor:
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using Relevance."""
+        # Ensure reference corpus is valid
+        if not self.reference_corpus or not self.reference_corpus.doc_ids:
+            raise ValueError("Reference corpus is required and must contain documents.")
+    
         # Generate reference IDF from reference corpus
-        ref_ngrams = [
-            [ngram for ngram, _ in self.generate_ngrams_teanga(
-                [(start, end, doc.text[start:end]) for start, end in ref_doc.words]
-            )] for ref_doc in (self.reference_corpus.doc_by_id(doc_id) for doc_id in self.reference_corpus.doc_ids)
-        ]
+        ref_ngrams = []
+        for doc_id in self.reference_corpus.doc_ids:
+            ref_doc = self.reference_corpus.doc_by_id(doc_id)
+            if not ref_doc or not hasattr(ref_doc, 'words'):
+                continue
+            words_with_offsets = [(start, end, ref_doc.text[start:end]) for start, end in ref_doc.words]
+            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(words_with_offsets)]
+            ref_ngrams.append(ngrams)
+    
         ref_idf = self.compute_idf(ref_ngrams)
-
+    
+        # Generate n-grams and compute target IDF for the given corpus
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
+            if not doc or not hasattr(doc, 'words'):
+                continue
             words_with_offsets = [(start, end, doc.text[start:end]) for start, end in doc.words]
             ngrams_with_offsets = self.generate_ngrams_teanga(words_with_offsets)
             ngrams_by_doc[doc_id] = ngrams_with_offsets
-
+    
         corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
         target_idf = self.compute_idf(corpus_ngrams)
-
+    
+        # Calculate scores for each term
         terms_by_doc = []
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
             tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
-                ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / ref_idf.get(ngram, 1)))
+                ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / max(ref_idf.get(ngram, 1), 1e-9)))
                 for ngram in tf
             }
-
+    
             terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
                      if self.threshold is None or score >= self.threshold]
             terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-
+    
         return ATEResults(corpus=corpus, terms=terms_by_doc)
+
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """Extract terms from a plain list of strings using Relevance."""
