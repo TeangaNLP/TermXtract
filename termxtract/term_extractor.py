@@ -5,65 +5,83 @@ from .tfidf import TFIDFTermExtractor
 from .ridf import RIDFTermExtractor
 from .basic import BasicTermExtractor
 from .combobasic import ComboBasicTermExtractor
-from .cvalue import CValueTermExtractor
 from .rake import RAKETermExtractor
+from .domainpertinence import DomainPertinenceTermExtractor
+
 
 class TermExtractor:
     """A wrapper class for selecting the term extraction method."""
 
-    def __init__(self, method: str = "tfidf", **kwargs):
+    def __init__(
+        self,
+        method: str = "tfidf",
+        alpha: Optional[float] = None,
+        beta: Optional[float] = None,
+        threshold: Optional[float] = None,
+        n: int = 1,
+        stoplist: Optional[List[str]] = None,
+        phrase_delimiters: Optional[List[str]] = None,
+    ):
         """
-        Initialize the term extractor with the selected method.
+        Initialize the TermExtractor with the desired method and parameters.
 
         Args:
-            method (str): The term extraction method (e.g., 'tfidf', 'ridf', 'basic', 'rake').
-            **kwargs: Additional parameters specific to the chosen method.
-
-        Raises:
-            ValueError: If the specified method is not supported.
+            method (str): The term extraction method (e.g., 'tfidf', 'ridf', 'basic', 'combobasic', 'rake', 'domainpertinence').
+            alpha (Optional[float]): Weight for \( e_t \) (only for certain methods like 'combobasic').
+            beta (Optional[float]): Weight for \( e'_t \) (only for certain methods like 'combobasic').
+            threshold (Optional[float]): Minimum score threshold for term inclusion.
+            n (int): Maximum length of n-grams to consider.
+            stoplist (Optional[List[str]]): List of stop words (used by RAKE).
+            phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
         """
-        self.method = method.lower()
-
-        if self.method == "tfidf":
-            self.extractor = TFIDFTermExtractor(**kwargs)
-        elif self.method == "ridf":
-            self.extractor = RIDFTermExtractor(**kwargs)
-        elif self.method == "basic":
-            self.extractor = BasicTermExtractor(**kwargs)
-        elif self.method == "combobasic":
-            self.extractor = ComboBasicTermExtractor(**kwargs)
-        elif self.method == "cvalue":
-            self.extractor = CValueTermExtractor(**kwargs)
-        elif self.method == "rake":
-            self.extractor = RAKETermExtractor(**kwargs)
+        if method == "tfidf":
+            self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
+        elif method == "ridf":
+            self.extractor = RIDFTermExtractor(threshold=threshold, n=n)
+        elif method == "basic":
+            self.extractor = BasicTermExtractor(alpha=alpha or 0.5, threshold=threshold, n=n)
+        elif method == "combobasic":
+            self.extractor = ComboBasicTermExtractor(alpha=alpha or 0.5, beta=beta or 0.5, threshold=threshold, n=n)
+        elif method == "rake":
+            if stoplist is None or phrase_delimiters is None:
+                raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
+            self.extractor = RAKETermExtractor(stoplist=stoplist, phrase_delimiters=phrase_delimiters, threshold=threshold)
+        elif method == "domainpertinence":
+            self.extractor = DomainPertinenceTermExtractor(threshold=threshold, n=n)
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 
-    def extract(self, corpus: Union[Corpus, List[str]]) -> ATEResults:
+    def extract(
+        self,
+        corpus: Union[Corpus, List[str]],
+        reference_corpus: Optional[Union[Corpus, List[str]]] = None,
+    ) -> ATEResults:
         """
         Extract terms from a given corpus.
 
         Args:
-            corpus (Union[Corpus, List[str]]): Either a Teanga Corpus object or a list of strings.
+            corpus (Union[Corpus, List[str]]): Either a Teanga Corpus object or a list of strings (target corpus).
+            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference/general corpus (only used by methods like 'domainpertinence').
 
         Returns:
             ATEResults: An object containing the corpus, terms, and offsets (if applicable).
 
         Raises:
-            ValueError: If the corpus type is not supported.
+            ValueError: If the corpus type is not supported or if a required reference corpus is missing.
         """
         if isinstance(corpus, Corpus):
-            if hasattr(self.extractor, "extract_terms_teanga"):
-                return self.extractor.extract_terms_teanga(corpus)
-            else:
-                raise ValueError(f"The selected method '{self.method}' does not support Teanga Corpus.")
+            if isinstance(self.extractor, DomainPertinenceTermExtractor):
+                if not isinstance(reference_corpus, Corpus):
+                    raise ValueError("DomainPertinence requires a reference corpus of type 'Corpus'.")
+                return self.extractor.extract_terms_teanga(corpus, reference_corpus)
+            return self.extractor.extract_terms_teanga(corpus)
 
         elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
-            if hasattr(self.extractor, "extract_terms_strings"):
-                return self.extractor.extract_terms_strings(corpus)
-            else:
-                raise ValueError(f"The selected method '{self.method}' does not support string-based corpora.")
+            if isinstance(self.extractor, DomainPertinenceTermExtractor):
+                if not isinstance(reference_corpus, list) or not all(isinstance(doc, str) for doc in reference_corpus):
+                    raise ValueError("DomainPertinence requires a reference corpus of type 'list[str]'.")
+                return self.extractor.extract_terms_strings(corpus, reference_corpus)
+            return self.extractor.extract_terms_strings(corpus)
 
         else:
             raise ValueError("The corpus must be a Teanga Corpus or a list of strings.")
-
