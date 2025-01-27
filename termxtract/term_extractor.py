@@ -11,6 +11,7 @@ from .cvalue import CValueTermExtractor
 from .domaincoherence import DomainCoherenceTermExtractor
 from .weirdness import WeirdnessTermExtractor
 from .relevance import RelevanceTermExtractor
+from .ldaextractor import TopicModelingTermExtractor
 
 
 class TermExtractor:
@@ -23,6 +24,7 @@ class TermExtractor:
         beta: Optional[float] = None,
         threshold: Optional[float] = None,
         n: int = 1,
+        num_topics: Optional[int] = 20,
         window_size: int = 5,
         stoplist: Optional[List[str]] = None,
         phrase_delimiters: Optional[List[str]] = None,
@@ -55,6 +57,8 @@ class TermExtractor:
             self.extractor = DomainCoherenceTermExtractor(window_size=window_size or 5, threshold=threshold, n=n)
         elif method == "relevance":
             self.extractor = RelevanceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
+        elif method == "topicmodeling":
+            self.extractor = TopicModelingTermExtractor(num_topics=num_topics or 20, threshold=threshold, n=n)
         elif method == "rake":
             if stoplist is None or phrase_delimiters is None:
                 raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
