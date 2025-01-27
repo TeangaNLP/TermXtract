@@ -65,4 +65,4 @@ jobs:
         if: success()  # Deploy only if upload step succeeded
         uses: actions/deploy-pages@v1
         with:
-          token: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          token: ${{ secrets.GITHUB_TOKEN }}
