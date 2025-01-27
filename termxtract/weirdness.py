@@ -29,6 +29,31 @@ class WeirdnessTermExtractor:
                     ngram = " ".join(words[i:i + j])
                     ngrams.append(ngram)
         return ngrams
+
+    def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+        """
+        Compute Inverse Document Frequency (IDF) for n-grams.
+    
+        Args:
+            corpus_ngrams (List[List[str]]): List of n-grams for each document in the corpus.
+    
+        Returns:
+            Dict[str, float]: IDF values for each n-gram.
+        """
+        num_docs = len(corpus_ngrams)
+        idf_scores = {}
+    
+        # Get a unique set of all n-grams across the corpus
+        all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
+    
+        for ngram in all_ngrams:
+            # Count the number of documents that contain the n-gram
+            doc_count = sum(1 for doc in corpus_ngrams if ngram in doc)
+            # Compute IDF: log(N / (1 + df))
+            idf_scores[ngram] = math.log(num_docs / (1 + doc_count)) if doc_count > 0 else 0.0
+    
+        return idf_scores
+
     
     
     def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
