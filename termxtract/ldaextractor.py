@@ -1,9 +1,10 @@
 import re
 import math
+import numpy as np
 from collections import Counter
-from typing import List, Dict, Tuple, Optional
-from gensim.models import LdaModel
-from gensim.corpora.dictionary import Dictionary
+from typing import List, Dict, Optional, Tuple
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction.text import CountVectorizer
 from .utils import ATEResults
 
 
@@ -22,10 +23,10 @@ class TopicModelingTermExtractor:
         self.num_topics = num_topics
         self.threshold = threshold
         self.n = n
-        self.topic_model = None
-        self.dictionary = None
+        self.lda_model = None
+        self.vectorizer = None
 
-    def preprocess_teanga(self, corpus) -> List[List[str]]:
+    def preprocess_teanga(self, corpus) -> List[str]:
         """
         Preprocess a Teanga corpus for topic modeling.
 
@@ -33,16 +34,16 @@ class TopicModelingTermExtractor:
             corpus: Teanga Corpus object.
 
         Returns:
-            List[List[str]]: Tokenized documents as lists of words.
+            List[str]: Tokenized documents as raw text.
         """
-        tokenized_corpus = []
+        processed_corpus = []
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             words = [doc.text[start:end].lower() for start, end in doc.words]
-            tokenized_corpus.append(words)
-        return tokenized_corpus
+            processed_corpus.append(" ".join(words))
+        return processed_corpus
 
-    def preprocess_strings(self, corpus: List[str]) -> List[List[str]]:
+    def preprocess_strings(self, corpus: List[str]) -> List[str]:
         """
         Preprocess a list of strings for topic modeling.
 
@@ -50,22 +51,21 @@ class TopicModelingTermExtractor:
             corpus (List[str]): List of documents.
 
         Returns:
-            List[List[str]]: Tokenized and preprocessed documents.
+            List[str]: Preprocessed documents.
         """
-        return [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
+        return [" ".join(re.findall(r'\b\w+\b', doc.lower())) for doc in corpus]
 
-    def train_topic_model(self, corpus: List[List[str]]) -> None:
+    def train_topic_model(self, corpus: List[str]) -> None:
         """
-        Train a topic model on the given tokenized corpus.
+        Train an LDA topic model on the given corpus.
 
         Args:
-            corpus (List[List[str]]): Tokenized documents as lists of words.
+            corpus (List[str]): List of preprocessed documents.
         """
-        self.dictionary = Dictionary(corpus)
-        bow_corpus = [self.dictionary.doc2bow(doc) for doc in corpus]
-        self.topic_model = LdaModel(
-            corpus=bow_corpus, id2word=self.dictionary, num_topics=self.num_topics, passes=10
-        )
+        self.vectorizer = CountVectorizer(ngram_range=(1, self.n))
+        doc_term_matrix = self.vectorizer.fit_transform(corpus)
+        self.lda_model = LatentDirichletAllocation(n_components=self.num_topics, max_iter=10, random_state=42)
+        self.lda_model.fit(doc_term_matrix)
 
     def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[str]:
         """
@@ -114,17 +114,29 @@ class TopicModelingTermExtractor:
         Returns:
             Dict[str, float]: NTM scores for each n-gram.
         """
-        topic_word_distributions = self.topic_model.get_topics()
+        if not self.lda_model or not self.vectorizer:
+            raise ValueError("LDA model is not trained yet.")
+
+        term_frequencies = Counter(ngrams)
+        topic_word_distributions = self.lda_model.components_ / self.lda_model.components_.sum(axis=1)[:, np.newaxis]
         scores = {}
+
         for ngram in ngrams:
             words = ngram.split()
-            tf = ngrams.count(ngram)
-            max_probs = [
-                max(topic_word_distributions[:, self.dictionary.token2id[word]])
-                for word in words if word in self.dictionary.token2id
-            ]
+            tf = term_frequencies[ngram]
+            max_probs = []
+
+            for word in words:
+                try:
+                    idx = self.vectorizer.vocabulary_[word]
+                    max_prob = max(topic_word_distributions[:, idx])
+                    max_probs.append(max_prob)
+                except KeyError:
+                    pass  # Ignore words that are not in the vocabulary
+
             if max_probs:
-                scores[ngram] = math.log(tf) * sum(max_probs)
+                scores[ngram] = math.log(tf + 1) * sum(max_probs)
+
         return scores
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
@@ -138,7 +150,7 @@ class TopicModelingTermExtractor:
             ATEResults: Results with terms and scores.
         """
         tokenized_corpus = self.preprocess_teanga(corpus)
-        if not self.topic_model:
+        if not self.lda_model:
             self.train_topic_model(tokenized_corpus)
 
         ngrams_by_doc = {}
@@ -170,12 +182,12 @@ class TopicModelingTermExtractor:
             ATEResults: Results with terms and scores.
         """
         tokenized_corpus = self.preprocess_strings(corpus)
-        if not self.topic_model:
+        if not self.lda_model:
             self.train_topic_model(tokenized_corpus)
 
         terms_by_doc = []
         for idx, doc in enumerate(tokenized_corpus):
-            ngrams = self.generate_ngrams_strings(doc)
+            ngrams = self.generate_ngrams_strings(doc.split())
             scores = self.compute_ntm_scores(ngrams)
             terms = [
                 {"term": ngram, "score": score}
@@ -185,4 +197,3 @@ class TopicModelingTermExtractor:
             terms_by_doc.append({"doc_id": f"doc_{idx}", "terms": terms})
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-
