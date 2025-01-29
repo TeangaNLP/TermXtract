@@ -12,6 +12,7 @@ from .domaincoherence import DomainCoherenceTermExtractor
 from .weirdness import WeirdnessTermExtractor
 from .relevance import RelevanceTermExtractor
 from .ldaextractor import TopicModelingTermExtractor
+from .nmfextractor import NMFTermExtractor
 
 
 class TermExtractor:
@@ -29,6 +30,8 @@ class TermExtractor:
         stoplist: Optional[List[str]] = None,
         phrase_delimiters: Optional[List[str]] = None,
         reference_corpus: Optional[Union[Corpus, List[str]]] = None,
+        n_topics: int = 10,
+        max_features: Optional[int] = None,
     ):
         """
         Initialize the TermExtractor with the desired method and parameters.
@@ -59,6 +62,8 @@ class TermExtractor:
             self.extractor = RelevanceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
         elif method == "topicmodeling":
             self.extractor = TopicModelingTermExtractor(num_topics=num_topics or 20, threshold=threshold, n=n)
+        elif method == "nmf":
+            self.extractor = NMFTermExtractor(threshold=threshold, n_topics=n_topics, max_features=max_features, n=n)
         elif method == "rake":
             if stoplist is None or phrase_delimiters is None:
                 raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
