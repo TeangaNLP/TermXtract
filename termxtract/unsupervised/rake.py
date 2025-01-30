@@ -1,7 +1,7 @@
 import re
 from collections import Counter, defaultdict
 from typing import List, Dict, Optional, Tuple
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class RAKETermExtractor:
