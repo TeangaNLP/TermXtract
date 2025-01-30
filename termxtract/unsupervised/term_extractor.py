@@ -1,6 +1,6 @@
 from typing import Union, List, Optional
 from teanga import Corpus
-from .utils import ATEResults
+from ..utils import ATEResults
 from .tfidf import TFIDFTermExtractor
 from .ridf import RIDFTermExtractor
 from .basic import BasicTermExtractor
