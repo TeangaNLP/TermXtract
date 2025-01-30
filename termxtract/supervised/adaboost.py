@@ -12,17 +12,35 @@ from ..utils import ATEResults
 class AdaBoostTermExtractor:
     """AdaBoost-based term extraction using linguistic and statistical features."""
 
-    def __init__(self, threshold: Optional[float] = None, n: int = 1):
+    def __init__(
+        self,
+        threshold: Optional[float] = None,
+        n: int = 1,
+        max_depth: int = 1,
+        n_estimators: int = 50,
+        estimator: Optional[str] = "decision_tree"
+    ):
         """
         Initialize the AdaBoost extractor.
 
         Args:
             threshold (Optional[float]): Minimum confidence score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            max_depth (int): Maximum depth of the decision tree base estimator.
+            n_estimators (int): Number of boosting iterations.
+            estimator (str): Type of base estimator ("decision_tree" or "logistic_regression").
         """
         self.threshold = threshold
         self.n = n
-        self.classifier = AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=1), n_estimators=50)
+        self.max_depth = max_depth
+        self.n_estimators = n_estimators
+
+        if estimator == "decision_tree":
+            base_estimator = DecisionTreeClassifier(max_depth=max_depth)
+        else:
+            raise ValueError("Currently, only 'decision_tree' is supported as a base estimator.")
+
+        self.classifier = AdaBoostClassifier(estimator=base_estimator, n_estimators=n_estimators)
         self.is_trained = False  # Track if the model has been trained
 
     def generate_ngrams(self, words: List[str]) -> List[str]:
@@ -128,4 +146,3 @@ class AdaBoostTermExtractor:
         terms_by_doc = [{"doc_id": f"doc_{i}", "terms": [{"term": term, "score": score} for term, score in term_scores.items() if self.threshold is None or score >= self.threshold]} for i in range(len(corpus))]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-
