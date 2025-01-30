@@ -7,6 +7,7 @@ from nltk.corpus import wordnet as wn
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 from ..utils import ATEResults
+nltk.download('wordnet')
 
 
 class AdaBoostTermExtractor:
