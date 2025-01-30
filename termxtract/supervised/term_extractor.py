@@ -1,7 +1,7 @@
 from typing import Union, List, Dict, Optional
 from teanga import Corpus
 from .adaboost import AdaBoostTermExtractor
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class SupervisedTermExtractor:
