@@ -5,7 +5,7 @@ from collections import Counter
 from typing import List, Dict, Optional, Tuple
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import NMF
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class NMFTermExtractor:
