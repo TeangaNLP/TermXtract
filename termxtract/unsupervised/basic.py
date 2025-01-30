@@ -2,7 +2,7 @@ import re
 import math
 from collections import Counter
 from typing import List, Dict, Optional, Tuple
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class BasicTermExtractor:
