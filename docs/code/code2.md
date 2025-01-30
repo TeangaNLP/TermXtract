@@ -1,3 +1,3 @@
-# TermExtractor 
-::: termxtract.term_extractor.TermExtractor
+# TermExtractor (Unsupervised)
+::: termxtract.unsupervised.term_extractor.TermExtractor
 
