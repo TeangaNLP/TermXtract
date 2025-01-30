@@ -1,3 +1,3 @@
 # TFIDFTermExtractor 
-::: termxtract.tfidf.TFIDFTermExtractor
+::: termxtract.unsupervised.tfidf.TFIDFTermExtractor
 
