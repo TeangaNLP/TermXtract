@@ -6,7 +6,7 @@ from typing import List, Dict, Optional, Tuple
 from nltk.corpus import wordnet as wn
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class AdaBoostTermExtractor:
