@@ -1,6 +1,6 @@
 import unittest
 from teanga import Corpus
-from termxtract.rake import RAKETermExtractor
+from termxtract.unsupervised.rake import RAKETermExtractor
 
 
 class TestRAKE(unittest.TestCase):

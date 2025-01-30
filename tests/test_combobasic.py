@@ -1,6 +1,6 @@
 import unittest
 from teanga import Corpus
-from termxtract.term_extractor import TermExtractor
+from termxtract.unsupervised.term_extractor import TermExtractor
 
 
 class TestComboBasicExtraction(unittest.TestCase):

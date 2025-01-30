@@ -1,6 +1,6 @@
 import unittest
 from teanga import Corpus
-from termxtract.domaincoherence import DomainCoherenceTermExtractor
+from termxtract.unsupervised.domaincoherence import DomainCoherenceTermExtractor
 from termxtract.utils import ATEResults
 
 
