@@ -3,6 +3,7 @@ import math
 import numpy as np
 from collections import Counter
 from typing import List, Dict, Optional, Tuple
+import nltk
 from nltk.corpus import wordnet as wn
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
