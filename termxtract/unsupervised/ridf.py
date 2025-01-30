@@ -2,7 +2,7 @@ import re
 from collections import Counter
 import math
 from typing import List, Dict, Optional, Tuple
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class RIDFTermExtractor:
