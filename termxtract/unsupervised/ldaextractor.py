@@ -5,7 +5,7 @@ from collections import Counter
 from typing import List, Dict, Optional, Tuple
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
-from .utils import ATEResults
+from ..utils import ATEResults
 
 
 class TopicModelingTermExtractor:
