@@ -1,4 +1,5 @@
 name: CI/CD Pipeline for Project TermXtract
+
 on:
   push:
     branches:
@@ -20,9 +21,10 @@ concurrency:
 jobs:
   build-test-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+    environment:  # Specify environment for deployment
+      name: github-pages  # Use a unique environment name; can be "github-pages" or another custom name
+      url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"  # Define deployment URL directly in environment
+
     steps:
       # Step 1: Checkout the repository
       - name: Checkout code
@@ -32,13 +34,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.10
+          python-version: 3.9
 
-      # Step 3: Install dependencies using Poetry
+      # Step 3: Install dependencies using Poetry, including dev dependencies
       - name: Install dependencies
         run: |
           pip install poetry
-          poetry install --with dev
+          poetry install --with dev  # Ensure dev dependencies, including mkdocstrings and handlers, are installed
 
       # Step 4: Run project tests using unittest
       - name: Run Tests
@@ -47,18 +49,20 @@ jobs:
 
       # Step 5: Build MkDocs Site
       - name: Build MkDocs Site
-        if: success()
+        if: success()  # Build only if all previous steps pass
         run: |
-          poetry run mkdocs build
+          poetry run mkdocs build  # Builds the site in 'site/' directory
 
       # Step 6: Upload MkDocs Site for GitHub Pages Deployment
-      - name: Upload to GitHub Pages
-        if: success()
+      - name: Upload to GitHub Pages Artifact
+        if: success()  # Upload only if build step succeeded
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: site  # Directory to upload for deployment
 
       # Step 7: Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
-        if: success()
+        if: success()  # Deploy only if upload step succeeded
         uses: actions/deploy-pages@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
