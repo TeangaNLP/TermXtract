@@ -3,7 +3,7 @@ from teanga import Corpus
 from ..utils import ATEResults
 from .adaboost import AdaBoostTermExtractor
 from .roger import RogerTermExtractor
-from .token_classification import TokenClassificationTermExtractor
+from .tokenextractor import TokenClassificationTermExtractor
 
 
 class SupervisedTermExtractor:
