@@ -14,6 +14,7 @@ torch = ">=1.13.0"
 transformers = "^4.29.0"
 sacremoses = ">=0.0.53"
 numpy = "^1.24.0"
+accelerate ">=1.5.2" 
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"
