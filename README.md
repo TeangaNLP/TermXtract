@@ -155,7 +155,7 @@ poetry run mypy termxtract                     # type check
 poetry run mkdocs serve                        # preview the docs locally
 ```
 
-CI runs all of these on every pull request, with the tests on Python 3.10–3.12 and on Linux, macOS and Windows. The codebase was reformatted in one commit, which `git blame` can skip with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+CI runs all of these on every pull request, with the tests on Python 3.10–3.12, on Linux, macOS and Windows, and against the oldest dependency versions `pyproject.toml` allows. The codebase was reformatted in one commit, which `git blame` can skip with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 ## License
 
