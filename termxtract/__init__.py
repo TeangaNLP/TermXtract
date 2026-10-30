@@ -6,12 +6,18 @@ they are actually used.
 """
 
 from importlib import import_module
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .supervised.term_extractor import SupervisedTermExtractor
     from .unsupervised.term_extractor import TermExtractor
     from .utils import ATEResults
+
+try:
+    __version__ = version("termxtract")
+except PackageNotFoundError:  # Running from a source tree that isn't installed
+    __version__ = "0+unknown"
 
 _LAZY_IMPORTS = {
     "TermExtractor": ".unsupervised.term_extractor",

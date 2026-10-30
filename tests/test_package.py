@@ -21,6 +21,14 @@ class TestPackage(unittest.TestCase):
             ["ATEResults", "SupervisedTermExtractor", "TermExtractor"],
         )
 
+    def test_version(self):
+        """Test that __version__ matches the installed package metadata."""
+        from importlib.metadata import version
+
+        import termxtract
+
+        self.assertEqual(termxtract.__version__, version("termxtract"))
+
     def test_unknown_attribute(self):
         """Test that unknown attributes raise AttributeError."""
         import termxtract

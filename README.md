@@ -8,7 +8,8 @@
 
 Every method takes either a plain list of strings or a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus`, and returns the same `ATEResults` object.
 
-📖 **Documentation:** <https://teanga.io/TermXtract/>
+📖 **Documentation:** <https://teanga.io/TermXtract/>  
+📝 **Changelog:** [CHANGELOG.md](CHANGELOG.md). TermXtract follows [Semantic Versioning](https://semver.org/); before 1.0, minor releases may contain breaking changes.
 
 ## Installation
 
