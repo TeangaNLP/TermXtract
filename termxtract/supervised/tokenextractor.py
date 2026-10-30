@@ -293,7 +293,7 @@ class TokenClassificationTermExtractor:
             logging_dir='./logs',
             logging_steps=100,
             save_steps=500,
-            evaluation_strategy="no"
+            eval_strategy="no"
         )
         
         # Initialize trainer

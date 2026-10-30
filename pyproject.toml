@@ -11,7 +11,7 @@ teanga = { git = "https://github.com/teangaNLP/teanga2" }
 scikit-learn = "^1.3.0"
 nltk = "^3.8.1"
 torch = ">=1.13.0"
-transformers = "^4.29.0"
+transformers = "^4.41.0"
 sacremoses = ">=0.0.53"
 numpy = "^1.24.0"
 accelerate = ">=1.5.2" 
@@ -19,7 +19,7 @@ accelerate = ">=1.5.2"
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.5.39"
-mkdocstrings = {extras = ["python"], version = "^0.26.1"}
+mkdocstrings = {extras = ["python"], version = "^1.0"}
 
 [build-system]
 requires = ["poetry-core"]

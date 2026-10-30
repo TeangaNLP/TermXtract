@@ -25,7 +25,7 @@ class TestRogerExtraction(unittest.TestCase):
             "ranking functions": 0,
         }
 
-        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, threshold=0.1, n=2)
+        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, n=2)
         results = extractor.extract(corpus, labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")
@@ -50,7 +50,7 @@ class TestRogerExtraction(unittest.TestCase):
             "ranking functions": 0,
         }
 
-        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, threshold=0.1, n=2)
+        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, n=2)
         results = extractor.extract(text_corpus, labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")

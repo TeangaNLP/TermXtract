@@ -19,11 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-test-and-deploy:
+  build-and-test:
     runs-on: ubuntu-latest
-    environment:  # Specify environment for deployment
-      name: github-pages  # Use a unique environment name; can be "github-pages" or another custom name
-      url: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"  # Define deployment URL directly in environment
 
     steps:
       # Step 1: Checkout the repository
@@ -34,7 +31,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: "3.11"
 
       # Step 3: Install dependencies using Poetry, including dev dependencies
       - name: Install dependencies
@@ -55,14 +52,21 @@ jobs:
 
       # Step 6: Upload MkDocs Site for GitHub Pages Deployment
       - name: Upload to GitHub Pages Artifact
-        if: success()  # Upload only if build step succeeded
+        if: success() && github.ref == 'refs/heads/main'  # Upload only on main
         uses: actions/upload-pages-artifact@v3
         with:
           path: site  # Directory to upload for deployment
 
+  deploy:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'  # Never deploy from pull requests
+    runs-on: ubuntu-latest
+    environment:  # Specify environment for deployment
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       # Step 7: Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
-        if: success()  # Deploy only if upload step succeeded
-        uses: actions/deploy-pages@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        id: deployment
+        uses: actions/deploy-pages@v4

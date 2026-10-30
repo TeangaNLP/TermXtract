@@ -13,6 +13,7 @@ class SupervisedTermExtractor:
         self,
         method: str = "adaboost",
         model_name: str = "xlm-roberta-base",
+        threshold: Optional[float] = None,
         n: int = 6,
         # Roger parameters
         population_size: int = 50,
@@ -35,6 +36,7 @@ class SupervisedTermExtractor:
         Args:
             method (str): The term extraction method ('adaboost', 'roger', 'token-classification').
             model_name (str): Hugging Face model name for token classification.
+            threshold (Optional[float]): Minimum score threshold for term inclusion (only for 'adaboost').
             n (int): Maximum length of n-grams to consider.
             
             # Roger parameters
@@ -56,6 +58,7 @@ class SupervisedTermExtractor:
         """
         if method == "adaboost":
             self.extractor = AdaBoostTermExtractor(
+                threshold=threshold,
                 n=n,
                 max_depth=max_depth,
                 n_estimators=n_estimators,
