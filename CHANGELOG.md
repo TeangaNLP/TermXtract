@@ -52,6 +52,9 @@ that was previously only available from GitHub.
 - Weirdness, Domain Pertinence and Relevance raise a clear `TypeError` when the reference
   corpus and the input corpus are of different types, instead of an `AttributeError`
   (#25), and Relevance raises a `ValueError` when no reference corpus is given.
+- Token classification only tags the terms labelled `1` as terms, and matches labels
+  case-insensitively. Terms labelled `0` used to be tagged as terms too, and labels with
+  capital letters were never matched.
 - RIDF no longer crashes when no threshold is given.
 - The token-classification extractor works with current transformers releases
   (`eval_strategy`).

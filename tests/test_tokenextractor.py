@@ -221,3 +221,25 @@ class TestTokenClassificationExtraction(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAS_TRANSFORMERS, "requires the optional 'transformers' extra")
+class TestTokenClassificationTrainingData(unittest.TestCase):
+    """Test how labels become token tags, without loading a model."""
+
+    def test_only_positive_labels_are_tagged(self):
+        from sacremoses import MosesDetokenizer
+
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.n = 2
+        extractor.moses_detokenizer = MosesDetokenizer(lang="en")
+        tokens = ["Machine", "learning", "is", "widely", "used", "in", "AI", "research"]
+        labels = {"machine learning": 1, "AI research": 1, "widely used": 0}
+
+        [(_, tags)] = extractor.create_training_data([(tokens, "")], labels)
+
+        self.assertEqual(tags, ["B-T", "T", "n", "n", "n", "n", "B-T", "T"])

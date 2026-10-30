@@ -130,6 +130,8 @@ class TokenClassificationTermExtractor:
             List[Tuple[List[str], List[str]]]: List of (tokens, tags) tuples.
         """
         training_data = []
+        # Only terms labelled 1 are tagged; labels are matched case-insensitively
+        positive_terms = {term.lower() for term, label in terms.items() if label == 1}
 
         for sentence_tokens, original_sentence in sentence_list:
             if not sentence_tokens:
@@ -146,7 +148,7 @@ class TokenClassificationTermExtractor:
                     n_gram_text = self.moses_detokenizer.detokenize(n_gram_tokens)
 
                     # Check if n-gram is in the term list
-                    if n_gram_text.lower() in terms:
+                    if n_gram_text.lower() in positive_terms:
                         # Mark the beginning token as B-T
                         tags[start_idx] = "B-T"
 
