@@ -35,6 +35,11 @@ that was previously only available from GitHub.
   `results.offsets`.
 - *Breaking:* torch, transformers, accelerate and sacremoses are no longer installed by
   default; install the `transformers` extra for the token-classification method.
+- *Breaking:* Weirdness, Domain Pertinence and Relevance now use their published
+  formulas, so their scores change (#29). Domain Pertinence used to give a score of 0 to
+  every term missing from the reference corpus, ranking domain terms last; Relevance
+  scores are now between 0 and 1, and Weirdness gives finite scores to terms missing from
+  the reference corpus. Both input types now use the same formula.
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
@@ -44,6 +49,9 @@ that was previously only available from GitHub.
 - Extractors no longer modify the input Teanga corpus, so several extractors can be run
   on the same `Corpus` object.
 - RAKE no longer crashes on Teanga input.
+- Weirdness, Domain Pertinence and Relevance raise a clear `TypeError` when the reference
+  corpus and the input corpus are of different types, instead of an `AttributeError`
+  (#25), and Relevance raises a `ValueError` when no reference corpus is given.
 - RIDF no longer crashes when no threshold is given.
 - The token-classification extractor works with current transformers releases
   (`eval_strategy`).

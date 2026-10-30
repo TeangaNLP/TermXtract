@@ -45,7 +45,7 @@ class TermExtractor:
             n (int): Maximum length of n-grams to consider.
             stoplist (Optional[List[str]]): List of stop words (used by RAKE).
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
-            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for methods like 'domainpertinence' and 'weirdness'.
+            reference_corpus (Optional[Union[Corpus, List[str]]]): General-language reference corpus, required by 'domainpertinence', 'weirdness' and 'relevance'. It must have the same type as the corpus passed to `extract`.
         """
         self.extractor: BaseTermExtractor
         if method == "tfidf":
@@ -87,14 +87,10 @@ class TermExtractor:
                 threshold=threshold,
             )
         elif method == "domainpertinence":
-            if reference_corpus is None:
-                raise ValueError("DomainPertinence requires a reference corpus.")
             self.extractor = DomainPertinenceTermExtractor(
                 reference_corpus=reference_corpus, threshold=threshold, n=n
             )
         elif method == "weirdness":
-            if reference_corpus is None:
-                raise ValueError("Weirdness requires a reference corpus.")
             self.extractor = WeirdnessTermExtractor(
                 reference_corpus=reference_corpus, threshold=threshold, n=n
             )
