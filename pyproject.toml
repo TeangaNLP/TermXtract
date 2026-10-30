@@ -8,7 +8,7 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-teanga = { git = "https://github.com/teangaNLP/teanga2" }
+teanga = "^0.1.0"
 scikit-learn = "^1.3.0"
 nltk = "^3.8.1"
 torch = ">=1.13.0"

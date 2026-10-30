@@ -6,7 +6,7 @@
 
 **TermXtract** is a Python library for **automatic term extraction (ATE)**: finding the domain-specific terms in a collection of documents. It offers a range of classic **unsupervised** scoring methods (TF-IDF, C-Value, Weirdness, RAKE, topic models, …) and **supervised** methods that learn from labelled examples (AdaBoost, Roger, and transformer-based token classification).
 
-Every method takes either a plain list of strings or a [Teanga](https://github.com/TeangaNLP/teanga2) `Corpus`, and returns the same `ATEResults` object.
+Every method takes either a plain list of strings or a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus`, and returns the same `ATEResults` object.
 
 📖 **Documentation:** <https://teanga.io/TermXtract/>
 
@@ -18,7 +18,7 @@ TermXtract needs **Python 3.10 or later**. It is not yet on PyPI, so install it 
 pip install git+https://github.com/TeangaNLP/TermXtract.git
 ```
 
-This also installs [Teanga](https://github.com/TeangaNLP/teanga2) from GitHub, as well as PyTorch and Hugging Face Transformers (used by the token-classification extractor), so the first install can take a while.
+This also installs [Teanga](https://pypi.org/project/teanga/), PyTorch and Hugging Face Transformers (used by the token-classification extractor), so the first install can take a while.
 
 ## Quickstart
 
