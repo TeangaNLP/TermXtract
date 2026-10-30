@@ -1,8 +1,9 @@
-import re
 import math
+import re
 from collections import Counter
-from typing import List, Dict, Optional
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -10,8 +11,8 @@ from .base_extractor import BaseTermExtractor
 class BasicTermExtractor(BaseTermExtractor):
     """Basic-based term extraction with n-gram support."""
 
-    def __init__(self, alpha: float = 0.5, threshold: Optional[float] = None, n: int = 1):
-        """
+    def __init__(self, alpha: float = 0.5, threshold: float | None = None, n: int = 1):
+        r"""
         Initialize the Basic extractor.
 
         Args:
@@ -22,7 +23,7 @@ class BasicTermExtractor(BaseTermExtractor):
         self.alpha = alpha
         super().__init__(threshold=threshold, n=n)
 
-    def compute_basic(self, ngrams: List[str]) -> Dict[str, float]:
+    def compute_basic(self, ngrams: list[str]) -> dict[str, float]:
         """
         Compute Basic scores for n-grams.
 
@@ -46,7 +47,7 @@ class BasicTermExtractor(BaseTermExtractor):
 
         # Count containment relationships
         for term, data in term_data.items():
-            for other_term in term_data.keys():
+            for other_term in term_data:
                 if term in other_term and term != other_term:
                     data["contained_in"] += 1
 
@@ -84,7 +85,7 @@ class BasicTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a plain list of strings using Basic.
 

@@ -1,8 +1,9 @@
-import re
 import math
+import re
 from collections import Counter
-from typing import List, Dict, Optional
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -10,8 +11,8 @@ from .base_extractor import BaseTermExtractor
 class ComboBasicTermExtractor(BaseTermExtractor):
     """ComboBasic-based term extraction with n-gram support."""
 
-    def __init__(self, alpha: float = 0.5, beta: float = 0.5, threshold: Optional[float] = None, n: int = 1):
-        """
+    def __init__(self, alpha: float = 0.5, beta: float = 0.5, threshold: float | None = None, n: int = 1):
+        r"""
         Initialize the ComboBasic extractor.
 
         Args:
@@ -24,7 +25,7 @@ class ComboBasicTermExtractor(BaseTermExtractor):
         self.beta = beta
         super().__init__(threshold=threshold, n=n)
 
-    def compute_combobasic(self, ngrams: List[str]) -> Dict[str, float]:
+    def compute_combobasic(self, ngrams: list[str]) -> dict[str, float]:
         """
         Compute ComboBasic scores for n-grams.
 
@@ -49,7 +50,7 @@ class ComboBasicTermExtractor(BaseTermExtractor):
 
         # Count containment relationships
         for term, data in term_data.items():
-            for other_term in term_data.keys():
+            for other_term in term_data:
                 if term in other_term and term != other_term:
                     data["contained_in"] += 1
                 elif other_term in term and term != other_term:
@@ -90,7 +91,7 @@ class ComboBasicTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a plain list of strings using ComboBasic.
 

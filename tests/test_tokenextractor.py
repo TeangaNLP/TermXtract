@@ -1,6 +1,8 @@
 import importlib.util
 import unittest
+
 from teanga import Corpus
+
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
 
 HAS_TRANSFORMERS = all(
@@ -111,7 +113,7 @@ class TestTokenClassificationExtraction(unittest.TestCase):
         doc.words = [(0, 7), (8, 16), (17, 19), (20, 25), (26, 30), (31, 33), (34, 42)]
         
         # Train the model with doc1
-        train_results = token_extractor.extract_terms_teanga(doc1_corpus, self.labels)
+        token_extractor.extract_terms_teanga(doc1_corpus, self.labels)
         self.assertTrue(token_extractor.is_trained, "Model should be trained after training step")
         
         # Test extraction on doc2 (already trained model)
@@ -145,7 +147,7 @@ class TestTokenClassificationExtraction(unittest.TestCase):
         train_corpus = ["Machine learning is widely used in AI research."]
         
         # Train the model 
-        train_results = token_extractor.extract_terms_strings(train_corpus, self.labels)
+        token_extractor.extract_terms_strings(train_corpus, self.labels)
         self.assertTrue(token_extractor.is_trained, "Model should be trained after training step")
         
         # Test extraction on second document (already trained model)

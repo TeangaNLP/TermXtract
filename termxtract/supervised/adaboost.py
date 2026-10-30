@@ -1,12 +1,11 @@
-import re
 import math
-import numpy as np
-from collections import Counter
-from typing import List, Dict, Optional, Tuple
+import re
+
 import wn
-from wn.morphy import Morphy
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
+from wn.morphy import Morphy
+
 from ..utils import ATEResults, rank_terms
 
 DEFAULT_WORDNET_LEXICON = "oewn:2025+"
@@ -41,11 +40,11 @@ class AdaBoostTermExtractor:
 
     def __init__(
         self,
-        threshold: Optional[float] = None,
+        threshold: float | None = None,
         n: int = 1,
         max_depth: int = 1,
         n_estimators: int = 50,
-        estimator: Optional[str] = "decision_tree",
+        estimator: str | None = "decision_tree",
         wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON
     ):
         """
@@ -75,7 +74,7 @@ class AdaBoostTermExtractor:
         self.classifier = AdaBoostClassifier(estimator=base_estimator, n_estimators=n_estimators)
         self.is_trained = False  # Track if the model has been trained
 
-    def generate_ngrams(self, words: List[str]) -> List[str]:
+    def generate_ngrams(self, words: list[str]) -> list[str]:
         """Generate n-grams from a list of words."""
         ngrams = []
         for i in range(len(words)):
@@ -85,7 +84,7 @@ class AdaBoostTermExtractor:
                     ngrams.append(ngram)
         return ngrams
 
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[str]:
+    def generate_ngrams_teanga(self, words_with_offsets: list[tuple[int, int, str]]) -> list[str]:
         """Generate n-grams for a Teanga corpus."""
         ngrams = []
         for i in range(len(words_with_offsets)):
@@ -112,7 +111,7 @@ class AdaBoostTermExtractor:
         greek_latin_morphemes = {"bio", "neuro", "cardio", "psycho", "pharm", "ology", "itis", "oma", "osis"}
         return int(any(morpheme in term.lower() for morpheme in greek_latin_morphemes))
 
-    def compute_collocation_score(self, term: str, corpus_ngrams: List[str]) -> float:
+    def compute_collocation_score(self, term: str, corpus_ngrams: list[str]) -> float:
         """Compute collocation score using MI3."""
         term_count = corpus_ngrams.count(term)
         if term_count == 0:
@@ -121,7 +120,7 @@ class AdaBoostTermExtractor:
         prob_term = term_count / total_terms
         return math.pow(prob_term, 3) / (prob_term + 1e-9)
 
-    def extract_features(self, corpus: List[str], labels: Dict[str, int]) -> Tuple[List[List[float]], List[int], List[str]]:
+    def extract_features(self, corpus: list[str], labels: dict[str, int]) -> tuple[list[list[float]], list[int], list[str]]:
         """Extract features and labels for training/testing."""
         tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
         corpus_ngrams = [self.generate_ngrams(doc) for doc in tokenized_corpus]
@@ -142,13 +141,13 @@ class AdaBoostTermExtractor:
 
         return feature_matrix, y_labels, terms
 
-    def train_model(self, corpus: List[str], labels: Dict[str, int]):
+    def train_model(self, corpus: list[str], labels: dict[str, int]):
         """Train AdaBoost classifier using labeled data."""
         feature_matrix, y_labels, _ = self.extract_features(corpus, labels)
         self.classifier.fit(feature_matrix, y_labels)
         self.is_trained = True  # Mark model as trained
 
-    def predict_terms_strings(self, corpus: List[str]) -> Dict[str, float]:
+    def predict_terms_strings(self, corpus: list[str]) -> dict[str, float]:
         """Predict term scores from a **list of strings**."""
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
@@ -158,7 +157,7 @@ class AdaBoostTermExtractor:
 
         return {term: prob for term, prob in zip(terms, probabilities)}
 
-    def predict_terms_teanga(self, corpus) -> Dict[str, float]:
+    def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Predict term scores from a **Teanga corpus**."""
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
@@ -167,7 +166,7 @@ class AdaBoostTermExtractor:
 
         return self.predict_terms_strings(list_corpus)
 
-    def extract_terms_teanga(self, corpus, labels: Dict[str, int]) -> ATEResults:
+    def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a **Teanga corpus** using trained AdaBoost."""
         self.train_model([" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]], labels)
 
@@ -177,7 +176,7 @@ class AdaBoostTermExtractor:
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str], labels: Dict[str, int]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str], labels: dict[str, int]) -> ATEResults:
         """Extract terms from a **list of strings** using trained AdaBoost."""
         self.train_model(corpus, labels)
         term_scores = self.predict_terms_strings(corpus)

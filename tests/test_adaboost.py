@@ -1,6 +1,8 @@
 import unittest
 from unittest import mock
+
 from teanga import Corpus
+
 from termxtract.supervised import adaboost
 from termxtract.supervised.adaboost import AdaBoostTermExtractor, load_wordnet
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
@@ -93,10 +95,12 @@ class TestWordNetLoading(unittest.TestCase):
 
     def test_download_failure_raises_clear_error(self):
         """Test that a failed download (e.g. offline) explains how to install the lexicon."""
-        with mock.patch.object(adaboost.wn, "lexicons", return_value=[]), \
-                mock.patch.object(adaboost.wn, "download", side_effect=OSError("network unreachable")):
-            with self.assertRaises(RuntimeError) as ctx:
-                load_wordnet("oewn:2025+")
+        with (
+            mock.patch.object(adaboost.wn, "lexicons", return_value=[]),
+            mock.patch.object(adaboost.wn, "download", side_effect=OSError("network unreachable")),
+            self.assertRaises(RuntimeError) as ctx,
+        ):
+            load_wordnet("oewn:2025+")
         self.assertIn("python -m wn download oewn:2025+", str(ctx.exception))
         self.assertIsInstance(ctx.exception.__cause__, OSError)
 

@@ -1,7 +1,8 @@
 import re
 from collections import Counter, defaultdict
-from typing import List, Dict, Optional
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -9,7 +10,7 @@ from .base_extractor import BaseTermExtractor
 class RAKETermExtractor(BaseTermExtractor):
     """RAKE-based term extraction with support for n-grams and keyword linking."""
 
-    def __init__(self, stoplist: List[str], phrase_delimiters: List[str], threshold: Optional[float] = None):
+    def __init__(self, stoplist: list[str], phrase_delimiters: list[str], threshold: float | None = None):
         """
         Initialize the RAKE extractor.
 
@@ -22,7 +23,7 @@ class RAKETermExtractor(BaseTermExtractor):
         self.stoplist = set(stoplist)
         self.phrase_delimiters = set(phrase_delimiters)
 
-    def generate_candidate_keywords(self, text: str) -> List[List[str]]:
+    def generate_candidate_keywords(self, text: str) -> list[list[str]]:
         """
         Generate candidate keywords by splitting on stop words and phrase delimiters.
 
@@ -49,7 +50,7 @@ class RAKETermExtractor(BaseTermExtractor):
             candidates.append(current_phrase)
         return candidates
 
-    def compute_word_scores(self, candidates: List[List[str]]) -> Dict[str, float]:
+    def compute_word_scores(self, candidates: list[list[str]]) -> dict[str, float]:
         """
         Compute scores for individual words based on degree and frequency.
 
@@ -70,7 +71,7 @@ class RAKETermExtractor(BaseTermExtractor):
         word_scores = {word: word_degree[word] / word_frequency[word] for word in word_frequency}
         return word_scores
 
-    def compute_candidate_scores(self, candidates: List[List[str]], word_scores: Dict[str, float]) -> Dict[str, float]:
+    def compute_candidate_scores(self, candidates: list[list[str]], word_scores: dict[str, float]) -> dict[str, float]:
         """
         Compute scores for candidate keywords.
 
@@ -87,7 +88,7 @@ class RAKETermExtractor(BaseTermExtractor):
             candidate_scores[" ".join(phrase)] = score
         return candidate_scores
 
-    def link_adjoining_keywords(self, text: str, candidate_scores: Dict[str, float]) -> Dict[str, float]:
+    def link_adjoining_keywords(self, text: str, candidate_scores: dict[str, float]) -> dict[str, float]:
         """
         Link adjoining keywords with interior stop words.
 
@@ -161,7 +162,7 @@ class RAKETermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a plain list of strings using RAKE.
 

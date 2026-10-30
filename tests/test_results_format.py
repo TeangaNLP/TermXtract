@@ -1,11 +1,12 @@
 import io
 import re
 import unittest
+
 from teanga import Corpus
+
 from termxtract.unsupervised.base_extractor import BaseTermExtractor
 from termxtract.unsupervised.term_extractor import TermExtractor
 from termxtract.utils import rank_terms
-
 
 TEXTS = [
     "Photosynthesis converts light energy into chemical energy in plant cells.",
@@ -24,18 +25,18 @@ STOPLIST = ["the", "a", "in", "of", "for", "with", "into", "from", "its", "aroun
 
 # Keyword arguments for each method. "REF" is replaced by a reference corpus of the same type as the input.
 METHODS = {
-    "tfidf": dict(n=2),
-    "ridf": dict(n=2),
-    "cvalue": dict(n=2),
-    "basic": dict(n=2),
-    "combobasic": dict(n=2),
-    "domaincoherence": dict(n=1),
-    "topicmodeling": dict(n=2, num_topics=3),
-    "nmf": dict(n=2, n_topics=2),
-    "rake": dict(stoplist=STOPLIST, phrase_delimiters=[".", ","]),
-    "domainpertinence": dict(n=2, reference_corpus="REF"),
-    "weirdness": dict(n=2, reference_corpus="REF"),
-    "relevance": dict(n=2, reference_corpus="REF"),
+    "tfidf": {"n": 2},
+    "ridf": {"n": 2},
+    "cvalue": {"n": 2},
+    "basic": {"n": 2},
+    "combobasic": {"n": 2},
+    "domaincoherence": {"n": 1},
+    "topicmodeling": {"n": 2, "num_topics": 3},
+    "nmf": {"n": 2, "n_topics": 2},
+    "rake": {"stoplist": STOPLIST, "phrase_delimiters": [".", ","]},
+    "domainpertinence": {"n": 2, "reference_corpus": "REF"},
+    "weirdness": {"n": 2, "reference_corpus": "REF"},
+    "relevance": {"n": 2, "reference_corpus": "REF"},
 }
 # Methods that score terms over the whole corpus rather than the n-grams of each document.
 NO_OFFSETS = {"nmf", "domaincoherence"}

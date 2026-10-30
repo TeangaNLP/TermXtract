@@ -1,8 +1,9 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 from teanga import Corpus
 
 
-def rank_terms(scores: Dict[str, float], threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+def rank_terms(scores: dict[str, float], threshold: float | None = None) -> list[dict[str, Any]]:
     """
     Turn a dictionary of term scores into the term list used in `ATEResults.terms`.
 
@@ -37,7 +38,7 @@ class ATEResults:
       `{"doc_id": ..., "offsets": [{"term": ..., "offset": (start, end)}, ...]}`,
       listing every occurrence of each extracted term.
     """
-    def __init__(self, corpus: Union[Corpus, List[str], List[Dict[str, str]]], terms: List[Dict[str, Any]], offsets: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, corpus: Corpus | list[str] | list[dict[str, str]], terms: list[dict[str, Any]], offsets: list[dict[str, Any]] | None = None):
         """
         Initialize the ATEResults object.
 

@@ -1,18 +1,19 @@
-from typing import Union, List, Optional
+
 from teanga import Corpus
+
 from ..utils import ATEResults
-from .tfidf import TFIDFTermExtractor
-from .ridf import RIDFTermExtractor
 from .basic import BasicTermExtractor
 from .combobasic import ComboBasicTermExtractor
-from .rake import RAKETermExtractor
-from .domainpertinence import DomainPertinenceTermExtractor
 from .cvalue import CValueTermExtractor
 from .domaincoherence import DomainCoherenceTermExtractor
-from .weirdness import WeirdnessTermExtractor
-from .relevance import RelevanceTermExtractor
+from .domainpertinence import DomainPertinenceTermExtractor
 from .ldaextractor import TopicModelingTermExtractor
 from .nmfextractor import NMFTermExtractor
+from .rake import RAKETermExtractor
+from .relevance import RelevanceTermExtractor
+from .ridf import RIDFTermExtractor
+from .tfidf import TFIDFTermExtractor
+from .weirdness import WeirdnessTermExtractor
 
 
 class TermExtractor:
@@ -21,19 +22,19 @@ class TermExtractor:
     def __init__(
         self,
         method: str = "tfidf",
-        alpha: Optional[float] = None,
-        beta: Optional[float] = None,
-        threshold: Optional[float] = None,
+        alpha: float | None = None,
+        beta: float | None = None,
+        threshold: float | None = None,
         n: int = 1,
-        num_topics: Optional[int] = 20,
+        num_topics: int | None = 20,
         window_size: int = 5,
-        stoplist: Optional[List[str]] = None,
-        phrase_delimiters: Optional[List[str]] = None,
-        reference_corpus: Optional[Union[Corpus, List[str]]] = None,
+        stoplist: list[str] | None = None,
+        phrase_delimiters: list[str] | None = None,
+        reference_corpus: Corpus | list[str] | None = None,
         n_topics: int = 10,
-        max_features: Optional[int] = None,
+        max_features: int | None = None,
     ):
-        """
+        r"""
         Initialize the TermExtractor with the desired method and parameters.
 
         Args:
@@ -81,7 +82,7 @@ class TermExtractor:
 
     def extract(
         self,
-        corpus: Union[Corpus, List[str]],
+        corpus: Corpus | list[str],
     ) -> ATEResults:
         """
         Extract terms from a given corpus.

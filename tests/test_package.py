@@ -26,7 +26,7 @@ class TestPackage(unittest.TestCase):
         import termxtract
 
         with self.assertRaises(AttributeError):
-            termxtract.DoesNotExist
+            _ = termxtract.DoesNotExist
 
     def test_import_is_lazy(self):
         """Test that importing the package does not load heavy dependencies."""
@@ -71,7 +71,7 @@ class TestPackage(unittest.TestCase):
             "from termxtract import SupervisedTermExtractor\n"
             "SupervisedTermExtractor(method='token-classification')\n"
         )
-        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pip install 'termxtract[transformers]'", result.stderr)
 

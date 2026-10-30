@@ -18,7 +18,7 @@ _LAZY_IMPORTS = {
     "ATEResults": ".utils",
 }
 
-__all__ = list(_LAZY_IMPORTS)
+__all__ = ["ATEResults", "SupervisedTermExtractor", "TermExtractor"]
 
 
 def __getattr__(name: str):

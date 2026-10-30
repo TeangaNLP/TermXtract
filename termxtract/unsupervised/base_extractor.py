@@ -1,8 +1,11 @@
 import math
 from abc import ABC, abstractmethod
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
+
 from teanga import Corpus, Document
+
 from ..utils import ATEResults, rank_terms
 
 
@@ -15,7 +18,7 @@ class BaseTermExtractor(ABC):
     `ATEResults` in the same format.
     """
 
-    def __init__(self, threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, threshold: float | None = None, n: int = 1):
         """
         Initialize the extractor.
 
@@ -40,7 +43,7 @@ class BaseTermExtractor(ABC):
         """
 
     @abstractmethod
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a list of strings.
 
@@ -52,7 +55,7 @@ class BaseTermExtractor(ABC):
         """
 
     @staticmethod
-    def teanga_words(doc: Document) -> List[Tuple[int, int, str]]:
+    def teanga_words(doc: Document) -> list[tuple[int, int, str]]:
         """
         Get the words of a Teanga document with their offsets.
 
@@ -64,7 +67,7 @@ class BaseTermExtractor(ABC):
         """
         return [(start, end, doc.text[start:end]) for start, end in doc.words]
 
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
+    def generate_ngrams_teanga(self, words_with_offsets: list[tuple[int, int, str]]) -> list[tuple[str, tuple[int, int]]]:
         """
         Generate n-grams with offsets for a Teanga corpus.
 
@@ -85,7 +88,7 @@ class BaseTermExtractor(ABC):
                     ngrams.append((ngram, (start_offset, end_offset)))
         return ngrams
 
-    def generate_ngrams_strings(self, words: List[str]) -> List[str]:
+    def generate_ngrams_strings(self, words: list[str]) -> list[str]:
         """
         Generate n-grams for a plain list of strings.
 
@@ -103,7 +106,7 @@ class BaseTermExtractor(ABC):
                     ngrams.append(ngram)
         return ngrams
 
-    def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
+    def compute_tf(self, ngrams: list[str]) -> dict[str, float]:
         """
         Compute the relative frequency of each n-gram in a document.
 
@@ -119,7 +122,7 @@ class BaseTermExtractor(ABC):
         term_frequencies = Counter(ngrams)
         return {ngram: count / ngram_count for ngram, count in term_frequencies.items()}
 
-    def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+    def compute_idf(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """
         Compute the inverse document frequency of each n-gram as log(N / (1 + df)).
 
@@ -139,7 +142,7 @@ class BaseTermExtractor(ABC):
             idf[ngram] = math.log(num_docs / (1 + doc_count))
         return idf
 
-    def doc_terms(self, doc_id: str, scores: Dict[str, float]) -> Dict[str, Any]:
+    def doc_terms(self, doc_id: str, scores: dict[str, float]) -> dict[str, Any]:
         """
         Build one document's entry in `ATEResults.terms`.
 
@@ -154,7 +157,7 @@ class BaseTermExtractor(ABC):
         return {"doc_id": doc_id, "terms": rank_terms(scores, self.threshold)}
 
     @staticmethod
-    def doc_offsets(doc_id: str, ngrams_with_offsets: Iterable[Tuple[str, Tuple[int, int]]], doc_terms: Dict[str, Any]) -> Dict[str, Any]:
+    def doc_offsets(doc_id: str, ngrams_with_offsets: Iterable[tuple[str, tuple[int, int]]], doc_terms: dict[str, Any]) -> dict[str, Any]:
         """
         Build one document's entry in `ATEResults.offsets`.
 

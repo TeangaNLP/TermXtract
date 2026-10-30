@@ -1,7 +1,8 @@
-from typing import Union, List, Dict, Optional
+
 from teanga import Corpus
+
 from ..utils import ATEResults
-from .adaboost import AdaBoostTermExtractor, DEFAULT_WORDNET_LEXICON
+from .adaboost import DEFAULT_WORDNET_LEXICON, AdaBoostTermExtractor
 from .roger import RogerTermExtractor
 
 
@@ -12,7 +13,7 @@ class SupervisedTermExtractor:
         self,
         method: str = "adaboost",
         model_name: str = "xlm-roberta-base",
-        threshold: Optional[float] = None,
+        threshold: float | None = None,
         n: int = 6,
         # Roger parameters
         population_size: int = 50,
@@ -89,7 +90,7 @@ class SupervisedTermExtractor:
             raise ValueError(f"Unknown supervised extraction method: {method}")
 
     def extract(
-        self, corpus: Union[Corpus, List[str]], labels: Dict[str, int]
+        self, corpus: Corpus | list[str], labels: dict[str, int]
     ) -> ATEResults:
         """
         Extract terms from a given corpus using supervised learning.

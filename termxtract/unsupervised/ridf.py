@@ -1,7 +1,8 @@
-import re
 import math
-from typing import List, Dict
+import re
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -9,7 +10,7 @@ from .base_extractor import BaseTermExtractor
 class RIDFTermExtractor(BaseTermExtractor):
     """RIDF-based term extraction with n-gram support."""
 
-    def compute_ridf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+    def compute_ridf(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """
         Compute Residual Inverse Document Frequency (RIDF) for n-grams.
 
@@ -20,7 +21,7 @@ class RIDFTermExtractor(BaseTermExtractor):
             Dict[str, float]: RIDF values for each n-gram.
         """
         num_docs = len(corpus_ngrams)
-        all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
+        all_ngrams = {ngram for doc in corpus_ngrams for ngram in doc}
 
         # Expected document frequency under a random model
         expected_doc_freq = {ngram: num_docs * (1 - math.exp(-sum(doc.count(ngram) for doc in corpus_ngrams)))
@@ -69,7 +70,7 @@ class RIDFTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a plain list of strings using RIDF.
 

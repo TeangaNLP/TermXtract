@@ -1,7 +1,7 @@
-import re
 import math
+import re
 from collections import Counter
-from typing import List, Dict, Optional
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 from .basic import BasicTermExtractor
@@ -10,7 +10,7 @@ from .basic import BasicTermExtractor
 class DomainCoherenceTermExtractor(BaseTermExtractor):
     """DomainCoherence-based term extraction."""
 
-    def __init__(self, threshold: Optional[float] = None, n: int = 1, window_size: int = 5):
+    def __init__(self, threshold: float | None = None, n: int = 1, window_size: int = 5):
         """
         Initialize the DomainCoherence extractor.
 
@@ -49,7 +49,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using DomainCoherence."""
         tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
 
@@ -75,7 +75,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
-    def _extract_context_words_teanga(self, corpus, top_terms: List[Dict[str, float]]) -> List[str]:
+    def _extract_context_words_teanga(self, corpus, top_terms: list[dict[str, float]]) -> list[str]:
         """Extract context words for a Teanga corpus based on NPMI."""
         context_counter = Counter()
         term_set = {term["term"] for term in top_terms}
@@ -94,7 +94,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         # Calculate NPMI scores for context words
         return self._calculate_npmi_scores(context_counter, term_set, len(corpus.doc_ids))
 
-    def _extract_context_words_strings(self, tokenized_corpus: List[List[str]], top_terms: List[Dict[str, float]]) -> List[str]:
+    def _extract_context_words_strings(self, tokenized_corpus: list[list[str]], top_terms: list[dict[str, float]]) -> list[str]:
         """Extract context words for a list of strings based on NPMI."""
         context_counter = Counter()
         term_set = {term["term"] for term in top_terms}
@@ -109,7 +109,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         # Calculate NPMI scores for context words
         return self._calculate_npmi_scores(context_counter, term_set, len(tokenized_corpus))
 
-    def _calculate_npmi_scores(self, context_counter: Counter, term_set: set, num_docs: int) -> List[str]:
+    def _calculate_npmi_scores(self, context_counter: Counter, term_set: set, num_docs: int) -> list[str]:
         """Calculate NPMI scores for context words and filter top 50."""
         total_terms = sum(context_counter.values())
         if total_terms == 0:
@@ -138,10 +138,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
     
     def _compute_domain_coherence_strings(
         self,
-        tokenized_corpus: List[List[str]],
-        top_terms: List[Dict[str, float]],
-        context_words: List[str]
-    ) -> Dict[str, float]:
+        tokenized_corpus: list[list[str]],
+        top_terms: list[dict[str, float]],
+        context_words: list[str]
+    ) -> dict[str, float]:
         """
         Compute DomainCoherence scores for a string-based corpus.
     
@@ -185,9 +185,9 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
     def _compute_domain_coherence_teanga(
         self,
         corpus,
-        top_terms: List[Dict[str, float]],
-        context_words: List[str]
-    ) -> Dict[str, float]:
+        top_terms: list[dict[str, float]],
+        context_words: list[str]
+    ) -> dict[str, float]:
         """
         Compute DomainCoherence scores for a Teanga corpus.
     

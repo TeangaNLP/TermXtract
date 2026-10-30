@@ -1,6 +1,7 @@
 import re
-from typing import List, Optional, Union
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -8,7 +9,7 @@ from .base_extractor import BaseTermExtractor
 class DomainPertinenceTermExtractor(BaseTermExtractor):
     """Domain Pertinence-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Corpus | list[str], threshold: float | None = None, n: int = 1):
         """
         Initialize the DomainPertinence extractor.
 
@@ -67,7 +68,7 @@ class DomainPertinenceTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a list of strings using domain pertinence.
 

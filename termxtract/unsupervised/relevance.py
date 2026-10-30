@@ -1,7 +1,8 @@
-import re
 import math
-from typing import List, Dict, Optional, Union
+import re
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -9,7 +10,7 @@ from .base_extractor import BaseTermExtractor
 class RelevanceTermExtractor(BaseTermExtractor):
     """Relevance-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Corpus | list[str], threshold: float | None = None, n: int = 1):
         """
         Initialize the Relevance extractor.
 
@@ -21,11 +22,11 @@ class RelevanceTermExtractor(BaseTermExtractor):
         super().__init__(threshold=threshold, n=n)
         self.reference_corpus = reference_corpus
 
-    def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+    def compute_idf(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """Compute the inverse document frequency of each n-gram as log(1 + N / (1 + df))."""
         num_docs = len(corpus_ngrams)
         idf_scores = {}
-        all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
+        all_ngrams = {ngram for doc in corpus_ngrams for ngram in doc}
         for ngram in all_ngrams:
             doc_count = sum(1 for doc in corpus_ngrams if ngram in doc)
             idf_scores[ngram] = math.log(1 + (num_docs / (1 + doc_count)))
@@ -74,7 +75,7 @@ class RelevanceTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using Relevance."""
         # Generate reference IDF from reference corpus
         ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]

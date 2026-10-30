@@ -1,17 +1,16 @@
 import re
-import torch
+
 import numpy as np
-from typing import List, Dict, Optional, Tuple, Set
-from collections import Counter
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForTokenClassification,
-    Trainer, 
-    TrainingArguments
-)
-from sacremoses import MosesTokenizer, MosesDetokenizer
-from sklearn.model_selection import train_test_split
+import torch
+from sacremoses import MosesDetokenizer, MosesTokenizer
 from teanga import Corpus
+from transformers import (
+    AutoModelForTokenClassification,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+)
+
 from ..utils import ATEResults, rank_terms
 
 
@@ -54,8 +53,8 @@ class TokenClassificationTermExtractor:
         
         # Label mapping for token classification
         self.label_list = ["n", "B-T", "T"]  # non-term, term beginning, term continuation
-        self.label_to_id = {l: i for i, l in enumerate(self.label_list)}
-        self.id_to_label = {i: l for i, l in enumerate(self.label_list)}
+        self.label_to_id = {label: i for i, label in enumerate(self.label_list)}
+        self.id_to_label = dict(enumerate(self.label_list))
         
         # Initialize transformer model and tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -68,7 +67,7 @@ class TokenClassificationTermExtractor:
         self.trainer = None
         self.is_trained = False
     
-    def preprocess_text(self, text: str) -> List[Tuple[List[str], str]]:
+    def preprocess_text(self, text: str) -> list[tuple[list[str], str]]:
         """
         Split text into sentences and tokenize.
         
@@ -92,7 +91,7 @@ class TokenClassificationTermExtractor:
             
         return sentence_list
     
-    def find_sublist_indices(self, sublist: List[str], full_list: List[str]) -> List[Tuple[int, int]]:
+    def find_sublist_indices(self, sublist: list[str], full_list: list[str]) -> list[tuple[int, int]]:
         """
         Find all occurrences of a sublist within a larger list.
         
@@ -114,9 +113,9 @@ class TokenClassificationTermExtractor:
     
     def create_training_data(
         self, 
-        sentence_list: List[Tuple[List[str], str]], 
-        terms: Dict[str, int]
-    ) -> List[Tuple[List[str], List[str]]]:
+        sentence_list: list[tuple[list[str], str]], 
+        terms: dict[str, int]
+    ) -> list[tuple[list[str], list[str]]]:
         """
         Create training data with token-level annotations.
         
@@ -158,9 +157,9 @@ class TokenClassificationTermExtractor:
     
     def tokenize_and_align_labels(
         self, 
-        texts: List[List[str]], 
-        tags: List[List[str]]
-    ) -> Dict:
+        texts: list[list[str]], 
+        tags: list[list[str]]
+    ) -> dict:
         """
         Tokenize inputs and align labels for transformer model.
         
@@ -204,7 +203,7 @@ class TokenClassificationTermExtractor:
         tokenized_inputs["labels"] = labels
         return tokenized_inputs
     
-    def create_torch_dataset(self, tokenized_inputs: Dict) -> torch.utils.data.Dataset:
+    def create_torch_dataset(self, tokenized_inputs: dict) -> torch.utils.data.Dataset:
         """
         Create a PyTorch dataset from tokenized inputs.
         
@@ -230,9 +229,9 @@ class TokenClassificationTermExtractor:
     
     def extract_terms_from_predictions(
         self, 
-        token_predictions: List[List[str]], 
-        texts: List[List[str]]
-    ) -> Dict[str, float]:
+        token_predictions: list[list[str]], 
+        texts: list[list[str]]
+    ) -> dict[str, float]:
         """
         Extract terms from token-level predictions.
         
@@ -307,7 +306,7 @@ class TokenClassificationTermExtractor:
         self.trainer.train()
         self.is_trained = True
     
-    def predict(self, tokenized_dataset: torch.utils.data.Dataset, texts) -> Dict[str, float]:
+    def predict(self, tokenized_dataset: torch.utils.data.Dataset, texts) -> dict[str, float]:
         """
         Make predictions using the trained model.
         
@@ -333,14 +332,14 @@ class TokenClassificationTermExtractor:
         
         # Convert to label names
         true_predictions = [
-            [self.id_to_label[p] for (p, l) in zip(prediction, label) if l != -100]
+            [self.id_to_label[p] for (p, gold) in zip(prediction, label) if gold != -100]
             for prediction, label in zip(predictions, labels)
         ]
         
         # Extract terms
         return self.extract_terms_from_predictions(true_predictions, texts)
     
-    def prepare_teanga_corpus(self, corpus: Corpus) -> List[Tuple[List[str], str]]:
+    def prepare_teanga_corpus(self, corpus: Corpus) -> list[tuple[list[str], str]]:
         """
         Prepare a Teanga corpus for term extraction.
         
@@ -369,11 +368,10 @@ class TokenClassificationTermExtractor:
                 current_text += token + " "
                 
                 # If sentence-ending punctuation, add to sentence list
-                if token in [".", "!", "?"]:
-                    if current_sentence:
-                        sentence_list.append((current_sentence, current_text.strip()))
-                        current_sentence = []
-                        current_text = ""
+                if token in [".", "!", "?"] and current_sentence:
+                    sentence_list.append((current_sentence, current_text.strip()))
+                    current_sentence = []
+                    current_text = ""
             
             # Add any remaining tokens as a sentence
             if current_sentence:
@@ -381,7 +379,7 @@ class TokenClassificationTermExtractor:
                 
         return sentence_list
     
-    def extract_terms_teanga(self, corpus: Corpus, labels: Dict[str, int] = None) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus, labels: dict[str, int] | None = None) -> ATEResults:
         """
         Extract terms from a Teanga corpus.
         
@@ -425,7 +423,7 @@ class TokenClassificationTermExtractor:
         
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
-    def train_terms_teanga(self, corpus: Corpus, labels: Dict[str, int]) -> ATEResults:
+    def train_terms_teanga(self, corpus: Corpus, labels: dict[str, int]) -> ATEResults:
         """
         Train the model and extract terms from a Teanga corpus.
         
@@ -458,7 +456,7 @@ class TokenClassificationTermExtractor:
         # Extract terms from the corpus
         return self.extract_terms_teanga(corpus)
     
-    def extract_terms_strings(self, corpus: List[str], labels: Dict[str, int] = None) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str], labels: dict[str, int] | None = None) -> ATEResults:
         """
         Extract terms from a list of strings.
         
@@ -507,7 +505,7 @@ class TokenClassificationTermExtractor:
         
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
-    def train_terms_strings(self, corpus: List[str], labels: Dict[str, int]) -> ATEResults:
+    def train_terms_strings(self, corpus: list[str], labels: dict[str, int]) -> ATEResults:
         """
         Train the model and extract terms from a list of strings.
         

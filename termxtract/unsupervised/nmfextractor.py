@@ -1,7 +1,8 @@
 import re
-from typing import List, Optional
-from sklearn.feature_extraction.text import TfidfVectorizer
+
 from sklearn.decomposition import NMF
+from sklearn.feature_extraction.text import TfidfVectorizer
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -9,7 +10,7 @@ from .base_extractor import BaseTermExtractor
 class NMFTermExtractor(BaseTermExtractor):
     """NMF-based term extraction with n-gram support."""
 
-    def __init__(self, threshold: Optional[float] = None, n: int = 1, n_topics: int = 10, max_features: Optional[int] = None):
+    def __init__(self, threshold: float | None = None, n: int = 1, n_topics: int = 10, max_features: int | None = None):
         """
         Initialize the NMF extractor.
 
@@ -23,7 +24,7 @@ class NMFTermExtractor(BaseTermExtractor):
         self.n_topics = n_topics
         self.max_features = max_features
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using NMF."""
         tokenized_corpus = [" ".join(re.findall(r'\b\w+\b', doc.lower())) for doc in corpus]
 
@@ -34,7 +35,7 @@ class NMFTermExtractor(BaseTermExtractor):
 
         # Apply NMF for topic modeling
         nmf = NMF(n_components=self.n_topics, random_state=42)
-        W = nmf.fit_transform(tfidf_matrix)
+        nmf.fit(tfidf_matrix)
         H = nmf.components_
 
         # Compute term scores from NMF weight matrix H
@@ -62,7 +63,7 @@ class NMFTermExtractor(BaseTermExtractor):
 
         # Apply NMF for topic modeling
         nmf = NMF(n_components=self.n_topics, random_state=42)
-        W = nmf.fit_transform(tfidf_matrix)
+        nmf.fit(tfidf_matrix)
         H = nmf.components_
 
         # Compute term scores from NMF weight matrix H

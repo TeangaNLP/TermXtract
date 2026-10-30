@@ -1,6 +1,9 @@
 import unittest
+
 from teanga import Corpus
+
 from termxtract.unsupervised.term_extractor import TermExtractor
+
 
 class TestTopicModelingTermExtractor(unittest.TestCase):
     """Test cases for TopicModeling-based term extraction."""

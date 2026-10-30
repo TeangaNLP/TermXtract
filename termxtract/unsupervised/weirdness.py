@@ -1,7 +1,8 @@
 import re
 from collections import Counter
-from typing import List, Dict, Optional, Union
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -9,7 +10,7 @@ from .base_extractor import BaseTermExtractor
 class WeirdnessTermExtractor(BaseTermExtractor):
     """Weirdness-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Corpus | list[str], threshold: float | None = None, n: int = 1):
         """
         Initialize the Weirdness extractor.
 
@@ -21,13 +22,13 @@ class WeirdnessTermExtractor(BaseTermExtractor):
         super().__init__(threshold=threshold, n=n)
         self.reference_corpus = reference_corpus
 
-    def compute_term_frequencies(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+    def compute_term_frequencies(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """Compute term frequencies normalized by the total number of words."""
         total_words = sum(len(doc) for doc in corpus_ngrams)
         term_frequencies = Counter(ngram for doc in corpus_ngrams for ngram in doc)
         return {term: freq / total_words for term, freq in term_frequencies.items()}
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a list of strings using Weirdness.
 
@@ -90,9 +91,6 @@ class WeirdnessTermExtractor(BaseTermExtractor):
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
-
-        corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
-        target_idf = self.compute_idf(corpus_ngrams)
 
         # Calculate weirdness scores
         terms_by_doc = []

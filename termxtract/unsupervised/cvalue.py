@@ -1,8 +1,9 @@
+import math
 import re
 from collections import Counter
-import math
-from typing import List, Dict
+
 from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -10,7 +11,7 @@ from .base_extractor import BaseTermExtractor
 class CValueTermExtractor(BaseTermExtractor):
     """C-value based term extraction with n-gram support."""
 
-    def compute_cvalue(self, ngrams: List[str]) -> Dict[str, float]:
+    def compute_cvalue(self, ngrams: list[str]) -> dict[str, float]:
         """
         Compute C-value for each n-gram.
 
@@ -28,7 +29,7 @@ class CValueTermExtractor(BaseTermExtractor):
         term_data = {term: {"frequency": freq, "nested_in": [], "nested_freq": 0} for term, freq in term_frequencies.items()}
 
         for term, data in term_data.items():
-            for other_term in term_data.keys():
+            for other_term in term_data:
                 if term in other_term and term != other_term:
                     data["nested_in"].append(other_term)
                     data["nested_freq"] += term_data[other_term]["frequency"]
@@ -63,7 +64,7 @@ class CValueTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a plain list of strings using C-value.
 

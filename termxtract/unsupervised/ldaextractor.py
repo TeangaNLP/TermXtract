@@ -1,11 +1,12 @@
-import re
 import math
-import numpy as np
+import re
 from collections import Counter
-from typing import List, Dict, Optional
-from teanga import Corpus
+
+import numpy as np
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
+from teanga import Corpus
+
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -13,7 +14,7 @@ from .base_extractor import BaseTermExtractor
 class TopicModelingTermExtractor(BaseTermExtractor):
     """Topic Modeling-based term extraction with n-gram support."""
 
-    def __init__(self, num_topics: int = 20, threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, num_topics: int = 20, threshold: float | None = None, n: int = 1):
         """
         Initialize the Topic Modeling extractor.
 
@@ -27,7 +28,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         self.lda_model = None
         self.vectorizer = None
 
-    def preprocess_teanga(self, corpus: Corpus) -> List[str]:
+    def preprocess_teanga(self, corpus: Corpus) -> list[str]:
         """
         Preprocess a Teanga corpus for topic modeling.
 
@@ -44,7 +45,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             processed_corpus.append(" ".join(words))
         return processed_corpus
 
-    def preprocess_strings(self, corpus: List[str]) -> List[str]:
+    def preprocess_strings(self, corpus: list[str]) -> list[str]:
         """
         Preprocess a list of strings for topic modeling.
 
@@ -56,7 +57,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         """
         return [" ".join(re.findall(r'\b\w+\b', doc.lower())) for doc in corpus]
 
-    def train_topic_model(self, corpus: List[str]) -> None:
+    def train_topic_model(self, corpus: list[str]) -> None:
         """
         Train an LDA topic model on the given corpus.
 
@@ -68,7 +69,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         self.lda_model = LatentDirichletAllocation(n_components=self.num_topics, max_iter=10, random_state=42)
         self.lda_model.fit(doc_term_matrix)
 
-    def compute_ntm_scores(self, ngrams: List[str]) -> Dict[str, float]:
+    def compute_ntm_scores(self, ngrams: list[str]) -> dict[str, float]:
         """
         Compute NTM scores for n-grams.
 
@@ -129,7 +130,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
-    def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """
         Extract terms from a list of strings using topic modeling.
 

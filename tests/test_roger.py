@@ -1,5 +1,7 @@
 import unittest
+
 from teanga import Corpus
+
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
 
 

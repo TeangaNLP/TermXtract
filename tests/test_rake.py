@@ -1,5 +1,7 @@
 import unittest
+
 from teanga import Corpus
+
 from termxtract.unsupervised.rake import RAKETermExtractor
 
 
