@@ -97,7 +97,7 @@ class RogerTermExtractor:
 
         feature_matrix = []
         y_labels = []
-        terms = list(set(corpus_ngrams_flat))
+        terms = list(dict.fromkeys(corpus_ngrams_flat))  # In order of first occurrence
 
         for term in terms:
             features = self.compute_features(term, corpus_ngrams_flat)

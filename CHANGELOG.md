@@ -55,6 +55,8 @@ that was previously only available from GitHub.
 - Token classification only tags the terms labelled `1` as terms, and matches labels
   case-insensitively. Terms labelled `0` used to be tagged as terms too, and labels with
   capital letters were never matched.
+- AdaBoost and Roger list candidates with equal scores in order of first occurrence, so
+  their results no longer change from run to run.
 - RIDF no longer crashes when no threshold is given.
 - The token-classification extractor works with current transformers releases
   (`eval_strategy`).
