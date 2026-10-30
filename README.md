@@ -24,7 +24,7 @@ This also installs [Teanga](https://github.com/TeangaNLP/teanga2) from GitHub, a
 ### Unsupervised extraction
 
 ```python
-from termxtract.unsupervised.term_extractor import TermExtractor
+from termxtract import TermExtractor
 
 corpus = [
     "Machine learning is a field of artificial intelligence.",
@@ -61,7 +61,7 @@ results = extractor.extract(corpus)
 Supervised methods are trained from a dictionary of candidate terms labelled `1` (term) or `0` (not a term):
 
 ```python
-from termxtract.supervised.term_extractor import SupervisedTermExtractor
+from termxtract import SupervisedTermExtractor
 
 labels = {
     "machine learning": 1,
