@@ -1,6 +1,6 @@
 # TF-IDF Tutorial
 
-This tutorial shows how to extract terms with **TF-IDF** (term frequency–inverse document frequency), the simplest method in TermXtract. You will learn how to run it on plain text and on a Teanga corpus, how to extract multi-word terms, how to choose a threshold, and how to see the scores behind the results.
+This tutorial shows how to extract terms with **TF-IDF** (term frequency–inverse document frequency), the simplest method in TermXtract. You will learn how to run it on plain text and on a Teanga corpus, how to read the scores, how to choose a threshold, and how to extract multi-word terms.
 
 ## How TF-IDF scores a term
 
@@ -44,89 +44,13 @@ Create an extractor with `method="tfidf"` and call `extract()` with a list of st
 extractor = TermExtractor(method="tfidf")
 results = extractor.extract(corpus)
 
-print(results.terms[0])
+print(results.terms[1]["doc_id"])
+for term in results.terms[1]["terms"]:
+    print(f"{term['score']:.3f}  {term['term']}")
 ```
 
 ```text
-{'doc_id': 'doc_0', 'terms': ['photosynthesis', 'converts', 'light', 'energy', 'into', 'chemical', 'in', 'plant', 'cells']}
-```
-
-`results.terms` has one entry per document, with an automatically assigned `doc_id` (`doc_0`, `doc_1`, …). Notice that:
-
-- Text is lower-cased and split into words, and punctuation is dropped.
-- Without a threshold, **every** word in the document is returned.
-- Terms are listed in the order they first appear, **not ranked by score**.
-- Unlike the other methods, TF-IDF returns terms as **plain strings, without scores**. See [Seeing the scores](#seeing-the-scores) below for how to get them.
-
-## Filtering with a threshold
-
-Use `threshold` to keep only n-grams scoring at or above a minimum:
-
-```python
-extractor = TermExtractor(method="tfidf", threshold=0.1)
-results = extractor.extract(corpus)
-
-for doc in results.terms:
-    print(doc["doc_id"], doc["terms"])
-```
-
-```text
-doc_0 ['converts', 'energy', 'into', 'chemical', 'plant', 'cells']
-doc_1 ['chlorophyll', 'chloroplast', 'absorbs', 'for']
-doc_2 ['learns', 'from', 'training', 'data']
-doc_3 ['gradient', 'descent', 'updates', 'of']
-doc_4 ['black', 'hole', 'bends', 'with', 'its', 'strong']
-doc_5 ['holds', 'planets', 'orbit', 'around', 'sun']
-```
-
-Words that occur in more than one document are gone, including function words like `the` but also topical words like `photosynthesis`, `network` and `gravity`. What remains are the words specific to each document.
-
-**Choosing a threshold.** TF-IDF scores are small: TF is a fraction of the document's length, so scores shrink as documents get longer or as `n` grows. A threshold that works for one corpus can remove everything in another. Here, `threshold=0.15` keeps just one term in the whole corpus: `energy`, whose score is doubled because it occurs twice in `doc_0`. Look at the actual scores first (see below) and pick a value from them.
-
-## Multi-word terms
-
-Set `n` to the maximum n-gram length to consider. With `n=2`, both single words and two-word phrases are scored:
-
-```python
-extractor = TermExtractor(method="tfidf", n=2, threshold=0.05)
-results = extractor.extract(corpus)
-
-print(results.terms[3])
-```
-
-```text
-{'doc_id': 'doc_3', 'terms': ['gradient', 'gradient descent', 'descent', 'descent updates', 'updates', 'updates the', 'the weights', 'weights of', 'of', 'of a']}
-```
-
-`gradient descent` is found, but so are fragments like `updates the` and `weights of`, and `neural network` is missing because it appears in two documents (`doc_2` and `doc_3`). TF-IDF has no notion of what makes a good phrase. If multi-word terms matter to you, also try [C-Value](../api/unsupervised/cvalue.md), which is designed for them.
-
-## Seeing the scores
-
-Because TF-IDF returns only the term strings, you can use the extractor's own `compute_tf` and `compute_idf` methods to see, and rank by, the scores. The tokenization below matches the one TermXtract uses internally:
-
-```python
-import re
-
-def tfidf_scores(corpus, n=1):
-    """Return a {term: score} dict for each document, ranked from highest to lowest."""
-    extractor = TermExtractor(method="tfidf", n=n).extractor
-    tokenized = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
-    ngrams = [extractor.generate_ngrams_strings(words) for words in tokenized]
-    idf = extractor.compute_idf(ngrams)
-
-    ranked = []
-    for doc_ngrams in ngrams:
-        tf = extractor.compute_tf(doc_ngrams)
-        scores = {term: tf[term] * idf[term] for term in tf}
-        ranked.append(dict(sorted(scores.items(), key=lambda item: -item[1])))
-    return ranked
-
-scores = tfidf_scores(corpus)
-for term, score in scores[1].items():
-    print(f"{score:.3f}  {term}")
-```
-
-```text
+doc_1
 0.137  chlorophyll
 0.137  chloroplast
 0.137  absorbs
@@ -137,7 +61,55 @@ for term, score in scores[1].items():
 0.051  light
 ```
 
-This makes the threshold behaviour from earlier easy to see: everything at or above 0.1 is kept, and no term in this document reaches 0.15.
+`results.terms` has one entry per document, with an automatically assigned `doc_id` (`doc_0`, `doc_1`, …). Each term is a `{"term": ..., "score": ...}` dictionary, the same format as every other method. Notice that:
+
+- Text is lower-cased and split into words, and punctuation is dropped.
+- Terms are **ranked by score**, highest first. Terms with equal scores keep the order in which they first appear.
+- Without a threshold, **every** word in the document is returned.
+
+The words found only in this document (`chlorophyll`, `chloroplast`, `absorbs`, `for`) score highest. `photosynthesis` also occurs in `doc_0`, so it scores lower, and `in`, `the` and `light` occur in three documents each.
+
+## Filtering with a threshold
+
+Use `threshold` to keep only n-grams scoring at or above a minimum:
+
+```python
+extractor = TermExtractor(method="tfidf", threshold=0.1)
+results = extractor.extract(corpus)
+
+for doc in results.terms:
+    print(doc["doc_id"], [term["term"] for term in doc["terms"]])
+```
+
+```text
+doc_0 ['energy', 'converts', 'into', 'chemical', 'plant', 'cells']
+doc_1 ['chlorophyll', 'chloroplast', 'absorbs', 'for']
+doc_2 ['learns', 'from', 'training', 'data']
+doc_3 ['gradient', 'descent', 'updates', 'of']
+doc_4 ['black', 'hole', 'bends', 'with', 'its', 'strong']
+doc_5 ['holds', 'planets', 'orbit', 'around', 'sun']
+```
+
+Words that occur in more than one document are gone, including function words like `the` but also topical words like `photosynthesis`, `network` and `gravity`. What remains are the words specific to each document.
+
+**Choosing a threshold.** TF-IDF scores are small: TF is a fraction of the document's length, so scores shrink as documents get longer or as `n` grows. A threshold that works for one corpus can remove everything in another. Here, `threshold=0.15` keeps just one term in the whole corpus: `energy`, whose score is doubled because it occurs twice in `doc_0` (which is also why it is ranked first above). Look at the scores without a threshold first and pick a value from them. In the scores for `doc_1` shown earlier, everything at or above 0.1 is kept, and nothing reaches 0.15.
+
+## Multi-word terms
+
+Set `n` to the maximum n-gram length to consider. With `n=2`, both single words and two-word phrases are scored:
+
+```python
+extractor = TermExtractor(method="tfidf", n=2, threshold=0.05)
+results = extractor.extract(corpus)
+
+print([term["term"] for term in results.terms[3]["terms"]])
+```
+
+```text
+['gradient', 'gradient descent', 'descent', 'descent updates', 'updates', 'updates the', 'the weights', 'weights of', 'of', 'of a']
+```
+
+`gradient descent` is found, but so are fragments like `updates the` and `weights of`, and `neural network` is missing because it appears in two documents (`doc_2` and `doc_3`). TF-IDF has no notion of what makes a good phrase. If multi-word terms matter to you, also try [C-Value](../api/unsupervised/cvalue.md), which is designed for them.
 
 ## Using a Teanga corpus
 
@@ -159,8 +131,8 @@ for text in corpus:
 extractor = TermExtractor(method="tfidf", n=2, threshold=0.05)
 results = extractor.extract(teanga_corpus)
 
-doc_id = list(teanga_corpus.doc_ids)[3]
-print(results.terms[3]["terms"][:3])
+doc_id = results.offsets[3]["doc_id"]
+print([term["term"] for term in results.terms[3]["terms"]][:3])
 print(results.offsets[3]["offsets"][:3])
 ```
 
@@ -169,7 +141,7 @@ print(results.offsets[3]["offsets"][:3])
 [{'term': 'Gradient', 'offset': (0, 8)}, {'term': 'Gradient descent', 'offset': (0, 16)}, {'term': 'descent', 'offset': (9, 16)}]
 ```
 
-Each offset is a `(start, end)` pair, so `teanga_corpus.doc_by_id(doc_id).text[0:16]` is `"Gradient descent"`. Note the differences from plain-text input:
+`results.offsets` lists every occurrence of each extracted term, in document order. Each offset is a `(start, end)` pair, so `teanga_corpus.doc_by_id(doc_id).text[0:16]` is `"Gradient descent"`. Note the differences from plain-text input:
 
 - `doc_id`s are Teanga's document IDs rather than `doc_0`, `doc_1`, ….
 - Words are taken exactly as they appear in your `words` layer, so **case is preserved** (`Gradient`, not `gradient`).

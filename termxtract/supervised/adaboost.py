@@ -7,7 +7,7 @@ import wn
 from wn.morphy import Morphy
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
-from ..utils import ATEResults
+from ..utils import ATEResults, rank_terms
 
 DEFAULT_WORDNET_LEXICON = "oewn:2025+"
 
@@ -173,7 +173,7 @@ class AdaBoostTermExtractor:
 
         term_scores = self.predict_terms_teanga(corpus)
 
-        terms_by_doc = [{"doc_id": doc_id, "terms": [{"term": term, "score": score} for term, score in term_scores.items() if self.threshold is None or score >= self.threshold]} for doc_id in corpus.doc_ids]
+        terms_by_doc = [{"doc_id": doc_id, "terms": rank_terms(term_scores, self.threshold)} for doc_id in corpus.doc_ids]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -182,6 +182,6 @@ class AdaBoostTermExtractor:
         self.train_model(corpus, labels)
         term_scores = self.predict_terms_strings(corpus)
 
-        terms_by_doc = [{"doc_id": f"doc_{i}", "terms": [{"term": term, "score": score} for term, score in term_scores.items() if self.threshold is None or score >= self.threshold]} for i in range(len(corpus))]
+        terms_by_doc = [{"doc_id": f"doc_{i}", "terms": rank_terms(term_scores, self.threshold)} for i in range(len(corpus))]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

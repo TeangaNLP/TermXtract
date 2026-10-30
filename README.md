@@ -44,8 +44,11 @@ results = extractor.extract(corpus)
 
 for doc in results.terms:
     print(doc["doc_id"], doc["terms"][:3])
-# doc_0 [{'term': 'machine', 'score': 0.0}, {'term': 'machine learning', 'score': 1.0}, ...]
+# doc_0 [{'term': 'machine learning', 'score': 1.0}, {'term': 'learning is', 'score': 1.0}, {'term': 'is a', 'score': 1.0}]
+# ...
 ```
+
+Each document's terms are ranked from highest to lowest score.
 
 Pass `threshold=...` to keep only terms scoring at or above a minimum.
 
@@ -133,8 +136,8 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 
 `extract()` returns an `ATEResults` object with:
 
-- `results.terms`: one entry per document, `{"doc_id": ..., "terms": [...]}`. For most methods each term is `{"term": str, "score": float}`.
-- `results.offsets`: term character offsets. Currently only populated by `tfidf` on Teanga input; `None` otherwise.
+- `results.terms`: one entry per document, `{"doc_id": ..., "terms": [{"term": str, "score": float}, ...]}`, with terms ranked from highest to lowest score. Every method uses this format.
+- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input, and for `nmf` and `domaincoherence`, which score terms over the whole corpus rather than per document.
 - `results.corpus`: the input corpus.
 
 ## Development

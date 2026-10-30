@@ -1,12 +1,11 @@
 import re
-import math
-from collections import Counter
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Optional, Union
 from teanga import Corpus
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 
 
-class DomainPertinenceTermExtractor:
+class DomainPertinenceTermExtractor(BaseTermExtractor):
     """Domain Pertinence-based term extraction with n-gram support."""
 
     def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
@@ -18,81 +17,8 @@ class DomainPertinenceTermExtractor:
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
         """
+        super().__init__(threshold=threshold, n=n)
         self.reference_corpus = reference_corpus
-        self.threshold = threshold
-        self.n = n
-
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
-        """
-        Generate n-grams with offsets for a Teanga corpus.
-
-        Args:
-            words_with_offsets (List[Tuple[int, int, str]]): List of (start, end, text) tuples for words.
-
-        Returns:
-            List[Tuple[str, Tuple[int, int]]]: List of n-grams with their start and end offsets.
-        """
-        ngrams = []
-        words = [text for _, _, text in words_with_offsets]
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    start_offset = words_with_offsets[i][0]
-                    end_offset = words_with_offsets[i + j - 1][1]
-                    ngrams.append((ngram, (start_offset, end_offset)))
-        return ngrams
-
-    def generate_ngrams_strings(self, words: List[str]) -> List[str]:
-        """
-        Generate n-grams for a plain list of strings.
-
-        Args:
-            words (List[str]): List of words in the document.
-
-        Returns:
-            List[str]: List of n-grams.
-        """
-        ngrams = []
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
-
-    def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
-        """
-        Compute the relative frequency of each n-gram in a document.
-
-        Args:
-            ngrams (List[str]): All n-grams in the document.
-
-        Returns:
-            Dict[str, float]: Count of each n-gram divided by the total number of n-grams.
-        """
-        term_frequencies = Counter(ngrams)
-        total_count = sum(term_frequencies.values())
-        return {term: freq / total_count for term, freq in term_frequencies.items()}
-
-    def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
-        """
-        Compute the inverse document frequency of each n-gram as log(N / (1 + df)).
-
-        Args:
-            corpus_ngrams (List[List[str]]): The n-grams of each document.
-
-        Returns:
-            Dict[str, float]: IDF score for each n-gram, where N is the number of documents
-            and df is the number of documents containing the n-gram.
-        """
-        num_docs = len(corpus_ngrams)
-        idf_scores = {}
-        all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
-        for ngram in all_ngrams:
-            doc_count = sum(1 for doc in corpus_ngrams if ngram in doc)
-            idf_scores[ngram] = math.log(num_docs / (1 + doc_count))
-        return idf_scores
 
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
@@ -106,43 +32,40 @@ class DomainPertinenceTermExtractor:
                 must also be a Teanga corpus.
 
         Returns:
-            ATEResults: Results with terms and scores.
+            ATEResults: Results with ranked terms and scores, and term offsets.
         """
         # Generate reference IDF from reference corpus
         ref_ngrams = []
         for ref_doc_id in self.reference_corpus.doc_ids:
             ref_doc = self.reference_corpus.doc_by_id(ref_doc_id)
-            ref_words_with_offsets = [(start, end, ref_doc.text[start:end]) for start, end in ref_doc.words]
-            ref_doc_ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(ref_words_with_offsets)]
+            ref_doc_ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))]
             ref_ngrams.append(ref_doc_ngrams)
-    
+
         ref_idf = self.compute_idf(ref_ngrams)
-    
+
         # Generate target corpus n-grams and compute target IDF
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words_with_offsets = [(start, end, doc.text[start:end]) for start, end in doc.words]
-            ngrams_with_offsets = self.generate_ngrams_teanga(words_with_offsets)
-            ngrams_by_doc[doc_id] = ngrams_with_offsets
-    
+            ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
+
         corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
         target_idf = self.compute_idf(corpus_ngrams)
-    
+
         # Compute terms and scores for each document
         terms_by_doc = []
+        offsets_by_doc = []
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
             tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
                 ngram: tf[ngram] * ref_idf.get(ngram, 0) / max(target_idf.get(ngram, 1), 1e-9)
                 for ngram in tf
             }
-    
-            terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
-                     if self.threshold is None or score >= self.threshold]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-    
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+            doc_terms = self.doc_terms(doc_id, scores)
+            terms_by_doc.append(doc_terms)
+            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+
+        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """
@@ -156,7 +79,7 @@ class DomainPertinenceTermExtractor:
                 also be a list of strings.
 
         Returns:
-            ATEResults: Results with terms and scores.
+            ATEResults: Results with ranked terms and scores.
         """
         # Generate reference IDF from reference corpus
         ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]
@@ -173,10 +96,6 @@ class DomainPertinenceTermExtractor:
                 ngram: tf[ngram] * ref_idf.get(ngram, 0) / max(target_idf.get(ngram, 1), 1e-9)
                 for ngram in tf
             }
-
-            terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
-                     if self.threshold is None or score >= self.threshold]
-            terms_by_doc.append({"doc_id": f"doc_{idx}", "terms": terms})
+            terms_by_doc.append(self.doc_terms(f"doc_{idx}", scores))
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
-

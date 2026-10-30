@@ -20,6 +20,7 @@ plugins:
           show_root_full_path: false
           show_source: false
           members_order: source
+          inherited_members: true
 
 nav:
 - Home: index.md
@@ -31,6 +32,7 @@ nav:
   - SupervisedTermExtractor: api/supervised_term_extractor.md
   - ATEResults: api/results.md
   - Unsupervised Extractors:
+    - BaseTermExtractor: api/unsupervised/base.md
     - TF-IDF: api/unsupervised/tfidf.md
     - Residual IDF: api/unsupervised/ridf.md
     - C-Value: api/unsupervised/cvalue.md

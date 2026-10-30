@@ -2,14 +2,15 @@ import re
 import math
 import numpy as np
 from collections import Counter
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from teanga import Corpus
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 
 
-class TopicModelingTermExtractor:
+class TopicModelingTermExtractor(BaseTermExtractor):
     """Topic Modeling-based term extraction with n-gram support."""
 
     def __init__(self, num_topics: int = 20, threshold: Optional[float] = None, n: int = 1):
@@ -21,9 +22,8 @@ class TopicModelingTermExtractor:
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
         """
+        super().__init__(threshold=threshold, n=n)
         self.num_topics = num_topics
-        self.threshold = threshold
-        self.n = n
         self.lda_model = None
         self.vectorizer = None
 
@@ -68,43 +68,6 @@ class TopicModelingTermExtractor:
         self.lda_model = LatentDirichletAllocation(n_components=self.num_topics, max_iter=10, random_state=42)
         self.lda_model.fit(doc_term_matrix)
 
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[str]:
-        """
-        Generate n-grams with offsets for a Teanga corpus.
-
-        Args:
-            words_with_offsets (List[Tuple[int, int, str]]): List of (start, end, text) tuples for words.
-
-        Returns:
-            List[str]: List of n-grams.
-        """
-        ngrams = []
-        words = [text for _, _, text in words_with_offsets]
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
-
-    def generate_ngrams_strings(self, words: List[str]) -> List[str]:
-        """
-        Generate n-grams for a list of words.
-
-        Args:
-            words (List[str]): List of words.
-
-        Returns:
-            List[str]: List of n-grams.
-        """
-        ngrams = []
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
-
     def compute_ntm_scores(self, ngrams: List[str]) -> Dict[str, float]:
         """
         Compute NTM scores for n-grams.
@@ -148,29 +111,23 @@ class TopicModelingTermExtractor:
             corpus: Teanga Corpus object.
 
         Returns:
-            ATEResults: Results with terms and scores.
+            ATEResults: Results with ranked terms and scores, and term offsets.
         """
         tokenized_corpus = self.preprocess_teanga(corpus)
         if not self.lda_model:
             self.train_topic_model(tokenized_corpus)
 
-        ngrams_by_doc = {}
+        terms_by_doc = []
+        offsets_by_doc = []
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words_with_offsets = [(start, end, doc.text[start:end]) for start, end in doc.words]
-            ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(words_with_offsets)
+            ngrams_with_offsets = self.generate_ngrams_teanga(self.teanga_words(doc))
+            scores = self.compute_ntm_scores([ngram for ngram, _ in ngrams_with_offsets])
+            doc_terms = self.doc_terms(doc_id, scores)
+            terms_by_doc.append(doc_terms)
+            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
 
-        terms_by_doc = []
-        for doc_id, ngrams in ngrams_by_doc.items():
-            scores = self.compute_ntm_scores(ngrams)
-            terms = [
-                {"term": ngram, "score": score}
-                for ngram, score in scores.items()
-                if self.threshold is None or score >= self.threshold
-            ]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """
@@ -180,7 +137,7 @@ class TopicModelingTermExtractor:
             corpus (List[str]): List of documents as strings.
 
         Returns:
-            ATEResults: Results with terms and scores.
+            ATEResults: Results with ranked terms and scores.
         """
         tokenized_corpus = self.preprocess_strings(corpus)
         if not self.lda_model:
@@ -189,12 +146,6 @@ class TopicModelingTermExtractor:
         terms_by_doc = []
         for idx, doc in enumerate(tokenized_corpus):
             ngrams = self.generate_ngrams_strings(doc.split())
-            scores = self.compute_ntm_scores(ngrams)
-            terms = [
-                {"term": ngram, "score": score}
-                for ngram, score in scores.items()
-                if self.threshold is None or score >= self.threshold
-            ]
-            terms_by_doc.append({"doc_id": f"doc_{idx}", "terms": terms})
+            terms_by_doc.append(self.doc_terms(f"doc_{idx}", self.compute_ntm_scores(ngrams)))
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

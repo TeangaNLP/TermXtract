@@ -1,12 +1,13 @@
 import re
 import math
 from collections import Counter
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 from .basic import BasicTermExtractor
 
 
-class DomainCoherenceTermExtractor:
+class DomainCoherenceTermExtractor(BaseTermExtractor):
     """DomainCoherence-based term extraction."""
 
     def __init__(self, threshold: Optional[float] = None, n: int = 1, window_size: int = 5):
@@ -18,30 +19,8 @@ class DomainCoherenceTermExtractor:
             n (int): Maximum n-gram size for candidate terms.
             window_size (int): Size of the context window for NPMI calculation.
         """
-        self.threshold = threshold
-        self.n = n
+        super().__init__(threshold=threshold, n=n)
         self.window_size = window_size
-
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[str]:
-        """Generate n-grams for a Teanga corpus."""
-        ngrams = []
-        words = [text for _, _, text in words_with_offsets]
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
-
-    def generate_ngrams_strings(self, words: List[str]) -> List[str]:
-        """Generate n-grams for a plain list of strings."""
-        ngrams = []
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using DomainCoherence."""
@@ -65,14 +44,7 @@ class DomainCoherenceTermExtractor:
         term_scores = self._compute_domain_coherence_teanga(corpus, top_200_terms, context_words)
     
         # Prepare results
-        terms_by_doc = []
-        for doc_id in corpus.doc_ids:
-            terms = [
-                {"term": term, "score": score}
-                for term, score in term_scores.items()
-                if self.threshold is None or score >= self.threshold
-            ]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
+        terms_by_doc = [self.doc_terms(doc_id, term_scores) for doc_id in corpus.doc_ids]
     
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -99,15 +71,7 @@ class DomainCoherenceTermExtractor:
         term_scores = self._compute_domain_coherence_strings(tokenized_corpus, top_200_terms, context_words)
 
         # Prepare results
-        terms_by_doc = []
-        for idx, doc_text in enumerate(corpus):
-            doc_id = f"doc_{idx}"
-            terms = [
-                {"term": term, "score": score}
-                for term, score in term_scores.items()
-                if self.threshold is None or score >= self.threshold
-            ]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
+        terms_by_doc = [self.doc_terms(f"doc_{idx}", term_scores) for idx in range(len(corpus))]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 

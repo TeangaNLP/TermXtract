@@ -1,11 +1,12 @@
 import re
 from collections import Counter, defaultdict
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from teanga import Corpus
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 
 
-class RAKETermExtractor:
+class RAKETermExtractor(BaseTermExtractor):
     """RAKE-based term extraction with support for n-grams and keyword linking."""
 
     def __init__(self, stoplist: List[str], phrase_delimiters: List[str], threshold: Optional[float] = None):
@@ -17,9 +18,9 @@ class RAKETermExtractor:
             phrase_delimiters (List[str]): List of delimiters to split phrases (e.g., punctuation).
             threshold (Optional[float]): Minimum score for term inclusion.
         """
+        super().__init__(threshold=threshold)
         self.stoplist = set(stoplist)
         self.phrase_delimiters = set(phrase_delimiters)
-        self.threshold = threshold
 
     def generate_candidate_keywords(self, text: str) -> List[List[str]]:
         """
@@ -120,10 +121,12 @@ class RAKETermExtractor:
             corpus: A Teanga Corpus object.
 
         Returns:
-            ATEResults: Results with terms, scores, and offsets.
+            ATEResults: Results with ranked terms and scores, and the character offsets of
+            each occurrence of each term.
         """
         corpus.add_layer_meta("terms", layer_type="span", base="text")
         terms_by_doc = []
+        offsets_by_doc = []
 
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
@@ -142,27 +145,22 @@ class RAKETermExtractor:
             # Step 4: Link adjoining keywords and update scores
             linked_scores = self.link_adjoining_keywords(text, candidate_scores)
 
-            # Step 5: Filter terms by threshold and calculate offsets
-            terms = []
-            for term, score in linked_scores.items():
-                if self.threshold is None or score >= self.threshold:
-                    offsets = []
-                    start = text.lower().find(term)
-                    while start != -1:
-                        end = start + len(term)
-                        offsets.append((start, end))
-                        start = text.lower().find(term, end)
+            # Step 5: Filter terms by threshold and find their offsets
+            doc_terms = self.doc_terms(doc_id, linked_scores)
+            terms_by_doc.append(doc_terms)
 
-                    # Add terms to the document's layer
-                    doc.add_layer("terms", spans=[(start, end) for start, end in offsets])
+            lowered = text.lower()
+            offsets = []
+            for term in doc_terms["terms"]:
+                start = lowered.find(term["term"])
+                while start != -1:
+                    end = start + len(term["term"])
+                    offsets.append({"term": term["term"], "offset": (start, end)})
+                    start = lowered.find(term["term"], end)
+            offsets.sort(key=lambda occurrence: occurrence["offset"])
+            offsets_by_doc.append({"doc_id": doc_id, "offsets": offsets})
 
-                    # Add to the terms list
-                    terms.append({"term": term, "score": score, "offsets": offsets})
-
-            # Store results by document
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """
@@ -172,7 +170,7 @@ class RAKETermExtractor:
             corpus (List[str]): List of documents as strings.
 
         Returns:
-            ATEResults: Results with terms and scores.
+            ATEResults: Results with ranked terms and scores.
         """
         terms_by_doc = []
         processed_corpus = []
@@ -194,12 +192,7 @@ class RAKETermExtractor:
             linked_scores = self.link_adjoining_keywords(doc_text, candidate_scores)
 
             # Step 5: Filter terms by threshold
-            terms = [
-                {"term": term, "score": score}
-                for term, score in linked_scores.items()
-                if self.threshold is None or score >= self.threshold
-            ]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
+            terms_by_doc.append(self.doc_terms(doc_id, linked_scores))
 
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)
 

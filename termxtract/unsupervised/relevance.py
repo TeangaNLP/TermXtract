@@ -1,12 +1,12 @@
 import re
 import math
-from collections import Counter
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Dict, Optional, Union
 from teanga import Corpus
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 
 
-class RelevanceTermExtractor:
+class RelevanceTermExtractor(BaseTermExtractor):
     """Relevance-based term extraction with n-gram support."""
 
     def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
@@ -18,40 +18,11 @@ class RelevanceTermExtractor:
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
         """
+        super().__init__(threshold=threshold, n=n)
         self.reference_corpus = reference_corpus
-        self.threshold = threshold
-        self.n = n
-
-    def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
-        """Generate n-grams with offsets for a Teanga corpus."""
-        ngrams = []
-        for i in range(len(words_with_offsets)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words_with_offsets):
-                    ngram = " ".join(word for _, _, word in words_with_offsets[i:i + j])
-                    start_offset = words_with_offsets[i][0]
-                    end_offset = words_with_offsets[i + j - 1][1]
-                    ngrams.append((ngram, (start_offset, end_offset)))
-        return ngrams
-
-    def generate_ngrams_strings(self, words: List[str]) -> List[str]:
-        """Generate n-grams for a plain list of strings."""
-        ngrams = []
-        for i in range(len(words)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    ngrams.append(ngram)
-        return ngrams
-
-    def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
-        """Compute Term Frequency (TF) for a list of n-grams."""
-        term_frequencies = Counter(ngrams)
-        total_count = sum(term_frequencies.values())
-        return {term: freq / total_count for term, freq in term_frequencies.items()}
 
     def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
-        """Compute Inverse Document Frequency (IDF) for a list of n-grams."""
+        """Compute the inverse document frequency of each n-gram as log(1 + N / (1 + df))."""
         num_docs = len(corpus_ngrams)
         idf_scores = {}
         all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
@@ -65,47 +36,43 @@ class RelevanceTermExtractor:
         # Ensure reference corpus is valid
         if not self.reference_corpus or not self.reference_corpus.doc_ids:
             raise ValueError("Reference corpus is required and must contain documents.")
-    
+
         # Generate reference IDF from reference corpus
         ref_ngrams = []
         for doc_id in self.reference_corpus.doc_ids:
             ref_doc = self.reference_corpus.doc_by_id(doc_id)
             if not ref_doc or not hasattr(ref_doc, 'words'):
                 continue
-            words_with_offsets = [(start, end, ref_doc.text[start:end]) for start, end in ref_doc.words]
-            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(words_with_offsets)]
+            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))]
             ref_ngrams.append(ngrams)
-    
+
         ref_idf = self.compute_idf(ref_ngrams)
-    
+
         # Generate n-grams and compute target IDF for the given corpus
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             if not doc or not hasattr(doc, 'words'):
                 continue
-            words_with_offsets = [(start, end, doc.text[start:end]) for start, end in doc.words]
-            ngrams_with_offsets = self.generate_ngrams_teanga(words_with_offsets)
-            ngrams_by_doc[doc_id] = ngrams_with_offsets
-    
+            ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
+
         corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
         target_idf = self.compute_idf(corpus_ngrams)
-    
+
         # Calculate scores for each term
         terms_by_doc = []
+        offsets_by_doc = []
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
             tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
                 ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / max(ref_idf.get(ngram, 1), 1e-9)))
                 for ngram in tf
             }
-    
-            terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
-                     if self.threshold is None or score >= self.threshold]
-            terms_by_doc.append({"doc_id": doc_id, "terms": terms})
-    
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+            doc_terms = self.doc_terms(doc_id, scores)
+            terms_by_doc.append(doc_terms)
+            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
 
+        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
         """Extract terms from a plain list of strings using Relevance."""
@@ -124,9 +91,6 @@ class RelevanceTermExtractor:
                 ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / ref_idf.get(ngram, 1)))
                 for ngram in tf
             }
-
-            terms = [{"term": ngram, "score": score} for ngram, score in scores.items()
-                     if self.threshold is None or score >= self.threshold]
-            terms_by_doc.append({"doc_id": f"doc_{idx}", "terms": terms})
+            terms_by_doc.append(self.doc_terms(f"doc_{idx}", scores))
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

@@ -5,7 +5,7 @@ from collections import Counter
 from typing import List, Dict, Optional, Tuple
 from scipy.stats import rankdata
 from sklearn.utils import resample
-from ..utils import ATEResults
+from ..utils import ATEResults, rank_terms
 
 
 class RogerTermExtractor:
@@ -131,7 +131,7 @@ class RogerTermExtractor:
         self.train_model([" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]], labels)
 
         term_scores = self.predict_terms_teanga(corpus)
-        terms_by_doc = [{"doc_id": doc_id, "terms": [{"term": term, "score": score} for term, score in term_scores.items()]} for doc_id in corpus.doc_ids]
+        terms_by_doc = [{"doc_id": doc_id, "terms": rank_terms(term_scores)} for doc_id in corpus.doc_ids]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -139,4 +139,4 @@ class RogerTermExtractor:
         """Extract terms from a list of strings using Roger."""
         self.train_model(corpus, labels)
         term_scores = self.predict_terms_strings(corpus)
-        return ATEResults(corpus=corpus, terms=[{"doc_id": f"doc_{i}", "terms": [{"term": term, "score": score} for term, score in term_scores.items()]} for i in range(len(corpus))])
+        return ATEResults(corpus=corpus, terms=[{"doc_id": f"doc_{i}", "terms": rank_terms(term_scores)} for i in range(len(corpus))])

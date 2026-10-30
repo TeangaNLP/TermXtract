@@ -12,7 +12,7 @@ from transformers import (
 from sacremoses import MosesTokenizer, MosesDetokenizer
 from sklearn.model_selection import train_test_split
 from teanga import Corpus
-from ..utils import ATEResults
+from ..utils import ATEResults, rank_terms
 
 
 class TokenClassificationTermExtractor:
@@ -418,15 +418,10 @@ class TokenClassificationTermExtractor:
         # Create results object
         terms_by_doc = []
         for doc_id in corpus.doc_ids:
-            doc_terms = []
             doc_text = corpus.doc_by_id(doc_id).text.lower()
-            
-            for term, score in term_scores.items():
-                # Check if term appears in the document
-                if term.lower() in doc_text:
-                    doc_terms.append({"term": term, "score": score})
-            
-            terms_by_doc.append({"doc_id": doc_id, "terms": doc_terms})
+            # Keep the terms that appear in the document
+            doc_scores = {term: score for term, score in term_scores.items() if term.lower() in doc_text}
+            terms_by_doc.append({"doc_id": doc_id, "terms": rank_terms(doc_scores)})
         
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
@@ -505,15 +500,10 @@ class TokenClassificationTermExtractor:
         # Create results object
         terms_by_doc = []
         for i, doc in enumerate(corpus):
-            doc_terms = []
             doc_lower = doc.lower()
-            
-            for term, score in term_scores.items():
-                # Check if term appears in the document
-                if term.lower() in doc_lower:
-                    doc_terms.append({"term": term, "score": score})
-            
-            terms_by_doc.append({"doc_id": f"doc_{i}", "terms": doc_terms})
+            # Keep the terms that appear in the document
+            doc_scores = {term: score for term, score in term_scores.items() if term.lower() in doc_lower}
+            terms_by_doc.append({"doc_id": f"doc_{i}", "terms": rank_terms(doc_scores)})
         
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
