@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
-          poetry install --with dev  # Ensure dev dependencies, including mkdocstrings and handlers, are installed
+          poetry install --with dev --extras transformers  # Dev dependencies (mkdocs etc.) plus the optional transformers extra so all tests run
 
       # Step 3b: Pre-download the WordNet lexicon used by the AdaBoost extractor
       - name: Download WordNet lexicon

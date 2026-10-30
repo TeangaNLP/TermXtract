@@ -11,11 +11,14 @@ python = ">=3.10,<4.0"
 teanga = "^0.1.0"
 scikit-learn = "^1.3.0"
 wn = "^1.1"
-torch = ">=1.13.0"
-transformers = "^4.41.0"
-sacremoses = ">=0.0.53"
+torch = { version = ">=1.13.0", optional = true }
+transformers = { version = "^4.41.0", optional = true }
+sacremoses = { version = ">=0.0.53", optional = true }
 numpy = "^1.24.0"
-accelerate = ">=1.5.2" 
+accelerate = { version = ">=1.5.2", optional = true }
+
+[tool.poetry.extras]
+transformers = ["torch", "transformers", "accelerate", "sacremoses"]
 
 [tool.poetry.group.dev.dependencies]
 mkdocs = "^1.6.1"

@@ -18,7 +18,13 @@ TermXtract needs **Python 3.10 or later**. It is not yet on PyPI, so install it 
 pip install git+https://github.com/TeangaNLP/TermXtract.git
 ```
 
-This also installs [Teanga](https://pypi.org/project/teanga/), PyTorch and Hugging Face Transformers (used by the token-classification extractor), so the first install can take a while.
+The transformer-based `token-classification` extractor needs PyTorch and Hugging Face Transformers, which are large, so they are an optional extra. Install them with:
+
+```bash
+pip install "termxtract[transformers] @ git+https://github.com/TeangaNLP/TermXtract.git"
+```
+
+All other methods work with the base install.
 
 ## Quickstart
 
@@ -121,7 +127,7 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 |------------------------|----------------------------------------------------------|----------------------------------------------------------|
 | `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`, `wordnet_lexicon` |
 | `roger`                | Evolutionary ranking-function search                     | `population_size`, `generations`, `subsample_ratio`      |
-| `token-classification` | Fine-tuned Hugging Face token-classification model       | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
+| `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 
 ## Results
 
@@ -136,7 +142,7 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 ```bash
 git clone https://github.com/TeangaNLP/TermXtract.git
 cd TermXtract
-poetry install --with dev
+poetry install --with dev --extras transformers
 
 poetry run python -m unittest discover tests   # run the test suite
 poetry run mkdocs serve                        # preview the docs locally

@@ -23,7 +23,13 @@ __all__ = list(_LAZY_IMPORTS)
 
 def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
-        value = getattr(import_module(_LAZY_IMPORTS[name], __name__), name)
+        try:
+            module = import_module(_LAZY_IMPORTS[name], __name__)
+        except AttributeError as e:
+            # Otherwise `from termxtract import X` reports this as "cannot import name 'X'"
+            # and hides the underlying error.
+            raise ImportError(f"Error while importing {name!r} from {__name__!r}") from e
+        value = getattr(module, name)
         globals()[name] = value
         return value
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

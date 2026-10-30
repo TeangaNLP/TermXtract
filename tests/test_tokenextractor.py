@@ -1,7 +1,15 @@
+import importlib.util
 import unittest
 from teanga import Corpus
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
 
+HAS_TRANSFORMERS = all(
+    importlib.util.find_spec(module) is not None
+    for module in ("torch", "transformers", "sacremoses")
+)
+
+
+@unittest.skipUnless(HAS_TRANSFORMERS, "requires the optional 'transformers' extra")
 class TestTokenClassificationExtraction(unittest.TestCase):
     """Test cases for token classification term extraction method."""
     

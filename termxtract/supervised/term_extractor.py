@@ -3,7 +3,6 @@ from teanga import Corpus
 from ..utils import ATEResults
 from .adaboost import AdaBoostTermExtractor, DEFAULT_WORDNET_LEXICON
 from .roger import RogerTermExtractor
-from .tokenextractor import TokenClassificationTermExtractor
 
 
 class SupervisedTermExtractor:
@@ -75,6 +74,14 @@ class SupervisedTermExtractor:
                 n=n
             )
         elif method == "token-classification":
+            # Imported here because torch/transformers are an optional extra.
+            try:
+                from .tokenextractor import TokenClassificationTermExtractor
+            except ImportError as e:
+                raise ImportError(
+                    "The 'token-classification' method requires the optional 'transformers' "
+                    "dependencies. Install them with: pip install 'termxtract[transformers]'"
+                ) from e
             self.extractor = TokenClassificationTermExtractor(
                 model_name=model_name,
                 n=n,

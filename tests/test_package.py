@@ -42,6 +42,39 @@ class TestPackage(unittest.TestCase):
         )
         self.assertEqual(result.stdout.strip(), "")
 
+    def test_supervised_without_transformers_does_not_load_torch(self):
+        """Test that non-transformer supervised methods do not need the optional extra."""
+        code = (
+            "import sys; "
+            "from termxtract import SupervisedTermExtractor; "
+            "SupervisedTermExtractor(method='adaboost'); "
+            "SupervisedTermExtractor(method='roger'); "
+            "heavy = [m for m in ('torch', 'transformers', 'sacremoses') if m in sys.modules]; "
+            "print(','.join(heavy))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, check=True
+        )
+        self.assertEqual(result.stdout.strip(), "")
+
+    def test_token_classification_without_extra_raises_clear_error(self):
+        """Test that a missing 'transformers' extra gives an install hint."""
+        # Simulate torch not being installed. (Setting sys.modules['torch'] = None is not
+        # enough: scipy inspects sys.modules['torch'] and fails on None.)
+        code = (
+            "import sys\n"
+            "class BlockTorch:\n"
+            "    def find_spec(self, name, path=None, target=None):\n"
+            "        if name.split('.')[0] == 'torch':\n"
+            "            raise ImportError('No module named torch')\n"
+            "sys.meta_path.insert(0, BlockTorch())\n"
+            "from termxtract import SupervisedTermExtractor\n"
+            "SupervisedTermExtractor(method='token-classification')\n"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pip install 'termxtract[transformers]'", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
