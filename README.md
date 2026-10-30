@@ -158,6 +158,10 @@ poetry run mkdocs serve                        # preview the docs locally
 
 CI runs all of these on every pull request, with the tests on Python 3.10–3.12, on Linux, macOS and Windows, and against the oldest dependency versions `pyproject.toml` allows. The codebase was reformatted in one commit, which `git blame` can skip with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
+### Releasing
+
+Publishing a GitHub release whose tag matches the version in `pyproject.toml` (e.g. `v0.1.0`) builds the package and uploads it to PyPI.
+
 ## License
 
 TermXtract is licensed under the [Apache License 2.0](LICENSE), the same license as [Teanga](https://github.com/TeangaNLP/teanga).
