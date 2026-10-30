@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from teanga import Corpus
 
@@ -10,8 +11,57 @@ if TYPE_CHECKING:
     from .tokenextractor import TokenClassificationTermExtractor
 
 
+def _load_token_classification() -> type["TokenClassificationTermExtractor"]:
+    """Import the token-classification extractor, which needs the optional extra."""
+    try:
+        from .tokenextractor import TokenClassificationTermExtractor
+    except ImportError as e:
+        raise ImportError(
+            "The 'token-classification' method requires the optional 'transformers' "
+            "dependencies. Install them with: pip install 'termxtract[transformers]'"
+        ) from e
+    return TokenClassificationTermExtractor
+
+
 class SupervisedTermExtractor:
-    """A wrapper class for selecting the supervised term extraction method."""
+    """
+    A wrapper class for selecting the supervised term extraction method.
+
+    `SupervisedTermExtractor.METHODS` maps each method name to a function returning its
+    extractor class and the parameters passed to it, so
+    `list(SupervisedTermExtractor.METHODS)` lists the available methods.
+    """
+
+    METHODS: ClassVar[dict[str, tuple[Callable[[], type], tuple[str, ...]]]] = {
+        "adaboost": (
+            lambda: AdaBoostTermExtractor,
+            (
+                "threshold",
+                "n",
+                "max_depth",
+                "n_estimators",
+                "estimator",
+                "wordnet_lexicon",
+            ),
+        ),
+        "roger": (
+            lambda: RogerTermExtractor,
+            ("population_size", "generations", "subsample_ratio", "n"),
+        ),
+        # Loaded on use because torch/transformers are an optional extra
+        "token-classification": (
+            _load_token_classification,
+            (
+                "model_name",
+                "n",
+                "batch_size",
+                "epochs",
+                "learning_rate",
+                "max_length",
+                "language",
+            ),
+        ),
+    }
 
     extractor: (
         "AdaBoostTermExtractor | RogerTermExtractor | TokenClassificationTermExtractor"
@@ -43,7 +93,8 @@ class SupervisedTermExtractor:
         Initialize the TermExtractor with the desired supervised method and parameters.
 
         Args:
-            method (str): The term extraction method ('adaboost', 'roger', 'token-classification').
+            method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
+                ('adaboost', 'roger', 'token-classification').
             model_name (str): Hugging Face model name for token classification.
             threshold (Optional[float]): Minimum score threshold for term inclusion (only for 'adaboost').
             n (int): Maximum length of n-grams to consider.
@@ -59,43 +110,38 @@ class SupervisedTermExtractor:
             learning_rate (float): Learning rate (only for 'token-classification').
             max_length (int): Maximum sequence length (only for 'token-classification').
             language (str): Language code for tokenization (only for 'token-classification').
+
+        Raises:
+            ValueError: If the method is unknown.
+            ImportError: If the method is 'token-classification' and the optional
+                'transformers' dependencies are not installed.
         """
-        if method == "adaboost":
-            self.extractor = AdaBoostTermExtractor(
-                threshold=threshold,
-                n=n,
-                max_depth=max_depth,
-                n_estimators=n_estimators,
-                estimator=estimator,
-                wordnet_lexicon=wordnet_lexicon,
+        if method not in self.METHODS:
+            raise ValueError(
+                f"Unknown supervised extraction method: {method!r}. "
+                f"Available methods: {', '.join(self.METHODS)}"
             )
-        elif method == "roger":
-            self.extractor = RogerTermExtractor(
-                population_size=population_size,
-                generations=generations,
-                subsample_ratio=subsample_ratio,
-                n=n,
-            )
-        elif method == "token-classification":
-            # Imported here because torch/transformers are an optional extra.
-            try:
-                from .tokenextractor import TokenClassificationTermExtractor
-            except ImportError as e:
-                raise ImportError(
-                    "The 'token-classification' method requires the optional 'transformers' "
-                    "dependencies. Install them with: pip install 'termxtract[transformers]'"
-                ) from e
-            self.extractor = TokenClassificationTermExtractor(
-                model_name=model_name,
-                n=n,
-                batch_size=batch_size,
-                epochs=epochs,
-                learning_rate=learning_rate,
-                max_length=max_length,
-                language=language,
-            )
-        else:
-            raise ValueError(f"Unknown supervised extraction method: {method}")
+        load_extractor_class, param_names = self.METHODS[method]
+        params: dict[str, Any] = {
+            "model_name": model_name,
+            "threshold": threshold,
+            "n": n,
+            "population_size": population_size,
+            "generations": generations,
+            "subsample_ratio": subsample_ratio,
+            "max_depth": max_depth,
+            "n_estimators": n_estimators,
+            "estimator": estimator,
+            "wordnet_lexicon": wordnet_lexicon,
+            "batch_size": batch_size,
+            "epochs": epochs,
+            "learning_rate": learning_rate,
+            "max_length": max_length,
+            "language": language,
+        }
+        self.extractor = load_extractor_class()(
+            **{name: params[name] for name in param_names}
+        )
 
     def extract(self, corpus: Corpus | list[str], labels: dict[str, int]) -> ATEResults:
         """

@@ -106,6 +106,8 @@ results = TermExtractor(method="basic", n=2).extract(corpus)
 
 ## Available methods
 
+`TermExtractor.METHODS` and `SupervisedTermExtractor.METHODS` map each method name to its implementation, so `list(TermExtractor.METHODS)` lists the available methods. Passing an unknown `method` raises a `ValueError` that lists them too.
+
 ### Unsupervised — `TermExtractor(method=...)`
 
 | `method`           | Description                                         | Extra parameters                      |
@@ -132,6 +134,8 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 | `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`, `wordnet_lexicon` |
 | `roger`                | Evolutionary ranking-function search                     | `population_size`, `generations`, `subsample_ratio`      |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
+
+All supervised methods accept `n` (maximum n-gram length, default 6).
 
 ## Results
 

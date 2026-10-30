@@ -1,3 +1,5 @@
+from typing import Any, ClassVar
+
 from teanga import Corpus
 
 from ..utils import ATEResults
@@ -17,16 +19,42 @@ from .weirdness import WeirdnessTermExtractor
 
 
 class TermExtractor:
-    """A wrapper class for selecting the term extraction method."""
+    """
+    A wrapper class for selecting the term extraction method.
+
+    `TermExtractor.METHODS` maps each method name to its extractor class and the
+    parameters passed to it, so `list(TermExtractor.METHODS)` lists the available methods.
+    """
+
+    METHODS: ClassVar[dict[str, tuple[type[BaseTermExtractor], tuple[str, ...]]]] = {
+        "tfidf": (TFIDFTermExtractor, ("threshold", "n")),
+        "ridf": (RIDFTermExtractor, ("threshold", "n")),
+        "cvalue": (CValueTermExtractor, ("threshold", "n")),
+        "basic": (BasicTermExtractor, ("alpha", "threshold", "n")),
+        "combobasic": (ComboBasicTermExtractor, ("alpha", "beta", "threshold", "n")),
+        "domaincoherence": (
+            DomainCoherenceTermExtractor,
+            ("window_size", "threshold", "n"),
+        ),
+        "relevance": (RelevanceTermExtractor, ("reference_corpus", "threshold", "n")),
+        "topicmodeling": (TopicModelingTermExtractor, ("num_topics", "threshold", "n")),
+        "nmf": (NMFTermExtractor, ("threshold", "n_topics", "max_features", "n")),
+        "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
+        "domainpertinence": (
+            DomainPertinenceTermExtractor,
+            ("reference_corpus", "threshold", "n"),
+        ),
+        "weirdness": (WeirdnessTermExtractor, ("reference_corpus", "threshold", "n")),
+    }
 
     def __init__(
         self,
         method: str = "tfidf",
-        alpha: float | None = None,
-        beta: float | None = None,
+        alpha: float = 0.5,
+        beta: float = 0.5,
         threshold: float | None = None,
         n: int = 1,
-        num_topics: int | None = 20,
+        num_topics: int = 20,
         window_size: int = 5,
         stoplist: list[str] | None = None,
         phrase_delimiters: list[str] | None = None,
@@ -37,65 +65,48 @@ class TermExtractor:
         r"""
         Initialize the TermExtractor with the desired method and parameters.
 
+        Each method only uses some of the parameters; the others are ignored.
+
         Args:
-            method (str): The term extraction method (e.g., 'tfidf', 'ridf', 'basic', 'combobasic', 'rake', 'domainpertinence', 'weirdness').
-            alpha (Optional[float]): Weight for \( e_t \) (only for certain methods like 'combobasic').
-            beta (Optional[float]): Weight for \( e'_t \) (only for certain methods like 'combobasic').
+            method (str): The term extraction method, one of the keys of `TermExtractor.METHODS`
+                (e.g. 'tfidf', 'cvalue', 'rake', 'weirdness').
+            alpha (float): Weight for \( e_t \) ('basic' and 'combobasic').
+            beta (float): Weight for \( e'_t \) ('combobasic').
             threshold (Optional[float]): Minimum score threshold for term inclusion.
-            n (int): Maximum length of n-grams to consider.
-            stoplist (Optional[List[str]]): List of stop words (used by RAKE).
-            phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
+            n (int): Maximum length of n-grams to consider (all methods except 'rake').
+            num_topics (int): Number of LDA topics ('topicmodeling').
+            window_size (int): Context window size ('domaincoherence').
+            stoplist (Optional[List[str]]): List of stop words (required by 'rake').
+            phrase_delimiters (Optional[List[str]]): List of phrase delimiters (required by 'rake').
             reference_corpus (Optional[Union[Corpus, List[str]]]): General-language reference corpus, required by 'domainpertinence', 'weirdness' and 'relevance'. It must have the same type as the corpus passed to `extract`.
+            n_topics (int): Number of NMF topics ('nmf').
+            max_features (Optional[int]): Maximum vocabulary size ('nmf').
+
+        Raises:
+            ValueError: If the method is unknown, or a parameter it requires is missing.
         """
-        self.extractor: BaseTermExtractor
-        if method == "tfidf":
-            self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
-        elif method == "ridf":
-            self.extractor = RIDFTermExtractor(threshold=threshold, n=n)
-        elif method == "cvalue":
-            self.extractor = CValueTermExtractor(threshold=threshold, n=n)
-        elif method == "basic":
-            self.extractor = BasicTermExtractor(
-                alpha=alpha or 0.5, threshold=threshold, n=n
+        if method not in self.METHODS:
+            raise ValueError(
+                f"Unknown extraction method: {method!r}. "
+                f"Available methods: {', '.join(self.METHODS)}"
             )
-        elif method == "combobasic":
-            self.extractor = ComboBasicTermExtractor(
-                alpha=alpha or 0.5, beta=beta or 0.5, threshold=threshold, n=n
-            )
-        elif method == "domaincoherence":
-            self.extractor = DomainCoherenceTermExtractor(
-                window_size=window_size or 5, threshold=threshold, n=n
-            )
-        elif method == "relevance":
-            self.extractor = RelevanceTermExtractor(
-                reference_corpus=reference_corpus, threshold=threshold, n=n
-            )
-        elif method == "topicmodeling":
-            self.extractor = TopicModelingTermExtractor(
-                num_topics=num_topics or 20, threshold=threshold, n=n
-            )
-        elif method == "nmf":
-            self.extractor = NMFTermExtractor(
-                threshold=threshold, n_topics=n_topics, max_features=max_features, n=n
-            )
-        elif method == "rake":
-            if stoplist is None or phrase_delimiters is None:
-                raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
-            self.extractor = RAKETermExtractor(
-                stoplist=stoplist,
-                phrase_delimiters=phrase_delimiters,
-                threshold=threshold,
-            )
-        elif method == "domainpertinence":
-            self.extractor = DomainPertinenceTermExtractor(
-                reference_corpus=reference_corpus, threshold=threshold, n=n
-            )
-        elif method == "weirdness":
-            self.extractor = WeirdnessTermExtractor(
-                reference_corpus=reference_corpus, threshold=threshold, n=n
-            )
-        else:
-            raise ValueError(f"Unknown extraction method: {method}")
+        extractor_class, param_names = self.METHODS[method]
+        params: dict[str, Any] = {
+            "alpha": alpha,
+            "beta": beta,
+            "threshold": threshold,
+            "n": n,
+            "num_topics": num_topics,
+            "window_size": window_size,
+            "stoplist": stoplist,
+            "phrase_delimiters": phrase_delimiters,
+            "reference_corpus": reference_corpus,
+            "n_topics": n_topics,
+            "max_features": max_features,
+        }
+        self.extractor: BaseTermExtractor = extractor_class(
+            **{name: params[name] for name in param_names}
+        )
 
     def extract(
         self,

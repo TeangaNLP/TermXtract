@@ -20,6 +20,9 @@ that was previously only available from GitHub.
   common n-gram, TF and IDF helpers.
 - `results.offsets` for every extractor that scores per-document n-grams (and RAKE) on
   Teanga input.
+- `TermExtractor.METHODS` and `SupervisedTermExtractor.METHODS`, which map each method
+  name to its extractor class and parameters, replacing the `if`/`elif` chains. An
+  unknown `method` now raises a `ValueError` that lists the available methods.
 - Optional `transformers` extra (`pip install 'termxtract[transformers]'`) for the
   token-classification method.
 - `threshold` and `wordnet_lexicon` parameters for `SupervisedTermExtractor`.
@@ -57,6 +60,8 @@ that was previously only available from GitHub.
   capital letters were never matched.
 - AdaBoost and Roger list candidates with equal scores in order of first occurrence, so
   their results no longer change from run to run.
+- `alpha=0` and `beta=0` are passed to `basic` and `combobasic` instead of being replaced
+  by the default of 0.5. `alpha`, `beta` and `num_topics` no longer accept `None`.
 - RIDF no longer crashes when no threshold is given.
 - The token-classification extractor works with current transformers releases
   (`eval_strategy`).

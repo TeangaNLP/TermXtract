@@ -12,18 +12,20 @@ class RAKETermExtractor(BaseTermExtractor):
 
     def __init__(
         self,
-        stoplist: list[str],
-        phrase_delimiters: list[str],
+        stoplist: list[str] | None,
+        phrase_delimiters: list[str] | None,
         threshold: float | None = None,
     ):
         """
         Initialize the RAKE extractor.
 
         Args:
-            stoplist (List[str]): List of stop words.
-            phrase_delimiters (List[str]): List of delimiters to split phrases (e.g., punctuation).
+            stoplist (List[str]): List of stop words (required).
+            phrase_delimiters (List[str]): List of delimiters to split phrases (e.g., punctuation) (required).
             threshold (Optional[float]): Minimum score for term inclusion.
         """
+        if stoplist is None or phrase_delimiters is None:
+            raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
         super().__init__(threshold=threshold)
         self.stoplist = set(stoplist)
         self.phrase_delimiters = set(phrase_delimiters)
