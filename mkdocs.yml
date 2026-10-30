@@ -1,12 +1,49 @@
 site_name: TermXtract
+site_url: https://teanga.io/TermXtract/
+repo_url: https://github.com/TeangaNLP/TermXtract
 
 
 theme:
   name: material
 
 plugins:
+- search
 - mkdocstrings:
     default_handler: python
     handlers:
       python:
         paths: [.]
+        options:
+          docstring_style: google
+          merge_init_into_class: true
+          show_root_heading: true
+          show_root_full_path: false
+          show_source: false
+          members_order: source
+
+nav:
+- Home: index.md
+- Tutorials:
+  - Getting Started: tutorials/getting_started.md
+  - TF-IDF: tutorials/tfidf_tutorial.md
+- API Reference:
+  - TermExtractor: api/term_extractor.md
+  - SupervisedTermExtractor: api/supervised_term_extractor.md
+  - ATEResults: api/results.md
+  - Unsupervised Extractors:
+    - TF-IDF: api/unsupervised/tfidf.md
+    - Residual IDF: api/unsupervised/ridf.md
+    - C-Value: api/unsupervised/cvalue.md
+    - Basic: api/unsupervised/basic.md
+    - ComboBasic: api/unsupervised/combobasic.md
+    - RAKE: api/unsupervised/rake.md
+    - Domain Coherence: api/unsupervised/domaincoherence.md
+    - Domain Pertinence: api/unsupervised/domainpertinence.md
+    - Weirdness: api/unsupervised/weirdness.md
+    - Relevance: api/unsupervised/relevance.md
+    - Topic Modeling (LDA): api/unsupervised/topicmodeling.md
+    - NMF: api/unsupervised/nmf.md
+  - Supervised Extractors:
+    - AdaBoost: api/supervised/adaboost.md
+    - Roger: api/supervised/roger.md
+    - Token Classification: api/supervised/token_classification.md

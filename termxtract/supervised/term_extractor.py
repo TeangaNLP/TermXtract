@@ -38,19 +38,13 @@ class SupervisedTermExtractor:
             model_name (str): Hugging Face model name for token classification.
             threshold (Optional[float]): Minimum score threshold for term inclusion (only for 'adaboost').
             n (int): Maximum length of n-grams to consider.
-            
-            # Roger parameters
             population_size (int): Number of ranking functions (only for 'roger').
             generations (int): Number of iterations for optimization (only for 'roger').
             subsample_ratio (float): Data fraction used in each iteration (only for 'roger').
-            
-            # AdaBoost parameters
             max_depth (int): Maximum depth of the decision tree (only for 'adaboost').
             n_estimators (int): Number of boosting iterations (only for 'adaboost').
             estimator (str): Type of base estimator (only for 'adaboost').
             wordnet_lexicon (str): `wn` lexicon for the semantic feature, downloaded on first use if missing (only for 'adaboost').
-            
-            # Token classification parameters
             batch_size (int): Training batch size (only for 'token-classification').
             epochs (int): Number of training epochs (only for 'token-classification').
             learning_rate (float): Learning rate (only for 'token-classification').

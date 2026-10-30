@@ -3,6 +3,7 @@ import math
 import numpy as np
 from collections import Counter
 from typing import List, Dict, Optional, Tuple
+from teanga import Corpus
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from ..utils import ATEResults
@@ -26,7 +27,7 @@ class TopicModelingTermExtractor:
         self.lda_model = None
         self.vectorizer = None
 
-    def preprocess_teanga(self, corpus) -> List[str]:
+    def preprocess_teanga(self, corpus: Corpus) -> List[str]:
         """
         Preprocess a Teanga corpus for topic modeling.
 
@@ -139,7 +140,7 @@ class TopicModelingTermExtractor:
 
         return scores
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using topic modeling.
 

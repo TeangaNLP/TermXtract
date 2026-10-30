@@ -2,6 +2,7 @@ import re
 import math
 from collections import Counter
 from typing import List, Dict, Optional, Tuple
+from teanga import Corpus
 from ..utils import ATEResults
 
 
@@ -106,7 +107,7 @@ class ComboBasicTermExtractor:
 
         return combobasic_scores
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using ComboBasic.
 

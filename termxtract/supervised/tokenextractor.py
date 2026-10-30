@@ -274,7 +274,7 @@ class TokenClassificationTermExtractor:
                     
         return extracted_terms
     
-    def train_model(self, tokenized_dataset):
+    def train_model(self, tokenized_dataset: torch.utils.data.Dataset):
         """
         Train the token classification model.
         
@@ -307,7 +307,7 @@ class TokenClassificationTermExtractor:
         self.trainer.train()
         self.is_trained = True
     
-    def predict(self, tokenized_dataset, texts) -> Dict[str, float]:
+    def predict(self, tokenized_dataset: torch.utils.data.Dataset, texts) -> Dict[str, float]:
         """
         Make predictions using the trained model.
         
@@ -340,7 +340,7 @@ class TokenClassificationTermExtractor:
         # Extract terms
         return self.extract_terms_from_predictions(true_predictions, texts)
     
-    def prepare_teanga_corpus(self, corpus) -> List[Tuple[List[str], str]]:
+    def prepare_teanga_corpus(self, corpus: Corpus) -> List[Tuple[List[str], str]]:
         """
         Prepare a Teanga corpus for term extraction.
         
@@ -381,7 +381,7 @@ class TokenClassificationTermExtractor:
                 
         return sentence_list
     
-    def extract_terms_teanga(self, corpus, labels: Dict[str, int] = None) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus, labels: Dict[str, int] = None) -> ATEResults:
         """
         Extract terms from a Teanga corpus.
         
@@ -430,7 +430,7 @@ class TokenClassificationTermExtractor:
         
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
-    def train_terms_teanga(self, corpus, labels: Dict[str, int]) -> ATEResults:
+    def train_terms_teanga(self, corpus: Corpus, labels: Dict[str, int]) -> ATEResults:
         """
         Train the model and extract terms from a Teanga corpus.
         

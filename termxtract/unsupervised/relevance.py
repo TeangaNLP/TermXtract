@@ -1,14 +1,15 @@
 import re
 import math
 from collections import Counter
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
+from teanga import Corpus
 from ..utils import ATEResults
 
 
 class RelevanceTermExtractor:
     """Relevance-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus, threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
         """
         Initialize the Relevance extractor.
 

@@ -1,6 +1,7 @@
 import re
 from collections import Counter
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
+from teanga import Corpus
 from ..utils import ATEResults
 import math
 
@@ -8,7 +9,7 @@ import math
 class WeirdnessTermExtractor:
     """Weirdness-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus, threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
         """
         Initialize the Weirdness extractor.
 
@@ -144,7 +145,7 @@ class WeirdnessTermExtractor:
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
     
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using Weirdness.
     

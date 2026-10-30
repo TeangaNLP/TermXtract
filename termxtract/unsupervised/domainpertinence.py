@@ -1,19 +1,20 @@
 import re
 import math
 from collections import Counter
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
+from teanga import Corpus
 from ..utils import ATEResults
 
 
 class DomainPertinenceTermExtractor:
     """Domain Pertinence-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus, threshold: Optional[float] = None, n: int = 1):
+    def __init__(self, reference_corpus: Union[Corpus, List[str]], threshold: Optional[float] = None, n: int = 1):
         """
         Initialize the DomainPertinence extractor.
 
         Args:
-            reference_corpus: Reference corpus for computing domain pertinence (Teanga or list of strings).
+            reference_corpus (Union[Corpus, List[str]]): Reference corpus for computing domain pertinence (Teanga or list of strings).
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
         """
@@ -22,6 +23,15 @@ class DomainPertinenceTermExtractor:
         self.n = n
 
     def generate_ngrams_teanga(self, words_with_offsets: List[Tuple[int, int, str]]) -> List[Tuple[str, Tuple[int, int]]]:
+        """
+        Generate n-grams with offsets for a Teanga corpus.
+
+        Args:
+            words_with_offsets (List[Tuple[int, int, str]]): List of (start, end, text) tuples for words.
+
+        Returns:
+            List[Tuple[str, Tuple[int, int]]]: List of n-grams with their start and end offsets.
+        """
         ngrams = []
         words = [text for _, _, text in words_with_offsets]
         for i in range(len(words)):
@@ -34,6 +44,15 @@ class DomainPertinenceTermExtractor:
         return ngrams
 
     def generate_ngrams_strings(self, words: List[str]) -> List[str]:
+        """
+        Generate n-grams for a plain list of strings.
+
+        Args:
+            words (List[str]): List of words in the document.
+
+        Returns:
+            List[str]: List of n-grams.
+        """
         ngrams = []
         for i in range(len(words)):
             for j in range(1, self.n + 1):
@@ -43,11 +62,30 @@ class DomainPertinenceTermExtractor:
         return ngrams
 
     def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
+        """
+        Compute the relative frequency of each n-gram in a document.
+
+        Args:
+            ngrams (List[str]): All n-grams in the document.
+
+        Returns:
+            Dict[str, float]: Count of each n-gram divided by the total number of n-grams.
+        """
         term_frequencies = Counter(ngrams)
         total_count = sum(term_frequencies.values())
         return {term: freq / total_count for term, freq in term_frequencies.items()}
 
     def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+        """
+        Compute the inverse document frequency of each n-gram as log(N / (1 + df)).
+
+        Args:
+            corpus_ngrams (List[List[str]]): The n-grams of each document.
+
+        Returns:
+            Dict[str, float]: IDF score for each n-gram, where N is the number of documents
+            and df is the number of documents containing the n-gram.
+        """
         num_docs = len(corpus_ngrams)
         idf_scores = {}
         all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
@@ -56,7 +94,20 @@ class DomainPertinenceTermExtractor:
             idf_scores[ngram] = math.log(num_docs / (1 + doc_count))
         return idf_scores
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
+        """
+        Extract terms from a Teanga corpus using domain pertinence.
+
+        Each n-gram is scored as tf * idf_ref / idf_target, where tf is its relative
+        frequency in the document and the IDFs come from the reference and target corpora.
+
+        Args:
+            corpus (Corpus): A Teanga corpus with a `words` span layer. The reference corpus
+                must also be a Teanga corpus.
+
+        Returns:
+            ATEResults: Results with terms and scores.
+        """
         # Generate reference IDF from reference corpus
         ref_ngrams = []
         for ref_doc_id in self.reference_corpus.doc_ids:
@@ -94,6 +145,19 @@ class DomainPertinenceTermExtractor:
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+        """
+        Extract terms from a list of strings using domain pertinence.
+
+        Each n-gram is scored as tf * idf_ref / idf_target, where tf is its relative
+        frequency in the document and the IDFs come from the reference and target corpora.
+
+        Args:
+            corpus (List[str]): The documents as plain strings. The reference corpus must
+                also be a list of strings.
+
+        Returns:
+            ATEResults: Results with terms and scores.
+        """
         # Generate reference IDF from reference corpus
         ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]
         ref_idf = self.compute_idf(ref_ngrams)

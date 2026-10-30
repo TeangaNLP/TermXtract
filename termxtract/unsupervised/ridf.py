@@ -2,6 +2,7 @@ import re
 from collections import Counter
 import math
 from typing import List, Dict, Optional, Tuple
+from teanga import Corpus
 from ..utils import ATEResults
 
 
@@ -9,6 +10,13 @@ class RIDFTermExtractor:
     """RIDF-based term extraction with n-gram support."""
 
     def __init__(self, threshold: Optional[float] = None, n: int = 1):
+        """
+        Initialize the RIDF extractor.
+
+        Args:
+            threshold (Optional[float]): Minimum RIDF score for term inclusion.
+            n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+        """
         self.threshold = threshold
         self.n = n
 
@@ -97,7 +105,7 @@ class RIDFTermExtractor:
 
         return ridf
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using RIDF.
 

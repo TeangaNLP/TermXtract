@@ -2,6 +2,7 @@ import re
 from collections import Counter
 import math
 from typing import List, Dict, Optional, Tuple
+from teanga import Corpus
 from ..utils import ATEResults
 
 
@@ -9,6 +10,13 @@ class TFIDFTermExtractor:
     """TF-IDF based term extraction with n-gram support and a threshold option."""
 
     def __init__(self, threshold: Optional[float] = None, n: int = 1):
+        """
+        Initialize the TF-IDF extractor.
+
+        Args:
+            threshold (Optional[float]): Minimum TF-IDF score for term inclusion.
+            n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+        """
         self.threshold = threshold
         self.n = n
 
@@ -52,11 +60,30 @@ class TFIDFTermExtractor:
         return ngrams
 
     def compute_tf(self, ngrams: List[str]) -> Dict[str, float]:
+        """
+        Compute the relative frequency of each n-gram in a document.
+
+        Args:
+            ngrams (List[str]): All n-grams in the document.
+
+        Returns:
+            Dict[str, float]: Count of each n-gram divided by the total number of n-grams.
+        """
         ngram_count = len(ngrams)
         term_frequencies = Counter(ngrams)
         return {ngram: count / ngram_count for ngram, count in term_frequencies.items()}
 
     def compute_idf(self, corpus_ngrams: List[List[str]]) -> Dict[str, float]:
+        """
+        Compute the inverse document frequency of each n-gram as log(N / (1 + df)).
+
+        Args:
+            corpus_ngrams (List[List[str]]): The n-grams of each document.
+
+        Returns:
+            Dict[str, float]: IDF score for each n-gram, where N is the number of documents
+            and df is the number of documents containing the n-gram.
+        """
         num_docs = len(corpus_ngrams)
         idf = {}
         all_ngrams = set(ngram for doc in corpus_ngrams for ngram in doc)
@@ -65,7 +92,19 @@ class TFIDFTermExtractor:
             idf[ngram] = math.log(num_docs / (1 + doc_count))
         return idf
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
+        """
+        Extract terms from a Teanga corpus using TF-IDF.
+
+        Note that this adds a `terms` span layer definition to the corpus.
+
+        Args:
+            corpus (Corpus): A Teanga corpus with a `words` span layer.
+
+        Returns:
+            ATEResults: Results whose `terms` lists the extracted n-grams (as plain strings,
+            without scores) and whose `offsets` gives the character offsets of each occurrence.
+        """
         corpus.add_layer_meta("terms", layer_type="span", base="text")
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
@@ -96,6 +135,16 @@ class TFIDFTermExtractor:
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=terms_offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
+        """
+        Extract terms from a list of strings using TF-IDF.
+
+        Args:
+            corpus (List[str]): The documents as plain strings.
+
+        Returns:
+            ATEResults: Results whose `terms` lists the extracted n-grams (as plain strings,
+            without scores).
+        """
         tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
         corpus_ngrams = [self.generate_ngrams_strings(doc) for doc in tokenized_corpus]
         idf = self.compute_idf(corpus_ngrams)

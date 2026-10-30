@@ -1,6 +1,7 @@
 import re
 from collections import Counter, defaultdict
 from typing import List, Dict, Optional, Tuple
+from teanga import Corpus
 from ..utils import ATEResults
 
 
@@ -111,7 +112,7 @@ class RAKETermExtractor:
         candidate_scores.update(linked_keywords)
         return candidate_scores
 
-    def extract_terms_teanga(self, corpus) -> ATEResults:
+    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
         Extract terms from a Teanga corpus using RAKE.
 
