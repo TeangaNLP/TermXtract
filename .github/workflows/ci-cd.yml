@@ -10,68 +10,120 @@ on:
   workflow_dispatch:  # Allows manual triggers from the Actions tab
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
+# Cancel superseded runs on the same PR; never cancel runs on main
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build-and-test:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Python environment
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      # Step 3: Install dependencies using Poetry, including dev dependencies
       - name: Install dependencies
         run: |
-          pip install poetry
-          poetry install --with dev --extras transformers  # Dev dependencies (mkdocs etc.) plus the optional transformers extra so all tests run
+          pip install "poetry>=2,<3"
+          poetry install --with dev
 
-      # Step 3b: Pre-download the WordNet lexicon used by the AdaBoost extractor
+      - name: Lint (ruff)
+        run: poetry run ruff check termxtract tests
+
+      - name: Check formatting (ruff format)
+        run: poetry run ruff format --check termxtract tests
+
+      - name: Type check (mypy)
+        run: poetry run mypy termxtract
+
+  test:
+    name: test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+        include:
+          # One leg installs the transformers extra, reports coverage and builds the docs
+          - os: ubuntu-latest
+            python-version: "3.11"
+            full: true
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install "poetry>=2,<3"
+          poetry install --with dev ${{ matrix.full && '--extras transformers' || '' }}
+
+      # The WordNet lexicon used by the AdaBoost extractor
+      - name: Cache WordNet data
+        uses: actions/cache@v4
+        with:
+          path: ~/.wn_data
+          key: wn-oewn-2025plus
+
       - name: Download WordNet lexicon
-        run: |
-          poetry run python -m wn download oewn:2025+
+        run: poetry run python -m wn download oewn:2025+
 
-      # Step 4: Run project tests using unittest
-      - name: Run Tests
-        run: |
-          poetry run python -m unittest discover tests
+      - name: Run tests with coverage
+        run: poetry run coverage run -m unittest discover tests
 
-      # Step 5: Build MkDocs Site
-      - name: Build MkDocs Site
-        if: success()  # Build only if all previous steps pass
+      - name: Report coverage
+        if: matrix.full
         run: |
-          poetry run mkdocs build  # Builds the site in 'site/' directory
+          poetry run coverage report
+          poetry run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
-      # Step 6: Upload MkDocs Site for GitHub Pages Deployment
-      - name: Upload to GitHub Pages Artifact
-        if: success() && github.ref == 'refs/heads/main'  # Upload only on main
+      - name: Build MkDocs site
+        if: matrix.full
+        run: poetry run mkdocs build --strict  # Builds the site in 'site/' directory
+
+      - name: Upload to GitHub Pages artifact
+        if: matrix.full && github.ref == 'refs/heads/main'  # Upload only on main
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site  # Directory to upload for deployment
+          path: site
 
   deploy:
-    needs: build-and-test
+    needs: [lint, test]
     if: github.ref == 'refs/heads/main'  # Never deploy from pull requests
     runs-on: ubuntu-latest
-    environment:  # Specify environment for deployment
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # Step 7: Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
