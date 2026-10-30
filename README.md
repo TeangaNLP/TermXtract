@@ -147,7 +147,8 @@ git clone https://github.com/TeangaNLP/TermXtract.git
 cd TermXtract
 poetry install --with dev --extras transformers
 
-poetry run python -m unittest discover tests   # run the test suite
+poetry run pytest                              # run the test suite
+poetry run pytest --cov                        # ...with a coverage report
 poetry run ruff check termxtract tests         # lint
 poetry run ruff format termxtract tests        # format
 poetry run mypy termxtract                     # type check

@@ -91,13 +91,11 @@ jobs:
         run: poetry run python -m wn download oewn:2025+
 
       - name: Run tests with coverage
-        run: poetry run coverage run -m unittest discover tests
+        run: poetry run pytest --cov
 
-      - name: Report coverage
+      - name: Add coverage to the job summary
         if: matrix.full
-        run: |
-          poetry run coverage report
-          poetry run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+        run: poetry run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build MkDocs site
         if: matrix.full
