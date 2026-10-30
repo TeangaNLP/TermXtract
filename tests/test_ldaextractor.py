@@ -23,43 +23,65 @@ class TestTopicModelingTermExtractor(unittest.TestCase):
         doc2.words = [(0, 4), (5, 13), (14, 17), (18, 24), (25, 34), (35, 38), (39, 53)]
 
         # Initialize the TopicModelingTermExtractor through TermExtractor
-        extractor = TermExtractor(method="topicmodeling", num_topics=10, threshold=0.01, n=2)
+        extractor = TermExtractor(
+            method="topicmodeling", num_topics=10, threshold=0.01, n=2
+        )
 
         # Extract terms
         results = extractor.extract(corpus)
 
         # Assertions
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_topic_modeling_extraction_strings(self):
         """Test TopicModeling term extraction on a list of strings."""
         # Create a string-based corpus
         text_corpus = [
             "Machine learning models are very powerful.",
-            "Deep learning and neural networks are revolutionary."
+            "Deep learning and neural networks are revolutionary.",
         ]
 
         # Initialize the TopicModelingTermExtractor through TermExtractor
-        extractor = TermExtractor(method="topicmodeling", num_topics=10, threshold=0.01, n=2)
+        extractor = TermExtractor(
+            method="topicmodeling", num_topics=10, threshold=0.01, n=2
+        )
 
         # Extract terms
         results = extractor.extract(text_corpus)
 
         # Assertions
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
-

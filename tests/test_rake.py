@@ -14,7 +14,9 @@ class TestRAKE(unittest.TestCase):
         self.delimiters = [".", ",", "!", "?", "-", ";"]
         self.threshold = 1.0  # Default threshold for the tests
         self.extractor = RAKETermExtractor(
-            stoplist=self.stoplist, phrase_delimiters=self.delimiters, threshold=self.threshold
+            stoplist=self.stoplist,
+            phrase_delimiters=self.delimiters,
+            threshold=self.threshold,
         )
 
     def test_rake_extraction_teanga(self):
@@ -28,7 +30,9 @@ class TestRAKE(unittest.TestCase):
         doc1 = corpus.add_doc("RAKE identifies key phrases from text efficiently.")
         doc1.words = [(0, 4), (5, 14), (15, 18), (19, 25), (26, 30), (31, 41)]
 
-        doc2 = corpus.add_doc("Rapid Automatic Keyword Extraction is simple and effective.")
+        doc2 = corpus.add_doc(
+            "Rapid Automatic Keyword Extraction is simple and effective."
+        )
         doc2.words = [(0, 5), (6, 15), (16, 23), (24, 32), (33, 35), (36, 42), (43, 46)]
 
         # Extract terms using RAKE
@@ -36,13 +40,22 @@ class TestRAKE(unittest.TestCase):
 
         # Assert results
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
 
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_rake_extraction_strings(self):
         """Test RAKE extraction on a plain list of strings."""
@@ -57,13 +70,22 @@ class TestRAKE(unittest.TestCase):
 
         # Assert results
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
 
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_rake_with_custom_stoplist_and_delimiters(self):
         """Test RAKE extraction with a custom stoplist and delimiters."""
@@ -84,7 +106,10 @@ class TestRAKE(unittest.TestCase):
         for term_entry in results.terms:
             for term_data in term_entry["terms"]:
                 # Ensure no term contains the custom stop words
-                self.assertFalse(any(word in term_data["term"] for word in custom_stoplist), "Stop words found in terms.")
+                self.assertFalse(
+                    any(word in term_data["term"] for word in custom_stoplist),
+                    "Stop words found in terms.",
+                )
 
     def test_rake_with_threshold(self):
         """Test RAKE extraction with a threshold to filter terms."""
@@ -98,7 +123,9 @@ class TestRAKE(unittest.TestCase):
         self.assertIsNotNone(results.terms, "Terms should not be None.")
         for term_entry in results.terms:
             for term_data in term_entry["terms"]:
-                self.assertGreaterEqual(term_data["score"], 2.0, "Term score should meet the threshold.")
+                self.assertGreaterEqual(
+                    term_data["score"], 2.0, "Term score should meet the threshold."
+                )
 
     def test_rake_with_no_threshold(self):
         """Test RAKE extraction without a threshold."""
@@ -111,9 +138,12 @@ class TestRAKE(unittest.TestCase):
 
         # Assert results
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertGreater(len(results.terms[0]["terms"]), 0, "Should extract all terms without filtering.")
+        self.assertGreater(
+            len(results.terms[0]["terms"]),
+            0,
+            "Should extract all terms without filtering.",
+        )
 
 
 if __name__ == "__main__":
     unittest.main()
-

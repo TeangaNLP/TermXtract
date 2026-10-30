@@ -27,16 +27,27 @@ class TestRogerExtraction(unittest.TestCase):
             "ranking functions": 0,
         }
 
-        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, n=2)
+        extractor = SupervisedTermExtractor(
+            method="roger", population_size=30, generations=50, n=2
+        )
         results = extractor.extract(corpus, labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_roger_extraction_strings(self):
         """Test term extraction from a list of strings using RogerTermExtractor."""
@@ -52,13 +63,24 @@ class TestRogerExtraction(unittest.TestCase):
             "ranking functions": 0,
         }
 
-        extractor = SupervisedTermExtractor(method="roger", population_size=30, generations=50, n=2)
+        extractor = SupervisedTermExtractor(
+            method="roger", population_size=30, generations=50, n=2
+        )
         results = extractor.extract(text_corpus, labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )

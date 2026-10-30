@@ -10,7 +10,13 @@ from .base_extractor import BaseTermExtractor
 class NMFTermExtractor(BaseTermExtractor):
     """NMF-based term extraction with n-gram support."""
 
-    def __init__(self, threshold: float | None = None, n: int = 1, n_topics: int = 10, max_features: int | None = None):
+    def __init__(
+        self,
+        threshold: float | None = None,
+        n: int = 1,
+        n_topics: int = 10,
+        max_features: int | None = None,
+    ):
         """
         Initialize the NMF extractor.
 
@@ -26,10 +32,14 @@ class NMFTermExtractor(BaseTermExtractor):
 
     def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using NMF."""
-        tokenized_corpus = [" ".join(re.findall(r'\b\w+\b', doc.lower())) for doc in corpus]
+        tokenized_corpus = [
+            " ".join(re.findall(r"\b\w+\b", doc.lower())) for doc in corpus
+        ]
 
         # Apply TF-IDF vectorization
-        vectorizer = TfidfVectorizer(max_features=self.max_features, ngram_range=(1, self.n))
+        vectorizer = TfidfVectorizer(
+            max_features=self.max_features, ngram_range=(1, self.n)
+        )
         tfidf_matrix = vectorizer.fit_transform(tokenized_corpus)
         feature_names = vectorizer.get_feature_names_out()
 
@@ -39,10 +49,14 @@ class NMFTermExtractor(BaseTermExtractor):
         H = nmf.components_
 
         # Compute term scores from NMF weight matrix H
-        term_scores = {feature_names[i]: max(H[:, i]) for i in range(len(feature_names))}
+        term_scores = {
+            feature_names[i]: max(H[:, i]) for i in range(len(feature_names))
+        }
 
         # Prepare results
-        terms_by_doc = [self.doc_terms(f"doc_{idx}", term_scores) for idx in range(len(corpus))]
+        terms_by_doc = [
+            self.doc_terms(f"doc_{idx}", term_scores) for idx in range(len(corpus))
+        ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -54,10 +68,14 @@ class NMFTermExtractor(BaseTermExtractor):
             doc = corpus.doc_by_id(doc_id)
             ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
 
-        tokenized_corpus = [" ".join(ngram for ngram, _ in ngrams) for ngrams in ngrams_by_doc.values()]
+        tokenized_corpus = [
+            " ".join(ngram for ngram, _ in ngrams) for ngrams in ngrams_by_doc.values()
+        ]
 
         # Apply TF-IDF vectorization
-        vectorizer = TfidfVectorizer(max_features=self.max_features, ngram_range=(1, self.n))
+        vectorizer = TfidfVectorizer(
+            max_features=self.max_features, ngram_range=(1, self.n)
+        )
         tfidf_matrix = vectorizer.fit_transform(tokenized_corpus)
         feature_names = vectorizer.get_feature_names_out()
 
@@ -67,9 +85,13 @@ class NMFTermExtractor(BaseTermExtractor):
         H = nmf.components_
 
         # Compute term scores from NMF weight matrix H
-        term_scores = {feature_names[i]: max(H[:, i]) for i in range(len(feature_names))}
+        term_scores = {
+            feature_names[i]: max(H[:, i]) for i in range(len(feature_names))
+        }
 
         # Prepare results
-        terms_by_doc = [self.doc_terms(doc_id, term_scores) for doc_id in corpus.doc_ids]
+        terms_by_doc = [
+            self.doc_terms(doc_id, term_scores) for doc_id in corpus.doc_ids
+        ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

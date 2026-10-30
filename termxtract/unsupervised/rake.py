@@ -10,7 +10,12 @@ from .base_extractor import BaseTermExtractor
 class RAKETermExtractor(BaseTermExtractor):
     """RAKE-based term extraction with support for n-grams and keyword linking."""
 
-    def __init__(self, stoplist: list[str], phrase_delimiters: list[str], threshold: float | None = None):
+    def __init__(
+        self,
+        stoplist: list[str],
+        phrase_delimiters: list[str],
+        threshold: float | None = None,
+    ):
         """
         Initialize the RAKE extractor.
 
@@ -33,7 +38,7 @@ class RAKETermExtractor(BaseTermExtractor):
         Returns:
             List[List[str]]: Candidate keywords as lists of words.
         """
-        delimiters = '|'.join(map(re.escape, self.phrase_delimiters))
+        delimiters = "|".join(map(re.escape, self.phrase_delimiters))
         words = re.split(f"({delimiters})", text.lower())
         candidates = []
         current_phrase = []
@@ -65,13 +70,19 @@ class RAKETermExtractor(BaseTermExtractor):
         for phrase in candidates:
             for word in phrase:
                 word_frequency[word] += 1
-                word_degree[word] += len(phrase) - 1  # Degree = co-occurrences in the phrase
+                word_degree[word] += (
+                    len(phrase) - 1
+                )  # Degree = co-occurrences in the phrase
 
         # Compute degree-to-frequency ratio
-        word_scores = {word: word_degree[word] / word_frequency[word] for word in word_frequency}
+        word_scores = {
+            word: word_degree[word] / word_frequency[word] for word in word_frequency
+        }
         return word_scores
 
-    def compute_candidate_scores(self, candidates: list[list[str]], word_scores: dict[str, float]) -> dict[str, float]:
+    def compute_candidate_scores(
+        self, candidates: list[list[str]], word_scores: dict[str, float]
+    ) -> dict[str, float]:
         """
         Compute scores for candidate keywords.
 
@@ -88,7 +99,9 @@ class RAKETermExtractor(BaseTermExtractor):
             candidate_scores[" ".join(phrase)] = score
         return candidate_scores
 
-    def link_adjoining_keywords(self, text: str, candidate_scores: dict[str, float]) -> dict[str, float]:
+    def link_adjoining_keywords(
+        self, text: str, candidate_scores: dict[str, float]
+    ) -> dict[str, float]:
         """
         Link adjoining keywords with interior stop words.
 
@@ -107,7 +120,7 @@ class RAKETermExtractor(BaseTermExtractor):
                 while j < len(words) and words[j] in self.stoplist:
                     j += 1
                 if j < len(words) and words[j] in candidate_scores:
-                    linked_keyword = f"{word} {' '.join(words[i + 1:j])} {words[j]}"
+                    linked_keyword = f"{word} {' '.join(words[i + 1 : j])} {words[j]}"
                     linked_keywords[linked_keyword] += (
                         candidate_scores[word] + candidate_scores[words[j]]
                     )
@@ -195,4 +208,3 @@ class RAKETermExtractor(BaseTermExtractor):
             terms_by_doc.append(self.doc_terms(doc_id, linked_scores))
 
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)
-

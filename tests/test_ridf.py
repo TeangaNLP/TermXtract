@@ -6,7 +6,6 @@ from termxtract.unsupervised.term_extractor import TermExtractor
 
 
 class TestRIDFExtraction(unittest.TestCase):
-
     def test_ridf_extraction_teanga(self):
         corpus = Corpus()
         corpus.add_layer_meta("text")
@@ -22,21 +21,27 @@ class TestRIDFExtraction(unittest.TestCase):
         results = extractor.extract(corpus)
 
         self.assertIsNotNone(results.terms, "RIDF terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
 
     def test_ridf_extraction_strings(self):
         text_corpus = [
             "This is the first document.",
             "This document is the second document.",
             "And this is the third one.",
-            "Is this the first document?"
+            "Is this the first document?",
         ]
 
         extractor = TermExtractor(method="ridf", threshold=0.1, n=2)
         results = extractor.extract(text_corpus)
 
         self.assertIsNotNone(results.terms, "RIDF terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
 
 
 if __name__ == "__main__":

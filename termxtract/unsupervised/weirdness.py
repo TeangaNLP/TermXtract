@@ -10,7 +10,12 @@ from .base_extractor import BaseTermExtractor
 class WeirdnessTermExtractor(BaseTermExtractor):
     """Weirdness-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus: Corpus | list[str], threshold: float | None = None, n: int = 1):
+    def __init__(
+        self,
+        reference_corpus: Corpus | list[str],
+        threshold: float | None = None,
+        n: int = 1,
+    ):
         """
         Initialize the Weirdness extractor.
 
@@ -22,7 +27,9 @@ class WeirdnessTermExtractor(BaseTermExtractor):
         super().__init__(threshold=threshold, n=n)
         self.reference_corpus = reference_corpus
 
-    def compute_term_frequencies(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
+    def compute_term_frequencies(
+        self, corpus_ngrams: list[list[str]]
+    ) -> dict[str, float]:
         """Compute term frequencies normalized by the total number of words."""
         total_words = sum(len(doc) for doc in corpus_ngrams)
         term_frequencies = Counter(ngram for doc in corpus_ngrams for ngram in doc)
@@ -39,11 +46,13 @@ class WeirdnessTermExtractor(BaseTermExtractor):
             ATEResults: Results with ranked terms and scores.
         """
         # Tokenize and generate n-grams for target corpus
-        tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
+        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         target_ngrams = [self.generate_ngrams_strings(doc) for doc in tokenized_corpus]
 
         # Tokenize and generate n-grams for reference corpus
-        ref_tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in self.reference_corpus]
+        ref_tokenized_corpus = [
+            re.findall(r"\b\w+\b", doc.lower()) for doc in self.reference_corpus
+        ]
         ref_ngrams = [self.generate_ngrams_strings(doc) for doc in ref_tokenized_corpus]
 
         # Compute normalized term frequencies (NTF) for target and reference corpora
@@ -81,7 +90,10 @@ class WeirdnessTermExtractor(BaseTermExtractor):
         ref_ngrams = []
         for doc_id in self.reference_corpus.doc_ids:
             ref_doc = self.reference_corpus.doc_by_id(doc_id)
-            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))]
+            ngrams = [
+                ngram
+                for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))
+            ]
             ref_ngrams.append(ngrams)
 
         ref_idf = self.compute_idf(ref_ngrams)
@@ -98,11 +110,14 @@ class WeirdnessTermExtractor(BaseTermExtractor):
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
             tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
-                ngram: tf[ngram] / max(ref_idf.get(ngram, 1e-9), 1e-9)  # Avoid division by zero
+                ngram: tf[ngram]
+                / max(ref_idf.get(ngram, 1e-9), 1e-9)  # Avoid division by zero
                 for ngram in tf
             }
             doc_terms = self.doc_terms(doc_id, scores)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)

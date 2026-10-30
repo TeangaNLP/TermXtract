@@ -23,11 +23,7 @@ class TestAdaBoostExtraction(unittest.TestCase):
         self.text_corpus = ["Machine learning is widely used in AI research."]
 
         # Labels (Supervised Learning)
-        self.labels = {
-            "machine learning": 1,
-            "AI research": 1,
-            "widely used": 0
-        }
+        self.labels = {"machine learning": 1, "AI research": 1, "widely used": 0}
 
     def test_adaboost_extraction_teanga(self):
         """Test AdaBoost term extraction on a Teanga corpus."""
@@ -35,12 +31,21 @@ class TestAdaBoostExtraction(unittest.TestCase):
         results = extractor.extract(self.corpus, self.labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_adaboost_extraction_strings(self):
         """Test AdaBoost term extraction on a list of strings."""
@@ -48,19 +53,29 @@ class TestAdaBoostExtraction(unittest.TestCase):
         results = extractor.extract(self.text_corpus, self.labels)
 
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
-
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_semantic_score_lemmatizes_and_handles_multiword_terms(self):
         """Test that inflected forms and multi-word terms are found in WordNet."""
         extractor = AdaBoostTermExtractor()
         self.assertGreater(extractor.compute_semantic_score("dogs"), 0.0)
-        self.assertGreater(extractor.compute_semantic_score("artificial intelligence"), 0.0)
+        self.assertGreater(
+            extractor.compute_semantic_score("artificial intelligence"), 0.0
+        )
         self.assertEqual(extractor.compute_semantic_score("of machine"), 0.0)
 
 
@@ -70,7 +85,9 @@ class TestWordNetLoading(unittest.TestCase):
     def test_lexicon_not_loaded_at_construction(self):
         """Test that constructing the extractor does not load or download WordNet."""
         with mock.patch.object(adaboost, "load_wordnet") as load:
-            extractor = SupervisedTermExtractor(method="adaboost", wordnet_lexicon="oewn:2024")
+            extractor = SupervisedTermExtractor(
+                method="adaboost", wordnet_lexicon="oewn:2024"
+            )
             load.assert_not_called()
             extractor.extractor.compute_semantic_score("dog")
             extractor.extractor.compute_semantic_score("cat")
@@ -78,18 +95,22 @@ class TestWordNetLoading(unittest.TestCase):
 
     def test_installed_lexicon_is_not_downloaded(self):
         """Test that an installed lexicon is used without downloading."""
-        with mock.patch.object(adaboost.wn, "lexicons", return_value=["installed"]), \
-                mock.patch.object(adaboost.wn, "download") as download, \
-                mock.patch.object(adaboost.wn, "Wordnet") as wordnet:
+        with (
+            mock.patch.object(adaboost.wn, "lexicons", return_value=["installed"]),
+            mock.patch.object(adaboost.wn, "download") as download,
+            mock.patch.object(adaboost.wn, "Wordnet") as wordnet,
+        ):
             load_wordnet("oewn:2025+")
         download.assert_not_called()
         wordnet.assert_called_once()
 
     def test_missing_lexicon_is_downloaded(self):
         """Test that a missing lexicon is downloaded on first use."""
-        with mock.patch.object(adaboost.wn, "lexicons", return_value=[]), \
-                mock.patch.object(adaboost.wn, "download") as download, \
-                mock.patch.object(adaboost.wn, "Wordnet"):
+        with (
+            mock.patch.object(adaboost.wn, "lexicons", return_value=[]),
+            mock.patch.object(adaboost.wn, "download") as download,
+            mock.patch.object(adaboost.wn, "Wordnet"),
+        ):
             load_wordnet("oewn:2025+")
         download.assert_called_once_with("oewn:2025+", progress_handler=None)
 
@@ -97,7 +118,9 @@ class TestWordNetLoading(unittest.TestCase):
         """Test that a failed download (e.g. offline) explains how to install the lexicon."""
         with (
             mock.patch.object(adaboost.wn, "lexicons", return_value=[]),
-            mock.patch.object(adaboost.wn, "download", side_effect=OSError("network unreachable")),
+            mock.patch.object(
+                adaboost.wn, "download", side_effect=OSError("network unreachable")
+            ),
             self.assertRaises(RuntimeError) as ctx,
         ):
             load_wordnet("oewn:2025+")
@@ -107,4 +130,3 @@ class TestWordNetLoading(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

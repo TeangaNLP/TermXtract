@@ -76,19 +76,27 @@ class TestResultsFormat(unittest.TestCase):
                 self.assertIsInstance(term["term"], str)
                 self.assertIsInstance(term["score"], float)
             scores = [term["score"] for term in doc["terms"]]
-            self.assertEqual(scores, sorted(scores, reverse=True), "Terms should be ranked by score.")
+            self.assertEqual(
+                scores, sorted(scores, reverse=True), "Terms should be ranked by score."
+            )
 
     def test_extractors_use_base_class(self):
         for method in METHODS:
             with self.subTest(method=method):
-                self.assertIsInstance(make_extractor(method, teanga=False).extractor, BaseTermExtractor)
+                self.assertIsInstance(
+                    make_extractor(method, teanga=False).extractor, BaseTermExtractor
+                )
 
     def test_strings(self):
         for method in METHODS:
             with self.subTest(method=method):
                 results = make_extractor(method, teanga=False).extract(TEXTS)
-                self.assert_terms_format(results, [f"doc_{i}" for i in range(len(TEXTS))])
-                self.assertTrue(any(doc["terms"] for doc in results.terms), "Expected some terms.")
+                self.assert_terms_format(
+                    results, [f"doc_{i}" for i in range(len(TEXTS))]
+                )
+                self.assertTrue(
+                    any(doc["terms"] for doc in results.terms), "Expected some terms."
+                )
                 self.assertIsNone(results.offsets)
 
     def test_teanga(self):
@@ -98,7 +106,9 @@ class TestResultsFormat(unittest.TestCase):
                 results = make_extractor(method, teanga=True).extract(corpus)
                 doc_ids = list(corpus.doc_ids)
                 self.assert_terms_format(results, doc_ids)
-                self.assertTrue(any(doc["terms"] for doc in results.terms), "Expected some terms.")
+                self.assertTrue(
+                    any(doc["terms"] for doc in results.terms), "Expected some terms."
+                )
 
                 if method in NO_OFFSETS:
                     self.assertIsNone(results.offsets)
@@ -113,9 +123,14 @@ class TestResultsFormat(unittest.TestCase):
                         start, end = occurrence["offset"]
                         span = text[start:end]
                         # RAKE matches lower-cased text; the n-gram extractors keep the words as written
-                        self.assertEqual(span.lower() if method == "rake" else span, occurrence["term"])
+                        self.assertEqual(
+                            span.lower() if method == "rake" else span,
+                            occurrence["term"],
+                        )
                         found.add(occurrence["term"])
-                    self.assertEqual(found, terms, "Every extracted term should have its offsets.")
+                    self.assertEqual(
+                        found, terms, "Every extracted term should have its offsets."
+                    )
 
     def test_corpus_not_modified(self):
         """Extractors leave the input corpus unchanged, so several can run on the same Corpus object."""
@@ -131,9 +146,13 @@ class TestResultsFormat(unittest.TestCase):
         for method in METHODS:
             with self.subTest(method=method):
                 unfiltered = make_extractor(method, teanga=False).extract(TEXTS)
-                scores = sorted(term["score"] for doc in unfiltered.terms for term in doc["terms"])
+                scores = sorted(
+                    term["score"] for doc in unfiltered.terms for term in doc["terms"]
+                )
                 threshold = scores[len(scores) // 2]
-                results = make_extractor(method, teanga=False, threshold=threshold).extract(TEXTS)
+                results = make_extractor(
+                    method, teanga=False, threshold=threshold
+                ).extract(TEXTS)
                 kept = [term["score"] for doc in results.terms for term in doc["terms"]]
                 self.assertTrue(kept, "Expected some terms above the median score.")
                 self.assertTrue(all(score >= threshold for score in kept))
@@ -141,7 +160,11 @@ class TestResultsFormat(unittest.TestCase):
     def test_rank_terms(self):
         self.assertEqual(
             rank_terms({"a": 1, "b": 3.0, "c": 2.0, "d": 3.0}, threshold=2.0),
-            [{"term": "b", "score": 3.0}, {"term": "d", "score": 3.0}, {"term": "c", "score": 2.0}],
+            [
+                {"term": "b", "score": 3.0},
+                {"term": "d", "score": 3.0},
+                {"term": "c", "score": 2.0},
+            ],
         )
 
 

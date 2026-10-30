@@ -81,7 +81,9 @@ class BasicTermExtractor(BaseTermExtractor):
             scores = self.compute_basic([ngram for ngram, _ in ngrams_with_offsets])
             doc_terms = self.doc_terms(doc_id, scores)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
@@ -101,7 +103,9 @@ class BasicTermExtractor(BaseTermExtractor):
             doc_id = f"doc_{idx}"
             processed_corpus.append({"doc_id": doc_id, "text": doc_text})
 
-            ngrams = self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc_text.lower()))
+            ngrams = self.generate_ngrams_strings(
+                re.findall(r"\b\w+\b", doc_text.lower())
+            )
             terms_by_doc.append(self.doc_terms(doc_id, self.compute_basic(ngrams)))
 
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)

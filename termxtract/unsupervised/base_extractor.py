@@ -67,7 +67,9 @@ class BaseTermExtractor(ABC):
         """
         return [(start, end, doc.text[start:end]) for start, end in doc.words]
 
-    def generate_ngrams_teanga(self, words_with_offsets: list[tuple[int, int, str]]) -> list[tuple[str, tuple[int, int]]]:
+    def generate_ngrams_teanga(
+        self, words_with_offsets: list[tuple[int, int, str]]
+    ) -> list[tuple[str, tuple[int, int]]]:
         """
         Generate n-grams with offsets for a Teanga corpus.
 
@@ -82,9 +84,13 @@ class BaseTermExtractor(ABC):
         for i in range(len(words)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
-                    start_offset = words_with_offsets[i][0]  # Start offset of the first word in the n-gram
-                    end_offset = words_with_offsets[i + j - 1][1]  # End offset of the last word in the n-gram
+                    ngram = " ".join(words[i : i + j])
+                    start_offset = words_with_offsets[i][
+                        0
+                    ]  # Start offset of the first word in the n-gram
+                    end_offset = words_with_offsets[i + j - 1][
+                        1
+                    ]  # End offset of the last word in the n-gram
                     ngrams.append((ngram, (start_offset, end_offset)))
         return ngrams
 
@@ -102,7 +108,7 @@ class BaseTermExtractor(ABC):
         for i in range(len(words)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
+                    ngram = " ".join(words[i : i + j])
                     ngrams.append(ngram)
         return ngrams
 
@@ -157,7 +163,11 @@ class BaseTermExtractor(ABC):
         return {"doc_id": doc_id, "terms": rank_terms(scores, self.threshold)}
 
     @staticmethod
-    def doc_offsets(doc_id: str, ngrams_with_offsets: Iterable[tuple[str, tuple[int, int]]], doc_terms: dict[str, Any]) -> dict[str, Any]:
+    def doc_offsets(
+        doc_id: str,
+        ngrams_with_offsets: Iterable[tuple[str, tuple[int, int]]],
+        doc_terms: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Build one document's entry in `ATEResults.offsets`.
 
@@ -172,5 +182,9 @@ class BaseTermExtractor(ABC):
             listing each occurrence of an extracted term in document order.
         """
         kept = {term["term"] for term in doc_terms["terms"]}
-        offsets = [{"term": ngram, "offset": offset} for ngram, offset in ngrams_with_offsets if ngram in kept]
+        offsets = [
+            {"term": ngram, "offset": offset}
+            for ngram, offset in ngrams_with_offsets
+            if ngram in kept
+        ]
         return {"doc_id": doc_id, "offsets": offsets}

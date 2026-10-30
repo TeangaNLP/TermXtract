@@ -11,7 +11,13 @@ from ..utils import ATEResults, rank_terms
 class RogerTermExtractor:
     """Roger-based term extraction using evolutionary learning and ranking."""
 
-    def __init__(self, population_size: int = 50, generations: int = 100, subsample_ratio: float = 0.8, n: int = 1):
+    def __init__(
+        self,
+        population_size: int = 50,
+        generations: int = 100,
+        subsample_ratio: float = 0.8,
+        n: int = 1,
+    ):
         """
         Initialize the Roger extractor.
 
@@ -33,17 +39,21 @@ class RogerTermExtractor:
         for i in range(len(words)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
+                    ngram = " ".join(words[i : i + j])
                     ngrams.append(ngram)
         return ngrams
 
-    def generate_ngrams_teanga(self, words_with_offsets: list[tuple[int, int, str]]) -> list[str]:
+    def generate_ngrams_teanga(
+        self, words_with_offsets: list[tuple[int, int, str]]
+    ) -> list[str]:
         """Generate n-grams for a Teanga corpus."""
         ngrams = []
         for i in range(len(words_with_offsets)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words_with_offsets):
-                    ngram = " ".join(word for _, _, word in words_with_offsets[i:i + j])
+                    ngram = " ".join(
+                        word for _, _, word in words_with_offsets[i : i + j]
+                    )
                     ngrams.append(ngram)
         return ngrams
 
@@ -65,11 +75,23 @@ class RogerTermExtractor:
         khi2 = freq * freq
         t_test = freq / math.sqrt(freq + 1e-9)
 
-        return [freq, mi, mi3, dice, log_likelihood, occ_log_likelihood, j_measure, khi2, t_test]
+        return [
+            freq,
+            mi,
+            mi3,
+            dice,
+            log_likelihood,
+            occ_log_likelihood,
+            j_measure,
+            khi2,
+            t_test,
+        ]
 
-    def extract_features(self, corpus: list[str], labels: dict[str, int]) -> tuple[list[list[float]], list[int], list[str]]:
+    def extract_features(
+        self, corpus: list[str], labels: dict[str, int]
+    ) -> tuple[list[list[float]], list[int], list[str]]:
         """Extract features for ranking training."""
-        tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
+        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         corpus_ngrams = [self.generate_ngrams(doc) for doc in tokenized_corpus]
         corpus_ngrams_flat = [ngram for doc in corpus_ngrams for ngram in doc]
 
@@ -91,14 +113,16 @@ class RogerTermExtractor:
         population = np.random.rand(self.population_size, num_features)
         for _ in range(self.generations):
             scores = [self.evaluate_rank_function(model, X, y) for model in population]
-            best_indices = np.argsort(scores)[-self.population_size//2:]
+            best_indices = np.argsort(scores)[-self.population_size // 2 :]
             parents = population[best_indices]
             mutations = parents + np.random.normal(0, 0.1, parents.shape)
             population = np.vstack((parents, mutations))
 
         return population[np.argmax(scores)]
 
-    def evaluate_rank_function(self, model: np.ndarray, X: list[list[float]], y: list[int]) -> float:
+    def evaluate_rank_function(
+        self, model: np.ndarray, X: list[list[float]], y: list[int]
+    ) -> float:
         """Evaluate ranking function using Wilcoxon rank test (AUC)."""
         scores = np.dot(X, model)
         ranks = rankdata(scores)
@@ -111,7 +135,9 @@ class RogerTermExtractor:
         self.models = []
 
         for _ in range(10):  # Bagging
-            X_sample, y_sample = resample(X, y, n_samples=int(len(X) * self.subsample_ratio))
+            X_sample, y_sample = resample(
+                X, y, n_samples=int(len(X) * self.subsample_ratio)
+            )
             model = self.optimize_rank_function(X_sample, y_sample)
             self.models.append(model)
 
@@ -123,20 +149,50 @@ class RogerTermExtractor:
 
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Predict term rankings for a Teanga corpus."""
-        list_corpus = [" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]]
+        list_corpus = [
+            " ".join(
+                self.generate_ngrams_teanga(
+                    [(start, end, doc.text[start:end]) for start, end in doc.words]
+                )
+            )
+            for doc_id in corpus.doc_ids
+            for doc in [corpus.doc_by_id(doc_id)]
+        ]
         return self.predict_terms_strings(list_corpus)
 
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a Teanga corpus using Roger."""
-        self.train_model([" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]], labels)
+        self.train_model(
+            [
+                " ".join(
+                    self.generate_ngrams_teanga(
+                        [(start, end, doc.text[start:end]) for start, end in doc.words]
+                    )
+                )
+                for doc_id in corpus.doc_ids
+                for doc in [corpus.doc_by_id(doc_id)]
+            ],
+            labels,
+        )
 
         term_scores = self.predict_terms_teanga(corpus)
-        terms_by_doc = [{"doc_id": doc_id, "terms": rank_terms(term_scores)} for doc_id in corpus.doc_ids]
+        terms_by_doc = [
+            {"doc_id": doc_id, "terms": rank_terms(term_scores)}
+            for doc_id in corpus.doc_ids
+        ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
-    def extract_terms_strings(self, corpus: list[str], labels: dict[str, int]) -> ATEResults:
+    def extract_terms_strings(
+        self, corpus: list[str], labels: dict[str, int]
+    ) -> ATEResults:
         """Extract terms from a list of strings using Roger."""
         self.train_model(corpus, labels)
         term_scores = self.predict_terms_strings(corpus)
-        return ATEResults(corpus=corpus, terms=[{"doc_id": f"doc_{i}", "terms": rank_terms(term_scores)} for i in range(len(corpus))])
+        return ATEResults(
+            corpus=corpus,
+            terms=[
+                {"doc_id": f"doc_{i}", "terms": rank_terms(term_scores)}
+                for i in range(len(corpus))
+            ],
+        )

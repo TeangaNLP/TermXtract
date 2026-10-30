@@ -71,7 +71,9 @@ class TestPackage(unittest.TestCase):
             "from termxtract import SupervisedTermExtractor\n"
             "SupervisedTermExtractor(method='token-classification')\n"
         )
-        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, check=False
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("pip install 'termxtract[transformers]'", result.stderr)
 

@@ -11,7 +11,13 @@ from .base_extractor import BaseTermExtractor
 class ComboBasicTermExtractor(BaseTermExtractor):
     """ComboBasic-based term extraction with n-gram support."""
 
-    def __init__(self, alpha: float = 0.5, beta: float = 0.5, threshold: float | None = None, n: int = 1):
+    def __init__(
+        self,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+        threshold: float | None = None,
+        n: int = 1,
+    ):
         r"""
         Initialize the ComboBasic extractor.
 
@@ -65,7 +71,11 @@ class ComboBasicTermExtractor(BaseTermExtractor):
             e_prime_t = data["contains"]
 
             # ComboBasic formula
-            combobasic_scores[term] = length * math.log(frequency + 1) + self.alpha * e_t + self.beta * e_prime_t
+            combobasic_scores[term] = (
+                length * math.log(frequency + 1)
+                + self.alpha * e_t
+                + self.beta * e_prime_t
+            )
 
         return combobasic_scores
 
@@ -84,10 +94,14 @@ class ComboBasicTermExtractor(BaseTermExtractor):
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             ngrams_with_offsets = self.generate_ngrams_teanga(self.teanga_words(doc))
-            scores = self.compute_combobasic([ngram for ngram, _ in ngrams_with_offsets])
+            scores = self.compute_combobasic(
+                [ngram for ngram, _ in ngrams_with_offsets]
+            )
             doc_terms = self.doc_terms(doc_id, scores)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
@@ -107,7 +121,9 @@ class ComboBasicTermExtractor(BaseTermExtractor):
             doc_id = f"doc_{idx}"
             processed_corpus.append({"doc_id": doc_id, "text": doc_text})
 
-            ngrams = self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc_text.lower()))
+            ngrams = self.generate_ngrams_strings(
+                re.findall(r"\b\w+\b", doc_text.lower())
+            )
             terms_by_doc.append(self.doc_terms(doc_id, self.compute_combobasic(ngrams)))
 
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)

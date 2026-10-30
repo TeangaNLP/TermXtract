@@ -45,7 +45,7 @@ class AdaBoostTermExtractor:
         max_depth: int = 1,
         n_estimators: int = 50,
         estimator: str | None = "decision_tree",
-        wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON
+        wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON,
     ):
         """
         Initialize the AdaBoost extractor.
@@ -69,9 +69,13 @@ class AdaBoostTermExtractor:
         if estimator == "decision_tree":
             base_estimator = DecisionTreeClassifier(max_depth=max_depth)
         else:
-            raise ValueError("Currently, only 'decision_tree' is supported as a base estimator.")
+            raise ValueError(
+                "Currently, only 'decision_tree' is supported as a base estimator."
+            )
 
-        self.classifier = AdaBoostClassifier(estimator=base_estimator, n_estimators=n_estimators)
+        self.classifier = AdaBoostClassifier(
+            estimator=base_estimator, n_estimators=n_estimators
+        )
         self.is_trained = False  # Track if the model has been trained
 
     def generate_ngrams(self, words: list[str]) -> list[str]:
@@ -80,17 +84,21 @@ class AdaBoostTermExtractor:
         for i in range(len(words)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words):
-                    ngram = " ".join(words[i:i + j])
+                    ngram = " ".join(words[i : i + j])
                     ngrams.append(ngram)
         return ngrams
 
-    def generate_ngrams_teanga(self, words_with_offsets: list[tuple[int, int, str]]) -> list[str]:
+    def generate_ngrams_teanga(
+        self, words_with_offsets: list[tuple[int, int, str]]
+    ) -> list[str]:
         """Generate n-grams for a Teanga corpus."""
         ngrams = []
         for i in range(len(words_with_offsets)):
             for j in range(1, self.n + 1):
                 if i + j <= len(words_with_offsets):
-                    ngram = " ".join(word for _, _, word in words_with_offsets[i:i + j])
+                    ngram = " ".join(
+                        word for _, _, word in words_with_offsets[i : i + j]
+                    )
                     ngrams.append(ngram)
         return ngrams
 
@@ -108,7 +116,17 @@ class AdaBoostTermExtractor:
 
     def compute_greek_latin_score(self, term: str) -> int:
         """Check if a term contains Greek/Latin morphemes."""
-        greek_latin_morphemes = {"bio", "neuro", "cardio", "psycho", "pharm", "ology", "itis", "oma", "osis"}
+        greek_latin_morphemes = {
+            "bio",
+            "neuro",
+            "cardio",
+            "psycho",
+            "pharm",
+            "ology",
+            "itis",
+            "oma",
+            "osis",
+        }
         return int(any(morpheme in term.lower() for morpheme in greek_latin_morphemes))
 
     def compute_collocation_score(self, term: str, corpus_ngrams: list[str]) -> float:
@@ -120,9 +138,11 @@ class AdaBoostTermExtractor:
         prob_term = term_count / total_terms
         return math.pow(prob_term, 3) / (prob_term + 1e-9)
 
-    def extract_features(self, corpus: list[str], labels: dict[str, int]) -> tuple[list[list[float]], list[int], list[str]]:
+    def extract_features(
+        self, corpus: list[str], labels: dict[str, int]
+    ) -> tuple[list[list[float]], list[int], list[str]]:
         """Extract features and labels for training/testing."""
-        tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
+        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         corpus_ngrams = [self.generate_ngrams(doc) for doc in tokenized_corpus]
         corpus_ngrams_flat = [ngram for doc in corpus_ngrams for ngram in doc]
 
@@ -152,7 +172,9 @@ class AdaBoostTermExtractor:
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
 
-        feature_matrix, _, terms = self.extract_features(corpus, {})  # No labels needed for prediction
+        feature_matrix, _, terms = self.extract_features(
+            corpus, {}
+        )  # No labels needed for prediction
         probabilities = self.classifier.predict_proba(feature_matrix)[:, 1]
 
         return {term: prob for term, prob in zip(terms, probabilities)}
@@ -162,25 +184,52 @@ class AdaBoostTermExtractor:
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
 
-        list_corpus = [" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]]
+        list_corpus = [
+            " ".join(
+                self.generate_ngrams_teanga(
+                    [(start, end, doc.text[start:end]) for start, end in doc.words]
+                )
+            )
+            for doc_id in corpus.doc_ids
+            for doc in [corpus.doc_by_id(doc_id)]
+        ]
 
         return self.predict_terms_strings(list_corpus)
 
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a **Teanga corpus** using trained AdaBoost."""
-        self.train_model([" ".join(self.generate_ngrams_teanga([(start, end, doc.text[start:end]) for start, end in doc.words])) for doc_id in corpus.doc_ids for doc in [corpus.doc_by_id(doc_id)]], labels)
+        self.train_model(
+            [
+                " ".join(
+                    self.generate_ngrams_teanga(
+                        [(start, end, doc.text[start:end]) for start, end in doc.words]
+                    )
+                )
+                for doc_id in corpus.doc_ids
+                for doc in [corpus.doc_by_id(doc_id)]
+            ],
+            labels,
+        )
 
         term_scores = self.predict_terms_teanga(corpus)
 
-        terms_by_doc = [{"doc_id": doc_id, "terms": rank_terms(term_scores, self.threshold)} for doc_id in corpus.doc_ids]
+        terms_by_doc = [
+            {"doc_id": doc_id, "terms": rank_terms(term_scores, self.threshold)}
+            for doc_id in corpus.doc_ids
+        ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
-    def extract_terms_strings(self, corpus: list[str], labels: dict[str, int]) -> ATEResults:
+    def extract_terms_strings(
+        self, corpus: list[str], labels: dict[str, int]
+    ) -> ATEResults:
         """Extract terms from a **list of strings** using trained AdaBoost."""
         self.train_model(corpus, labels)
         term_scores = self.predict_terms_strings(corpus)
 
-        terms_by_doc = [{"doc_id": f"doc_{i}", "terms": rank_terms(term_scores, self.threshold)} for i in range(len(corpus))]
+        terms_by_doc = [
+            {"doc_id": f"doc_{i}", "terms": rank_terms(term_scores, self.threshold)}
+            for i in range(len(corpus))
+        ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

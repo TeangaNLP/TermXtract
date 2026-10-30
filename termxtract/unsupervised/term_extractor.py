@@ -1,4 +1,3 @@
-
 from teanga import Corpus
 
 from ..utils import ATEResults
@@ -54,29 +53,49 @@ class TermExtractor:
         elif method == "cvalue":
             self.extractor = CValueTermExtractor(threshold=threshold, n=n)
         elif method == "basic":
-            self.extractor = BasicTermExtractor(alpha=alpha or 0.5, threshold=threshold, n=n)
+            self.extractor = BasicTermExtractor(
+                alpha=alpha or 0.5, threshold=threshold, n=n
+            )
         elif method == "combobasic":
-            self.extractor = ComboBasicTermExtractor(alpha=alpha or 0.5, beta=beta or 0.5, threshold=threshold, n=n)
+            self.extractor = ComboBasicTermExtractor(
+                alpha=alpha or 0.5, beta=beta or 0.5, threshold=threshold, n=n
+            )
         elif method == "domaincoherence":
-            self.extractor = DomainCoherenceTermExtractor(window_size=window_size or 5, threshold=threshold, n=n)
+            self.extractor = DomainCoherenceTermExtractor(
+                window_size=window_size or 5, threshold=threshold, n=n
+            )
         elif method == "relevance":
-            self.extractor = RelevanceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
+            self.extractor = RelevanceTermExtractor(
+                reference_corpus=reference_corpus, threshold=threshold, n=n
+            )
         elif method == "topicmodeling":
-            self.extractor = TopicModelingTermExtractor(num_topics=num_topics or 20, threshold=threshold, n=n)
+            self.extractor = TopicModelingTermExtractor(
+                num_topics=num_topics or 20, threshold=threshold, n=n
+            )
         elif method == "nmf":
-            self.extractor = NMFTermExtractor(threshold=threshold, n_topics=n_topics, max_features=max_features, n=n)
+            self.extractor = NMFTermExtractor(
+                threshold=threshold, n_topics=n_topics, max_features=max_features, n=n
+            )
         elif method == "rake":
             if stoplist is None or phrase_delimiters is None:
                 raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
-            self.extractor = RAKETermExtractor(stoplist=stoplist, phrase_delimiters=phrase_delimiters, threshold=threshold)
+            self.extractor = RAKETermExtractor(
+                stoplist=stoplist,
+                phrase_delimiters=phrase_delimiters,
+                threshold=threshold,
+            )
         elif method == "domainpertinence":
             if reference_corpus is None:
                 raise ValueError("DomainPertinence requires a reference corpus.")
-            self.extractor = DomainPertinenceTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
+            self.extractor = DomainPertinenceTermExtractor(
+                reference_corpus=reference_corpus, threshold=threshold, n=n
+            )
         elif method == "weirdness":
             if reference_corpus is None:
                 raise ValueError("Weirdness requires a reference corpus.")
-            self.extractor = WeirdnessTermExtractor(reference_corpus=reference_corpus, threshold=threshold, n=n)
+            self.extractor = WeirdnessTermExtractor(
+                reference_corpus=reference_corpus, threshold=threshold, n=n
+            )
         else:
             raise ValueError(f"Unknown extraction method: {method}")
 

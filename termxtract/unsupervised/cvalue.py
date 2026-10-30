@@ -26,7 +26,10 @@ class CValueTermExtractor(BaseTermExtractor):
 
         # Compute nested term statistics
         cvalue = {}
-        term_data = {term: {"frequency": freq, "nested_in": [], "nested_freq": 0} for term, freq in term_frequencies.items()}
+        term_data = {
+            term: {"frequency": freq, "nested_in": [], "nested_freq": 0}
+            for term, freq in term_frequencies.items()
+        }
 
         for term, data in term_data.items():
             for other_term in term_data:
@@ -38,7 +41,9 @@ class CValueTermExtractor(BaseTermExtractor):
             nested_adjustment = data["nested_freq"] / p_t if data["nested_in"] else 0
 
             # C-value formula
-            cvalue[term] = math.log2(len(term.split())) * (data["frequency"] - nested_adjustment)
+            cvalue[term] = math.log2(len(term.split())) * (
+                data["frequency"] - nested_adjustment
+            )
 
         return cvalue
 
@@ -60,7 +65,9 @@ class CValueTermExtractor(BaseTermExtractor):
             cvalues = self.compute_cvalue([ngram for ngram, _ in ngrams_with_offsets])
             doc_terms = self.doc_terms(doc_id, cvalues)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
@@ -80,7 +87,9 @@ class CValueTermExtractor(BaseTermExtractor):
             doc_id = f"doc_{idx}"
             processed_corpus.append({"doc_id": doc_id, "text": doc_text})
 
-            doc_ngrams = self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc_text.lower()))
+            doc_ngrams = self.generate_ngrams_strings(
+                re.findall(r"\b\w+\b", doc_text.lower())
+            )
             terms_by_doc.append(self.doc_terms(doc_id, self.compute_cvalue(doc_ngrams)))
 
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)

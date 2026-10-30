@@ -14,7 +14,9 @@ from .base_extractor import BaseTermExtractor
 class TopicModelingTermExtractor(BaseTermExtractor):
     """Topic Modeling-based term extraction with n-gram support."""
 
-    def __init__(self, num_topics: int = 20, threshold: float | None = None, n: int = 1):
+    def __init__(
+        self, num_topics: int = 20, threshold: float | None = None, n: int = 1
+    ):
         """
         Initialize the Topic Modeling extractor.
 
@@ -55,7 +57,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         Returns:
             List[str]: Preprocessed documents.
         """
-        return [" ".join(re.findall(r'\b\w+\b', doc.lower())) for doc in corpus]
+        return [" ".join(re.findall(r"\b\w+\b", doc.lower())) for doc in corpus]
 
     def train_topic_model(self, corpus: list[str]) -> None:
         """
@@ -66,7 +68,9 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         """
         self.vectorizer = CountVectorizer(ngram_range=(1, self.n))
         doc_term_matrix = self.vectorizer.fit_transform(corpus)
-        self.lda_model = LatentDirichletAllocation(n_components=self.num_topics, max_iter=10, random_state=42)
+        self.lda_model = LatentDirichletAllocation(
+            n_components=self.num_topics, max_iter=10, random_state=42
+        )
         self.lda_model.fit(doc_term_matrix)
 
     def compute_ntm_scores(self, ngrams: list[str]) -> dict[str, float]:
@@ -83,7 +87,10 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             raise ValueError("LDA model is not trained yet.")
 
         term_frequencies = Counter(ngrams)
-        topic_word_distributions = self.lda_model.components_ / self.lda_model.components_.sum(axis=1)[:, np.newaxis]
+        topic_word_distributions = (
+            self.lda_model.components_
+            / self.lda_model.components_.sum(axis=1)[:, np.newaxis]
+        )
         scores = {}
 
         for ngram in ngrams:
@@ -123,10 +130,14 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             ngrams_with_offsets = self.generate_ngrams_teanga(self.teanga_words(doc))
-            scores = self.compute_ntm_scores([ngram for ngram, _ in ngrams_with_offsets])
+            scores = self.compute_ntm_scores(
+                [ngram for ngram, _ in ngrams_with_offsets]
+            )
             doc_terms = self.doc_terms(doc_id, scores)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
@@ -147,6 +158,8 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         terms_by_doc = []
         for idx, doc in enumerate(tokenized_corpus):
             ngrams = self.generate_ngrams_strings(doc.split())
-            terms_by_doc.append(self.doc_terms(f"doc_{idx}", self.compute_ntm_scores(ngrams)))
+            terms_by_doc.append(
+                self.doc_terms(f"doc_{idx}", self.compute_ntm_scores(ngrams))
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)

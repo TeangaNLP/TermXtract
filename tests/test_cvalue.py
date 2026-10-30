@@ -29,18 +29,27 @@ class TestCValueExtraction(unittest.TestCase):
 
         # Step 5: Assertions for structure and terms
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
     def test_cvalue_extraction_strings(self):
         # Step 1: Define a list of strings
         text_corpus = [
             "This is the first document.",
-            "The C-value algorithm identifies nested terms effectively."
+            "The C-value algorithm identifies nested terms effectively.",
         ]
 
         # Step 2: Initialize TermExtractor with C-value
@@ -51,12 +60,21 @@ class TestCValueExtraction(unittest.TestCase):
 
         # Step 4: Assertions for structure and terms
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
 
 
 if __name__ == "__main__":

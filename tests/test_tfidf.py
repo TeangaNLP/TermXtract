@@ -7,7 +7,6 @@ from termxtract.utils import ATEResults
 
 
 class TestTFIDFExample(unittest.TestCase):
-
     def test_tfidf_extraction_teanga(self):
         # Step 1: Create a Teanga corpus and add layers
         corpus = Corpus()
@@ -28,22 +27,34 @@ class TestTFIDFExample(unittest.TestCase):
         results = extractor.extract(corpus)
 
         # Step 5: Assertions for ATEResults structure
-        self.assertIsInstance(results, ATEResults, "Expected results to be an instance of ATEResults.")
-        self.assertEqual(results.corpus, corpus, "Expected the corpus in ATEResults to match the input corpus.")
-        
+        self.assertIsInstance(
+            results, ATEResults, "Expected results to be an instance of ATEResults."
+        )
+        self.assertEqual(
+            results.corpus,
+            corpus,
+            "Expected the corpus in ATEResults to match the input corpus.",
+        )
+
         # Validate terms field
         self.assertIsInstance(results.terms, list, "Expected 'terms' to be a list.")
         for item in results.terms:
             self.assertIn("doc_id", item, "Each term entry should have a 'doc_id'.")
             self.assertIn("terms", item, "Each term entry should have a 'terms' field.")
-            self.assertIsInstance(item["terms"], list, "The 'terms' field should be a list.")
+            self.assertIsInstance(
+                item["terms"], list, "The 'terms' field should be a list."
+            )
 
         # Validate offsets field
         self.assertIsInstance(results.offsets, list, "Expected 'offsets' to be a list.")
         for item in results.offsets:
             self.assertIn("doc_id", item, "Each offset entry should have a 'doc_id'.")
-            self.assertIn("offsets", item, "Each offset entry should have an 'offsets' field.")
-            self.assertIsInstance(item["offsets"], list, "The 'offsets' field should be a list.")
+            self.assertIn(
+                "offsets", item, "Each offset entry should have an 'offsets' field."
+            )
+            self.assertIsInstance(
+                item["offsets"], list, "The 'offsets' field should be a list."
+            )
 
     def test_tfidf_extraction_list_of_strings(self):
         # Input: List of strings (non-Teanga corpus)
@@ -51,7 +62,7 @@ class TestTFIDFExample(unittest.TestCase):
             "This is the first document.",
             "This document is the second document.",
             "And this is the third one.",
-            "Is this the first document?"
+            "Is this the first document?",
         ]
 
         # Step 1: Initialize TermExtractor
@@ -61,23 +72,39 @@ class TestTFIDFExample(unittest.TestCase):
         results = extractor.extract(text_corpus)
 
         # Step 3: Assertions for ATEResults structure
-        self.assertIsInstance(results, ATEResults, "Expected results to be an instance of ATEResults.")
-        self.assertIsInstance(results.corpus, list, "Expected the corpus to be a list for non-Teanga input.")
+        self.assertIsInstance(
+            results, ATEResults, "Expected results to be an instance of ATEResults."
+        )
+        self.assertIsInstance(
+            results.corpus,
+            list,
+            "Expected the corpus to be a list for non-Teanga input.",
+        )
         for doc in results.corpus:
-            self.assertIn("doc_id", doc, "Each document in the corpus should have a 'doc_id'.")
-            self.assertIn("text", doc, "Each document in the corpus should have a 'text' field.")
-            self.assertIsInstance(doc["text"], str, "The 'text' field should be a string.")
+            self.assertIn(
+                "doc_id", doc, "Each document in the corpus should have a 'doc_id'."
+            )
+            self.assertIn(
+                "text", doc, "Each document in the corpus should have a 'text' field."
+            )
+            self.assertIsInstance(
+                doc["text"], str, "The 'text' field should be a string."
+            )
 
         # Validate terms field
         self.assertIsInstance(results.terms, list, "Expected 'terms' to be a list.")
         for item in results.terms:
             self.assertIn("doc_id", item, "Each term entry should have a 'doc_id'.")
             self.assertIn("terms", item, "Each term entry should have a 'terms' field.")
-            self.assertIsInstance(item["terms"], list, "The 'terms' field should be a list.")
+            self.assertIsInstance(
+                item["terms"], list, "The 'terms' field should be a list."
+            )
 
         # Validate offsets field (should be None for list of strings)
-        self.assertIsNone(results.offsets, "Expected 'offsets' to be None for non-Teanga input.")
+        self.assertIsNone(
+            results.offsets, "Expected 'offsets' to be None for non-Teanga input."
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

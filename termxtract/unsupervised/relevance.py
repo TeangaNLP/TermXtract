@@ -10,7 +10,12 @@ from .base_extractor import BaseTermExtractor
 class RelevanceTermExtractor(BaseTermExtractor):
     """Relevance-based term extraction with n-gram support."""
 
-    def __init__(self, reference_corpus: Corpus | list[str], threshold: float | None = None, n: int = 1):
+    def __init__(
+        self,
+        reference_corpus: Corpus | list[str],
+        threshold: float | None = None,
+        n: int = 1,
+    ):
         """
         Initialize the Relevance extractor.
 
@@ -42,9 +47,12 @@ class RelevanceTermExtractor(BaseTermExtractor):
         ref_ngrams = []
         for doc_id in self.reference_corpus.doc_ids:
             ref_doc = self.reference_corpus.doc_by_id(doc_id)
-            if not ref_doc or not hasattr(ref_doc, 'words'):
+            if not ref_doc or not hasattr(ref_doc, "words"):
                 continue
-            ngrams = [ngram for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))]
+            ngrams = [
+                ngram
+                for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))
+            ]
             ref_ngrams.append(ngrams)
 
         ref_idf = self.compute_idf(ref_ngrams)
@@ -53,11 +61,14 @@ class RelevanceTermExtractor(BaseTermExtractor):
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            if not doc or not hasattr(doc, 'words'):
+            if not doc or not hasattr(doc, "words"):
                 continue
             ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
 
-        corpus_ngrams = [[ngram for ngram, _ in ngrams_with_offsets] for ngrams_with_offsets in ngrams_by_doc.values()]
+        corpus_ngrams = [
+            [ngram for ngram, _ in ngrams_with_offsets]
+            for ngrams_with_offsets in ngrams_by_doc.values()
+        ]
         target_idf = self.compute_idf(corpus_ngrams)
 
         # Calculate scores for each term
@@ -66,22 +77,35 @@ class RelevanceTermExtractor(BaseTermExtractor):
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
             tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             scores = {
-                ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / max(ref_idf.get(ngram, 1), 1e-9)))
+                ngram: 1
+                - (
+                    math.log2(
+                        2
+                        + tf[ngram]
+                        * target_idf.get(ngram, 0)
+                        / max(ref_idf.get(ngram, 1), 1e-9)
+                    )
+                )
                 for ngram in tf
             }
             doc_terms = self.doc_terms(doc_id, scores)
             terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms))
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using Relevance."""
         # Generate reference IDF from reference corpus
-        ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]
+        ref_ngrams = [
+            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
+            for doc in self.reference_corpus
+        ]
         ref_idf = self.compute_idf(ref_ngrams)
 
-        tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
+        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         corpus_ngrams = [self.generate_ngrams_strings(doc) for doc in tokenized_corpus]
         target_idf = self.compute_idf(corpus_ngrams)
 
@@ -89,7 +113,12 @@ class RelevanceTermExtractor(BaseTermExtractor):
         for idx, doc_text in enumerate(corpus):
             tf = self.compute_tf(self.generate_ngrams_strings(tokenized_corpus[idx]))
             scores = {
-                ngram: 1 - (math.log2(2 + tf[ngram] * target_idf.get(ngram, 0) / ref_idf.get(ngram, 1)))
+                ngram: 1
+                - (
+                    math.log2(
+                        2 + tf[ngram] * target_idf.get(ngram, 0) / ref_idf.get(ngram, 1)
+                    )
+                )
                 for ngram in tf
             }
             terms_by_doc.append(self.doc_terms(f"doc_{idx}", scores))

@@ -27,19 +27,33 @@ class TestDomainPertinenceExtraction(unittest.TestCase):
 
         # Initialize extractor with reference corpus
         extractor = TermExtractor(
-            method="domainpertinence", reference_corpus=reference_corpus, threshold=0.1, n=2
+            method="domainpertinence",
+            reference_corpus=reference_corpus,
+            threshold=0.1,
+            n=2,
         )
         results = extractor.extract(corpus)
 
         # Assertions
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
-                self.assertGreaterEqual(term_data["score"], 0, "Scores should be non-negative.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
+                self.assertGreaterEqual(
+                    term_data["score"], 0, "Scores should be non-negative."
+                )
 
     def test_domain_pertinence_extraction_strings(self):
         # Target corpus
@@ -49,19 +63,33 @@ class TestDomainPertinenceExtraction(unittest.TestCase):
 
         # Initialize extractor with reference corpus
         extractor = TermExtractor(
-            method="domainpertinence", reference_corpus=reference_corpus, threshold=0.1, n=2
+            method="domainpertinence",
+            reference_corpus=reference_corpus,
+            threshold=0.1,
+            n=2,
         )
         results = extractor.extract(text_corpus)
 
         # Assertions
         self.assertIsNotNone(results.terms, "Terms should not be None.")
-        self.assertTrue(all("doc_id" in item for item in results.terms), "Each result should have 'doc_id'.")
+        self.assertTrue(
+            all("doc_id" in item for item in results.terms),
+            "Each result should have 'doc_id'.",
+        )
         for term_entry in results.terms:
-            self.assertIn("terms", term_entry, "Each result should have a 'terms' field.")
+            self.assertIn(
+                "terms", term_entry, "Each result should have a 'terms' field."
+            )
             for term_data in term_entry["terms"]:
-                self.assertIn("term", term_data, "Each term entry should have a 'term'.")
-                self.assertIn("score", term_data, "Each term entry should have a 'score'.")
-                self.assertGreaterEqual(term_data["score"], 0, "Scores should be non-negative.")
+                self.assertIn(
+                    "term", term_data, "Each term entry should have a 'term'."
+                )
+                self.assertIn(
+                    "score", term_data, "Each term entry should have a 'score'."
+                )
+                self.assertGreaterEqual(
+                    term_data["score"], 0, "Scores should be non-negative."
+                )
 
 
 if __name__ == "__main__":

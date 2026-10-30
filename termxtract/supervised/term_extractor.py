@@ -1,4 +1,3 @@
-
 from teanga import Corpus
 
 from ..utils import ATEResults
@@ -29,7 +28,7 @@ class SupervisedTermExtractor:
         epochs: int = 3,
         learning_rate: float = 2e-5,
         max_length: int = 512,
-        language: str = "en"
+        language: str = "en",
     ):
         """
         Initialize the TermExtractor with the desired supervised method and parameters.
@@ -59,14 +58,14 @@ class SupervisedTermExtractor:
                 max_depth=max_depth,
                 n_estimators=n_estimators,
                 estimator=estimator,
-                wordnet_lexicon=wordnet_lexicon
+                wordnet_lexicon=wordnet_lexicon,
             )
         elif method == "roger":
             self.extractor = RogerTermExtractor(
                 population_size=population_size,
                 generations=generations,
                 subsample_ratio=subsample_ratio,
-                n=n
+                n=n,
             )
         elif method == "token-classification":
             # Imported here because torch/transformers are an optional extra.
@@ -84,14 +83,12 @@ class SupervisedTermExtractor:
                 epochs=epochs,
                 learning_rate=learning_rate,
                 max_length=max_length,
-                language=language
+                language=language,
             )
         else:
             raise ValueError(f"Unknown supervised extraction method: {method}")
 
-    def extract(
-        self, corpus: Corpus | list[str], labels: dict[str, int]
-    ) -> ATEResults:
+    def extract(self, corpus: Corpus | list[str], labels: dict[str, int]) -> ATEResults:
         """
         Extract terms from a given corpus using supervised learning.
 

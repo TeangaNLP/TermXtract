@@ -4,6 +4,7 @@ The public classes are loaded lazily, so ``import termxtract`` does not pull in
 heavy dependencies (e.g. torch/transformers for the supervised extractors) until
 they are actually used.
 """
+
 from importlib import import_module
 from typing import TYPE_CHECKING
 
@@ -28,7 +29,9 @@ def __getattr__(name: str):
         except AttributeError as e:
             # Otherwise `from termxtract import X` reports this as "cannot import name 'X'"
             # and hides the underlying error.
-            raise ImportError(f"Error while importing {name!r} from {__name__!r}") from e
+            raise ImportError(
+                f"Error while importing {name!r} from {__name__!r}"
+            ) from e
         value = getattr(module, name)
         globals()[name] = value
         return value
