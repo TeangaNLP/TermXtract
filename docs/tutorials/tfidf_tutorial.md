@@ -150,6 +150,6 @@ print(results.offsets[3]["offsets"][:3])
 
 - **No stopword filtering.** Function words such as `for` and `of` score just as highly as content words when they are rare in your corpus. Use a larger corpus, or post-filter the results with a stopword list.
 - **Use enough documents.** With very few documents, IDF can only take a handful of values and many terms tie.
-- **Compare against a reference corpus.** To find terms typical of a *domain* rather than of individual documents, try [Weirdness](../api/unsupervised/weirdness.md) or [Domain Pertinence](../api/unsupervised/domainpertinence.md), which compare your corpus with general-language text.
+- **Compare against a reference corpus.** To find terms typical of a *domain* rather than of individual documents, try the [reference corpus methods](reference_corpus_tutorial.md), which compare your corpus with general-language text.
 
 See the [TF-IDF API reference](../api/unsupervised/tfidf.md) for the full list of parameters and methods.

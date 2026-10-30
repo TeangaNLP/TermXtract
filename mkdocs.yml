@@ -27,6 +27,8 @@ nav:
 - Tutorials:
   - Getting Started: tutorials/getting_started.md
   - TF-IDF: tutorials/tfidf_tutorial.md
+  - Reference Corpus Methods: tutorials/reference_corpus_tutorial.md
+  - Supervised Methods: tutorials/supervised_tutorial.md
 - API Reference:
   - TermExtractor: api/term_extractor.md
   - SupervisedTermExtractor: api/supervised_term_extractor.md

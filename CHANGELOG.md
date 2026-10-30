@@ -23,8 +23,8 @@ that was previously only available from GitHub.
 - Optional `transformers` extra (`pip install 'termxtract[transformers]'`) for the
   token-classification method.
 - `threshold` and `wordnet_lexicon` parameters for `SupervisedTermExtractor`.
-- README, API reference for every extractor, and a rewritten TF-IDF tutorial at
-  <https://teanga.io/TermXtract/>.
+- README, API reference for every extractor, a rewritten TF-IDF tutorial, and tutorials
+  for the reference-corpus and supervised methods at <https://teanga.io/TermXtract/>.
 - Apache-2.0 license and full package metadata.
 
 ### Changed
