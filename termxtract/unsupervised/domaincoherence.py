@@ -1,6 +1,7 @@
 import math
 import re
 from collections import Counter
+from typing import Any
 
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -91,10 +92,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
     def _extract_context_words_teanga(
-        self, corpus, top_terms: list[dict[str, float]]
+        self, corpus, top_terms: list[dict[str, Any]]
     ) -> list[str]:
         """Extract context words for a Teanga corpus based on NPMI."""
-        context_counter = Counter()
+        context_counter: Counter[str] = Counter()
         term_set = {term["term"] for term in top_terms}
 
         for doc_id in corpus.doc_ids:
@@ -119,10 +120,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         )
 
     def _extract_context_words_strings(
-        self, tokenized_corpus: list[list[str]], top_terms: list[dict[str, float]]
+        self, tokenized_corpus: list[list[str]], top_terms: list[dict[str, Any]]
     ) -> list[str]:
         """Extract context words for a list of strings based on NPMI."""
-        context_counter = Counter()
+        context_counter: Counter[str] = Counter()
         term_set = {term["term"] for term in top_terms}
 
         for words in tokenized_corpus:
@@ -162,7 +163,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         npmi_scores = {}
         for word in context_counter:
             if word not in term_set:
-                npmi_sum = 0
+                npmi_sum = 0.0
                 for term in term_set:
                     p_t_and_w = (
                         context_counter[word] / total_terms if total_terms > 0 else 0
@@ -192,7 +193,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
     def _compute_domain_coherence_strings(
         self,
         tokenized_corpus: list[list[str]],
-        top_terms: list[dict[str, float]],
+        top_terms: list[dict[str, Any]],
         context_words: list[str],
     ) -> dict[str, float]:
         """
@@ -200,7 +201,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
 
         Args:
             tokenized_corpus (List[List[str]]): Tokenized corpus as a list of word lists.
-            top_terms (List[Dict[str, float]]): Top 200 terms from Basic extractor.
+            top_terms (List[Dict[str, Any]]): Top 200 terms from Basic extractor.
             context_words (List[str]): Top 50 context words based on NPMI.
 
         Returns:
@@ -212,11 +213,11 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         # Iterate over each term in the top terms
         for term_data in top_terms:
             term = term_data["term"]
-            npmi_sum = 0
+            npmi_sum = 0.0
 
             # Calculate NPMI for the term with each context word
             for word in context_words:
-                p_t_and_w, p_term, p_word = 0, 0, 0
+                p_t_and_w, p_term, p_word = 0.0, 0.0, 0.0
 
                 # Compute probabilities
                 p_t_and_w = (
@@ -249,14 +250,14 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         return term_scores
 
     def _compute_domain_coherence_teanga(
-        self, corpus, top_terms: list[dict[str, float]], context_words: list[str]
+        self, corpus, top_terms: list[dict[str, Any]], context_words: list[str]
     ) -> dict[str, float]:
         """
         Compute DomainCoherence scores for a Teanga corpus.
 
         Args:
             corpus: Teanga corpus object.
-            top_terms (List[Dict[str, float]]): Top 200 terms from Basic extractor.
+            top_terms (List[Dict[str, Any]]): Top 200 terms from Basic extractor.
             context_words (List[str]): Top 50 context words based on NPMI.
 
         Returns:
@@ -268,11 +269,11 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         # Iterate over each term in the top terms
         for term_data in top_terms:
             term = term_data["term"]
-            npmi_sum = 0
+            npmi_sum = 0.0
 
             # Calculate NPMI for the term with each context word
             for word in context_words:
-                p_t_and_w, p_term, p_word = 0, 0, 0
+                p_t_and_w, p_term, p_word = 0.0, 0.0, 0.0
 
                 # Compute probabilities for Teanga corpus
                 for doc_id in corpus.doc_ids:

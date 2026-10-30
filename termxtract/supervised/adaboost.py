@@ -64,7 +64,7 @@ class AdaBoostTermExtractor:
         self.max_depth = max_depth
         self.n_estimators = n_estimators
         self.wordnet_lexicon = wordnet_lexicon
-        self._wordnet = None
+        self._wordnet: wn.Wordnet | None = None
 
         if estimator == "decision_tree":
             base_estimator = DecisionTreeClassifier(max_depth=max_depth)

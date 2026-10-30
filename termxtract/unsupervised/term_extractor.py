@@ -1,6 +1,7 @@
 from teanga import Corpus
 
 from ..utils import ATEResults
+from .base_extractor import BaseTermExtractor
 from .basic import BasicTermExtractor
 from .combobasic import ComboBasicTermExtractor
 from .cvalue import CValueTermExtractor
@@ -46,6 +47,7 @@ class TermExtractor:
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
             reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for methods like 'domainpertinence' and 'weirdness'.
         """
+        self.extractor: BaseTermExtractor
         if method == "tfidf":
             self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)
         elif method == "ridf":

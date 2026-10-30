@@ -83,13 +83,13 @@ class WeirdnessTermExtractor(BaseTermExtractor):
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
         # Ensure reference corpus is valid and has documents
-        if not self.reference_corpus or not self.reference_corpus.doc_ids:
+        if not self.reference_corpus or not self.reference_corpus.doc_ids:  # type: ignore[union-attr]  # see #25
             raise ValueError("Reference corpus must be provided and contain documents.")
 
         # Generate reference n-grams and compute IDF
         ref_ngrams = []
-        for doc_id in self.reference_corpus.doc_ids:
-            ref_doc = self.reference_corpus.doc_by_id(doc_id)
+        for doc_id in self.reference_corpus.doc_ids:  # type: ignore[union-attr]  # see #25
+            ref_doc = self.reference_corpus.doc_by_id(doc_id)  # type: ignore[union-attr]  # see #25
             ngrams = [
                 ngram
                 for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))

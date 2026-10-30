@@ -40,13 +40,13 @@ class RelevanceTermExtractor(BaseTermExtractor):
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using Relevance."""
         # Ensure reference corpus is valid
-        if not self.reference_corpus or not self.reference_corpus.doc_ids:
+        if not self.reference_corpus or not self.reference_corpus.doc_ids:  # type: ignore[union-attr]  # see #25
             raise ValueError("Reference corpus is required and must contain documents.")
 
         # Generate reference IDF from reference corpus
         ref_ngrams = []
-        for doc_id in self.reference_corpus.doc_ids:
-            ref_doc = self.reference_corpus.doc_by_id(doc_id)
+        for doc_id in self.reference_corpus.doc_ids:  # type: ignore[union-attr]  # see #25
+            ref_doc = self.reference_corpus.doc_by_id(doc_id)  # type: ignore[union-attr]  # see #25
             if not ref_doc or not hasattr(ref_doc, "words"):
                 continue
             ngrams = [

@@ -1,6 +1,7 @@
 import math
 import re
 from collections import Counter
+from typing import Any
 
 from teanga import Corpus
 
@@ -26,7 +27,7 @@ class CValueTermExtractor(BaseTermExtractor):
 
         # Compute nested term statistics
         cvalue = {}
-        term_data = {
+        term_data: dict[str, dict[str, Any]] = {
             term: {"frequency": freq, "nested_in": [], "nested_freq": 0}
             for term, freq in term_frequencies.items()
         }

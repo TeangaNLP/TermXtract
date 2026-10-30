@@ -27,8 +27,8 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         """
         super().__init__(threshold=threshold, n=n)
         self.num_topics = num_topics
-        self.lda_model = None
-        self.vectorizer = None
+        self.lda_model: LatentDirichletAllocation | None = None
+        self.vectorizer: CountVectorizer | None = None
 
     def preprocess_teanga(self, corpus: Corpus) -> list[str]:
         """

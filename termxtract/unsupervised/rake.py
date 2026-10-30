@@ -41,7 +41,7 @@ class RAKETermExtractor(BaseTermExtractor):
         delimiters = "|".join(map(re.escape, self.phrase_delimiters))
         words = re.split(f"({delimiters})", text.lower())
         candidates = []
-        current_phrase = []
+        current_phrase: list[str] = []
 
         for word in words:
             word = word.strip()
@@ -65,8 +65,8 @@ class RAKETermExtractor(BaseTermExtractor):
         Returns:
             Dict[str, float]: Word scores.
         """
-        word_frequency = Counter()
-        word_degree = Counter()
+        word_frequency: Counter[str] = Counter()
+        word_degree: Counter[str] = Counter()
         for phrase in candidates:
             for word in phrase:
                 word_frequency[word] += 1
@@ -112,7 +112,7 @@ class RAKETermExtractor(BaseTermExtractor):
         Returns:
             Dict[str, float]: Updated keyword scores including linked keywords.
         """
-        linked_keywords = defaultdict(float)
+        linked_keywords: defaultdict[str, float] = defaultdict(float)
         words = text.lower().split()
         for i, word in enumerate(words):
             if word in candidate_scores:

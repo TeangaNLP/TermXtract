@@ -17,7 +17,7 @@ def rank_terms(
         List[Dict[str, Any]]: `{"term": ..., "score": ...}` dictionaries, ranked from highest
         to lowest score. Terms with equal scores keep their original order.
     """
-    terms = [
+    terms: list[dict[str, Any]] = [
         {"term": term, "score": float(score)}
         for term, score in scores.items()
         if threshold is None or score >= threshold

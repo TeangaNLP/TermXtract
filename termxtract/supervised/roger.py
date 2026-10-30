@@ -31,7 +31,7 @@ class RogerTermExtractor:
         self.generations = generations
         self.subsample_ratio = subsample_ratio
         self.n = n
-        self.models = []
+        self.models: list[np.ndarray] = []
 
     def generate_ngrams(self, words: list[str]) -> list[str]:
         """Generate n-grams from a list of words."""

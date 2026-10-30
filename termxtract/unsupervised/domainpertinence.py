@@ -42,8 +42,8 @@ class DomainPertinenceTermExtractor(BaseTermExtractor):
         """
         # Generate reference IDF from reference corpus
         ref_ngrams = []
-        for ref_doc_id in self.reference_corpus.doc_ids:
-            ref_doc = self.reference_corpus.doc_by_id(ref_doc_id)
+        for ref_doc_id in self.reference_corpus.doc_ids:  # type: ignore[union-attr]  # see #25
+            ref_doc = self.reference_corpus.doc_by_id(ref_doc_id)  # type: ignore[union-attr]  # see #25
             ref_doc_ngrams = [
                 ngram
                 for ngram, _ in self.generate_ngrams_teanga(self.teanga_words(ref_doc))

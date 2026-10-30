@@ -1,12 +1,21 @@
+from typing import TYPE_CHECKING
+
 from teanga import Corpus
 
 from ..utils import ATEResults
 from .adaboost import DEFAULT_WORDNET_LEXICON, AdaBoostTermExtractor
 from .roger import RogerTermExtractor
 
+if TYPE_CHECKING:
+    from .tokenextractor import TokenClassificationTermExtractor
+
 
 class SupervisedTermExtractor:
     """A wrapper class for selecting the supervised term extraction method."""
+
+    extractor: (
+        "AdaBoostTermExtractor | RogerTermExtractor | TokenClassificationTermExtractor"
+    )
 
     def __init__(
         self,

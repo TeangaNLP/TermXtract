@@ -67,7 +67,7 @@ class TokenClassificationTermExtractor:
         )
 
         # Initialize trainer
-        self.trainer = None
+        self.trainer: Trainer | None = None
         self.is_trained = False
 
     def preprocess_text(self, text: str) -> list[tuple[list[str], str]]:
@@ -336,7 +336,8 @@ class TokenClassificationTermExtractor:
                 for (p, gold) in zip(prediction, label)
                 if gold != -100
             ]
-            for prediction, label in zip(predictions, labels)
+            # The dataset always has (placeholder) labels, so `labels` is never None
+            for prediction, label in zip(predictions, labels)  # type: ignore[arg-type]
         ]
 
         # Extract terms
