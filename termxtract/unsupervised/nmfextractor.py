@@ -47,7 +47,6 @@ class NMFTermExtractor(BaseTermExtractor):
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using NMF."""
-        corpus.add_layer_meta("terms", layer_type="span", base="text")
 
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:

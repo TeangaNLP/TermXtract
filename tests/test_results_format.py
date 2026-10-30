@@ -1,3 +1,4 @@
+import io
 import re
 import unittest
 from teanga import Corpus
@@ -48,6 +49,12 @@ def make_teanga(texts):
         doc = corpus.add_doc(text)
         doc.words = [match.span() for match in re.finditer(r"\w+", text)]
     return corpus
+
+
+def serialize(corpus):
+    buffer = io.StringIO()
+    corpus.to_json(buffer)
+    return buffer.getvalue()
 
 
 def make_extractor(method, teanga, **overrides):
@@ -108,6 +115,16 @@ class TestResultsFormat(unittest.TestCase):
                         self.assertEqual(span.lower() if method == "rake" else span, occurrence["term"])
                         found.add(occurrence["term"])
                     self.assertEqual(found, terms, "Every extracted term should have its offsets.")
+
+    def test_corpus_not_modified(self):
+        """Extractors leave the input corpus unchanged, so several can run on the same Corpus object."""
+        corpus = make_teanga(TEXTS)
+        before = serialize(corpus)
+        for _ in range(2):
+            for method in METHODS:
+                with self.subTest(method=method):
+                    make_extractor(method, teanga=True).extract(corpus)
+                    self.assertEqual(serialize(corpus), before)
 
     def test_threshold(self):
         for method in METHODS:

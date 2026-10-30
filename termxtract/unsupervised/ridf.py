@@ -51,7 +51,6 @@ class RIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
-        corpus.add_layer_meta("terms", layer_type="span", base="text")
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)

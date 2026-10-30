@@ -12,8 +12,6 @@ class TFIDFTermExtractor(BaseTermExtractor):
         """
         Extract terms from a Teanga corpus using TF-IDF.
 
-        Note that this adds a `terms` span layer definition to the corpus.
-
         Args:
             corpus (Corpus): A Teanga corpus with a `words` span layer.
 
@@ -21,7 +19,6 @@ class TFIDFTermExtractor(BaseTermExtractor):
             ATEResults: Results with ranked terms and scores, and the character offsets of
             each occurrence of each term.
         """
-        corpus.add_layer_meta("terms", layer_type="span", base="text")
         ngrams_by_doc = {}
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)

@@ -25,7 +25,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using DomainCoherence."""
     
-        # Step 1: Extract top 200 candidates using Basic (BasicTermExtractor will add the terms layer itself)
+        # Step 1: Extract top 200 candidates using Basic
         basic_extractor = BasicTermExtractor(threshold=None, n=self.n)
         basic_results = basic_extractor.extract_terms_teanga(corpus)
     

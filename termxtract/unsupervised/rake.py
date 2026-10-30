@@ -124,7 +124,6 @@ class RAKETermExtractor(BaseTermExtractor):
             ATEResults: Results with ranked terms and scores, and the character offsets of
             each occurrence of each term.
         """
-        corpus.add_layer_meta("terms", layer_type="span", base="text")
         terms_by_doc = []
         offsets_by_doc = []
 

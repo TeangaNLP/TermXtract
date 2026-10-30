@@ -145,7 +145,6 @@ print(results.offsets[3]["offsets"][:3])
 
 - `doc_id`s are Teanga's document IDs rather than `doc_0`, `doc_1`, ….
 - Words are taken exactly as they appear in your `words` layer, so **case is preserved** (`Gradient`, not `gradient`).
-- The extractor adds a `terms` layer definition to your corpus, so running a second extractor on the same `Corpus` object fails with *"Layer with name terms already exists"*. Build a fresh corpus for each run.
 
 ## Limitations and tips
 
