@@ -1,7 +1,7 @@
 from typing import Union, List, Dict, Optional
 from teanga import Corpus
 from ..utils import ATEResults
-from .adaboost import AdaBoostTermExtractor
+from .adaboost import AdaBoostTermExtractor, DEFAULT_WORDNET_LEXICON
 from .roger import RogerTermExtractor
 from .tokenextractor import TokenClassificationTermExtractor
 
@@ -23,6 +23,7 @@ class SupervisedTermExtractor:
         max_depth: int = 1,
         n_estimators: int = 50,
         estimator: str = "decision_tree",
+        wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON,
         # Token classification parameters
         batch_size: int = 8,
         epochs: int = 3,
@@ -48,6 +49,7 @@ class SupervisedTermExtractor:
             max_depth (int): Maximum depth of the decision tree (only for 'adaboost').
             n_estimators (int): Number of boosting iterations (only for 'adaboost').
             estimator (str): Type of base estimator (only for 'adaboost').
+            wordnet_lexicon (str): `wn` lexicon for the semantic feature, downloaded on first use if missing (only for 'adaboost').
             
             # Token classification parameters
             batch_size (int): Training batch size (only for 'token-classification').
@@ -62,7 +64,8 @@ class SupervisedTermExtractor:
                 n=n,
                 max_depth=max_depth,
                 n_estimators=n_estimators,
-                estimator=estimator
+                estimator=estimator,
+                wordnet_lexicon=wordnet_lexicon
             )
         elif method == "roger":
             self.extractor = RogerTermExtractor(

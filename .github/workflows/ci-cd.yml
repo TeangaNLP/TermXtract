@@ -39,6 +39,11 @@ jobs:
           pip install poetry
           poetry install --with dev  # Ensure dev dependencies, including mkdocstrings and handlers, are installed
 
+      # Step 3b: Pre-download the WordNet lexicon used by the AdaBoost extractor
+      - name: Download WordNet lexicon
+        run: |
+          poetry run python -m wn download oewn:2025+
+
       # Step 4: Run project tests using unittest
       - name: Run Tests
         run: |

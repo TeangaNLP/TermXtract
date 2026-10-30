@@ -33,7 +33,7 @@ class TestPackage(unittest.TestCase):
         code = (
             "import sys, termxtract; "
             "from termxtract import TermExtractor; "
-            "heavy = [m for m in ('torch', 'transformers', 'nltk') if m in sys.modules]; "
+            "heavy = [m for m in ('torch', 'transformers', 'wn') if m in sys.modules]; "
             "print(','.join(heavy))"
         )
         # Run in a fresh interpreter, since other tests have already imported these modules.

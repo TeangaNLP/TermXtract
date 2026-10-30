@@ -3,12 +3,37 @@ import math
 import numpy as np
 from collections import Counter
 from typing import List, Dict, Optional, Tuple
-import nltk
-from nltk.corpus import wordnet as wn
+import wn
+from wn.morphy import Morphy
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 from ..utils import ATEResults
-nltk.download('wordnet')
+
+DEFAULT_WORDNET_LEXICON = "oewn:2025+"
+
+
+def load_wordnet(lexicon: str = DEFAULT_WORDNET_LEXICON) -> wn.Wordnet:
+    """
+    Load a WordNet lexicon, downloading it on first use if it is not installed.
+
+    Args:
+        lexicon (str): The `wn` lexicon specifier (e.g. "oewn:2025+").
+
+    Returns:
+        wn.Wordnet: The lexicon, with Morphy lemmatization so inflected forms (e.g. "dogs") match.
+
+    Raises:
+        RuntimeError: If the lexicon is not installed and cannot be downloaded (e.g. when offline).
+    """
+    if not wn.lexicons(lexicon=lexicon):
+        try:
+            wn.download(lexicon, progress_handler=None)
+        except Exception as e:
+            raise RuntimeError(
+                f"WordNet lexicon '{lexicon}' is not installed and could not be downloaded. "
+                f"Install it with: python -m wn download {lexicon}"
+            ) from e
+    return wn.Wordnet(lexicon, lemmatizer=Morphy())
 
 
 class AdaBoostTermExtractor:
@@ -20,7 +45,8 @@ class AdaBoostTermExtractor:
         n: int = 1,
         max_depth: int = 1,
         n_estimators: int = 50,
-        estimator: Optional[str] = "decision_tree"
+        estimator: Optional[str] = "decision_tree",
+        wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON
     ):
         """
         Initialize the AdaBoost extractor.
@@ -31,11 +57,15 @@ class AdaBoostTermExtractor:
             max_depth (int): Maximum depth of the decision tree base estimator.
             n_estimators (int): Number of boosting iterations.
             estimator (str): Type of base estimator ("decision_tree" or "logistic_regression").
+            wordnet_lexicon (str): `wn` lexicon used for the semantic feature. It is loaded
+                (and downloaded if needed) on first use, not at construction.
         """
         self.threshold = threshold
         self.n = n
         self.max_depth = max_depth
         self.n_estimators = n_estimators
+        self.wordnet_lexicon = wordnet_lexicon
+        self._wordnet = None
 
         if estimator == "decision_tree":
             base_estimator = DecisionTreeClassifier(max_depth=max_depth)
@@ -65,9 +95,16 @@ class AdaBoostTermExtractor:
                     ngrams.append(ngram)
         return ngrams
 
+    @property
+    def wordnet(self) -> wn.Wordnet:
+        """The WordNet lexicon, loaded on first access."""
+        if self._wordnet is None:
+            self._wordnet = load_wordnet(self.wordnet_lexicon)
+        return self._wordnet
+
     def compute_semantic_score(self, term: str) -> float:
         """Compute semantic content score using WordNet."""
-        word_senses = wn.synsets(term)
+        word_senses = self.wordnet.synsets(term)
         return len(word_senses) / (len(term.split()) + 1) if word_senses else 0.0
 
     def compute_greek_latin_score(self, term: str) -> int:

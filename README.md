@@ -76,7 +76,7 @@ extractor = SupervisedTermExtractor(method="adaboost", n=3)
 results = extractor.extract(corpus, labels)
 ```
 
-The AdaBoost extractor uses WordNet features and downloads the NLTK `wordnet` data on first import.
+The AdaBoost extractor uses [Open English WordNet](https://en-word.net/) through the [`wn`](https://pypi.org/project/wn/) package. The first time it needs WordNet it downloads the `oewn:2025+` lexicon into `~/.wn_data` (set `WN_DATA_DIR` to change this). To install it ahead of time, e.g. for offline use, run `python -m wn download oewn:2025+`. Pass `wordnet_lexicon=...` to use a different lexicon.
 
 ### Using a Teanga corpus
 
@@ -119,7 +119,7 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 
 | `method`               | Description                                              | Extra parameters                                         |
 |------------------------|----------------------------------------------------------|----------------------------------------------------------|
-| `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`     |
+| `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`, `wordnet_lexicon` |
 | `roger`                | Evolutionary ranking-function search                     | `population_size`, `generations`, `subsample_ratio`      |
 | `token-classification` | Fine-tuned Hugging Face token-classification model       | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 

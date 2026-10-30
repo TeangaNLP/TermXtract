@@ -1,5 +1,8 @@
 import unittest
+from unittest import mock
 from teanga import Corpus
+from termxtract.supervised import adaboost
+from termxtract.supervised.adaboost import AdaBoostTermExtractor, load_wordnet
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
 
 
@@ -49,6 +52,53 @@ class TestAdaBoostExtraction(unittest.TestCase):
             for term_data in term_entry["terms"]:
                 self.assertIn("term", term_data, "Each term entry should have a 'term'.")
                 self.assertIn("score", term_data, "Each term entry should have a 'score'.")
+
+
+    def test_semantic_score_lemmatizes_and_handles_multiword_terms(self):
+        """Test that inflected forms and multi-word terms are found in WordNet."""
+        extractor = AdaBoostTermExtractor()
+        self.assertGreater(extractor.compute_semantic_score("dogs"), 0.0)
+        self.assertGreater(extractor.compute_semantic_score("artificial intelligence"), 0.0)
+        self.assertEqual(extractor.compute_semantic_score("of machine"), 0.0)
+
+
+class TestWordNetLoading(unittest.TestCase):
+    """Test cases for lazy loading and downloading of the WordNet lexicon."""
+
+    def test_lexicon_not_loaded_at_construction(self):
+        """Test that constructing the extractor does not load or download WordNet."""
+        with mock.patch.object(adaboost, "load_wordnet") as load:
+            extractor = SupervisedTermExtractor(method="adaboost", wordnet_lexicon="oewn:2024")
+            load.assert_not_called()
+            extractor.extractor.compute_semantic_score("dog")
+            extractor.extractor.compute_semantic_score("cat")
+            load.assert_called_once_with("oewn:2024")
+
+    def test_installed_lexicon_is_not_downloaded(self):
+        """Test that an installed lexicon is used without downloading."""
+        with mock.patch.object(adaboost.wn, "lexicons", return_value=["installed"]), \
+                mock.patch.object(adaboost.wn, "download") as download, \
+                mock.patch.object(adaboost.wn, "Wordnet") as wordnet:
+            load_wordnet("oewn:2025+")
+        download.assert_not_called()
+        wordnet.assert_called_once()
+
+    def test_missing_lexicon_is_downloaded(self):
+        """Test that a missing lexicon is downloaded on first use."""
+        with mock.patch.object(adaboost.wn, "lexicons", return_value=[]), \
+                mock.patch.object(adaboost.wn, "download") as download, \
+                mock.patch.object(adaboost.wn, "Wordnet"):
+            load_wordnet("oewn:2025+")
+        download.assert_called_once_with("oewn:2025+", progress_handler=None)
+
+    def test_download_failure_raises_clear_error(self):
+        """Test that a failed download (e.g. offline) explains how to install the lexicon."""
+        with mock.patch.object(adaboost.wn, "lexicons", return_value=[]), \
+                mock.patch.object(adaboost.wn, "download", side_effect=OSError("network unreachable")):
+            with self.assertRaises(RuntimeError) as ctx:
+                load_wordnet("oewn:2025+")
+        self.assertIn("python -m wn download oewn:2025+", str(ctx.exception))
+        self.assertIsInstance(ctx.exception.__cause__, OSError)
 
 
 if __name__ == "__main__":
