@@ -43,6 +43,8 @@ reference = [
 ]
 ```
 
+By default, every method drops candidates that start or end with a stopword, such as `the` or `of` (see [Stopwords](tfidf_tutorial.md#stopwords) in the TF-IDF tutorial). The examples below turn this off with `stopwords=None`, so that you can see how each method scores function words on its own. In practice, keep the default.
+
 These methods score each n-gram over the **whole corpus**, so a term has the same score in every document it occurs in. `results.terms` still lists terms per document, as for every method. To see the ranking for the whole corpus, we collect the scores from all documents with this helper:
 
 ```python
@@ -67,7 +69,7 @@ A score of 4 means the n-gram is four times more common in your documents than i
 Pass the reference corpus with `reference_corpus`:
 
 ```python
-extractor = TermExtractor(method="weirdness", reference_corpus=reference)
+extractor = TermExtractor(method="weirdness", reference_corpus=reference, stopwords=None)
 results = extractor.extract(corpus)
 show_terms(results, limit=8)
 ```
@@ -136,7 +138,7 @@ The score is between 0 and 1. It is **1** for every n-gram that is at least as c
 
 ```python
 extractor = TermExtractor(
-    method="domainpertinence", reference_corpus=reference, threshold=1
+    method="domainpertinence", reference_corpus=reference, threshold=1, stopwords=None
 )
 results = extractor.extract(corpus)
 print(results.terms[0])
@@ -149,7 +151,9 @@ print(results.terms[0])
 The general-language words `in`, `the` and `a` are gone from the first document, and everything else is kept with a score of 1. Without a threshold, you can see how strongly the filtered words belong to the reference corpus:
 
 ```python
-extractor = TermExtractor(method="domainpertinence", reference_corpus=reference)
+extractor = TermExtractor(
+    method="domainpertinence", reference_corpus=reference, stopwords=None
+)
 results = extractor.extract(corpus)
 show_terms(results, limit=None)
 ```
@@ -198,7 +202,7 @@ Like Weirdness, Domain Pertinence needs a large reference corpus to filter well.
 where `df_target(t)` is the fraction of your documents that contain the n-gram. The reference count is smoothed as for Weirdness. Scores are between 0 and 1.
 
 ```python
-extractor = TermExtractor(method="relevance", reference_corpus=reference)
+extractor = TermExtractor(method="relevance", reference_corpus=reference, stopwords=None)
 results = extractor.extract(corpus)
 show_terms(results, limit=10)
 ```
@@ -231,7 +235,9 @@ show_terms(results, limit=10)
 Set `n` to score n-grams up to that length. The reference corpus is split into n-grams in the same way:
 
 ```python
-extractor = TermExtractor(method="weirdness", reference_corpus=reference, n=2)
+extractor = TermExtractor(
+    method="weirdness", reference_corpus=reference, n=2, stopwords=None
+)
 results = extractor.extract(corpus)
 print([term["term"] for term in results.terms[2]["terms"]][:6])
 ```
@@ -262,7 +268,10 @@ def to_teanga(texts):
 
 
 extractor = TermExtractor(
-    method="weirdness", reference_corpus=to_teanga(reference), threshold=2
+    method="weirdness",
+    reference_corpus=to_teanga(reference),
+    threshold=2,
+    stopwords=None,
 )
 results = extractor.extract(to_teanga(corpus))
 print(results.terms[1]["terms"])
@@ -295,6 +304,6 @@ The reference corpus is a list of strings, so the corpus to extract terms from m
 
 - **Use a large, general reference corpus.** Most problems in this tutorial come from a reference corpus of eight sentences. A few thousand documents of news or web text, in the same language as your corpus, gives far more reliable frequencies. The [Brown corpus](https://www.nltk.org/nltk_data/) or a sample of Wikipedia are common choices.
 - **Keep the tokenization the same.** Plain-text input is lower-cased and split on word characters for both corpora. For Teanga input, build both `words` layers the same way.
-- **No stopword filtering.** Function words are only removed to the extent that the reference corpus contains them. Post-filter with a stopword list if needed.
+- **Keep the default stopword filtering.** It removes the function words that a small reference corpus fails to penalise, such as `of`, `which` and `is` in this tutorial, before the scores are even looked at.
 
 See the API reference for [Weirdness](../api/unsupervised/weirdness.md), [Domain Pertinence](../api/unsupervised/domainpertinence.md) and [Relevance](../api/unsupervised/relevance.md) for all parameters.

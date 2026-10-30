@@ -11,6 +11,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
 
@@ -26,6 +27,7 @@ class TokenClassificationTermExtractor:
         learning_rate: float = 2e-5,
         max_length: int = 512,
         language: str = "en",
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the Token Classification Term Extractor.
@@ -38,6 +40,8 @@ class TokenClassificationTermExtractor:
             learning_rate (float): Learning rate for training.
             max_length (int): Maximum sequence length for input tokenization.
             language (str): Language code for tokenization (en, fr, nl).
+            stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
+                end with a stopword: "english", a list of words, or None.
         """
         self.model_name = model_name
         self.n = n
@@ -46,6 +50,7 @@ class TokenClassificationTermExtractor:
         self.learning_rate = learning_rate
         self.max_length = max_length
         self.language = language
+        self.stopwords = load_stopwords(stopwords)
 
         # Initialize tokenizers (for preprocessing)
         self.moses_tokenizer = MosesTokenizer(lang=language)
@@ -431,7 +436,12 @@ class TokenClassificationTermExtractor:
                 for term, score in term_scores.items()
                 if term.lower() in doc_text
             }
-            terms_by_doc.append({"doc_id": doc_id, "terms": rank_terms(doc_scores)})
+            terms_by_doc.append(
+                {
+                    "doc_id": doc_id,
+                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
+                }
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -519,7 +529,12 @@ class TokenClassificationTermExtractor:
                 for term, score in term_scores.items()
                 if term.lower() in doc_lower
             }
-            terms_by_doc.append({"doc_id": f"doc_{i}", "terms": rank_terms(doc_scores)})
+            terms_by_doc.append(
+                {
+                    "doc_id": f"doc_{i}",
+                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
+                }
+            )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 

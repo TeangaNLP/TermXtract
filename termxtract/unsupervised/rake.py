@@ -26,7 +26,8 @@ class RAKETermExtractor(BaseTermExtractor):
         """
         if stoplist is None or phrase_delimiters is None:
             raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
-        super().__init__(threshold=threshold)
+        # Candidates are already split at the stoplist, so no extra stopword filtering
+        super().__init__(threshold=threshold, stopwords=None)
         self.stoplist = set(stoplist)
         self.phrase_delimiters = set(phrase_delimiters)
 

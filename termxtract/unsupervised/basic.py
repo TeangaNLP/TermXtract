@@ -4,6 +4,7 @@ from collections import Counter
 
 from teanga import Corpus
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -11,7 +12,13 @@ from .base_extractor import BaseTermExtractor
 class BasicTermExtractor(BaseTermExtractor):
     """Basic-based term extraction with n-gram support."""
 
-    def __init__(self, alpha: float = 0.5, threshold: float | None = None, n: int = 1):
+    def __init__(
+        self,
+        alpha: float = 0.5,
+        threshold: float | None = None,
+        n: int = 1,
+        stopwords: Stopwords = "english",
+    ):
         r"""
         Initialize the Basic extractor.
 
@@ -19,9 +26,11 @@ class BasicTermExtractor(BaseTermExtractor):
             alpha (float): Weight for \( e_t \) (number of terms containing \( t \)).
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
+                with a stopword: "english", a list of words, or None.
         """
         self.alpha = alpha
-        super().__init__(threshold=threshold, n=n)
+        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
 
     def compute_basic(self, ngrams: list[str]) -> dict[str, float]:
         """

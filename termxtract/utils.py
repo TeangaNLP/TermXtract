@@ -2,9 +2,13 @@ from typing import Any
 
 from teanga import Corpus
 
+from .stopwords import is_candidate
+
 
 def rank_terms(
-    scores: dict[str, float], threshold: float | None = None
+    scores: dict[str, float],
+    threshold: float | None = None,
+    stopwords: frozenset[str] = frozenset(),
 ) -> list[dict[str, Any]]:
     """
     Turn a dictionary of term scores into the term list used in `ATEResults.terms`.
@@ -12,6 +16,8 @@ def rank_terms(
     Args:
         scores (Dict[str, float]): The score of each candidate term.
         threshold (Optional[float]): If given, terms scoring below it are dropped.
+        stopwords (FrozenSet[str]): Lower-case stopwords. Terms that start or end with
+            one are dropped.
 
     Returns:
         List[Dict[str, Any]]: `{"term": ..., "score": ...}` dictionaries, ranked from highest
@@ -20,7 +26,7 @@ def rank_terms(
     terms: list[dict[str, Any]] = [
         {"term": term, "score": float(score)}
         for term, score in scores.items()
-        if threshold is None or score >= threshold
+        if (threshold is None or score >= threshold) and is_candidate(term, stopwords)
     ]
     terms.sort(key=lambda term: term["score"], reverse=True)
     return terms

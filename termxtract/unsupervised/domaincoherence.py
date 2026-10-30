@@ -3,6 +3,7 @@ import re
 from collections import Counter
 from typing import Any
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 from .basic import BasicTermExtractor
@@ -12,7 +13,11 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
     """DomainCoherence-based term extraction."""
 
     def __init__(
-        self, threshold: float | None = None, n: int = 1, window_size: int = 5
+        self,
+        threshold: float | None = None,
+        n: int = 1,
+        window_size: int = 5,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the DomainCoherence extractor.
@@ -21,15 +26,19 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size for candidate terms.
             window_size (int): Size of the context window for NPMI calculation.
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
+                with a stopword: "english", a list of words, or None.
         """
-        super().__init__(threshold=threshold, n=n)
+        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
         self.window_size = window_size
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
         """Extract terms from a Teanga corpus using DomainCoherence."""
 
         # Step 1: Extract top 200 candidates using Basic
-        basic_extractor = BasicTermExtractor(threshold=None, n=self.n)
+        basic_extractor = BasicTermExtractor(
+            threshold=None, n=self.n, stopwords=self.stopwords
+        )
         basic_results = basic_extractor.extract_terms_teanga(corpus)
 
         # Extract the top 200 terms from Basic results
@@ -62,7 +71,9 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
 
         # Step 1: Extract top 200 candidates using Basic
-        basic_extractor = BasicTermExtractor(threshold=None, n=self.n)
+        basic_extractor = BasicTermExtractor(
+            threshold=None, n=self.n, stopwords=self.stopwords
+        )
         basic_results = basic_extractor.extract_terms_strings(corpus)
 
         basic_terms = [

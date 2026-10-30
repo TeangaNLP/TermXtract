@@ -3,6 +3,7 @@ import re
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -16,6 +17,7 @@ class NMFTermExtractor(BaseTermExtractor):
         n: int = 1,
         n_topics: int = 10,
         max_features: int | None = None,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the NMF extractor.
@@ -25,8 +27,10 @@ class NMFTermExtractor(BaseTermExtractor):
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             n_topics (int): Number of topics for NMF-based extraction.
             max_features (Optional[int]): Maximum number of features for TF-IDF vectorization.
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
+                with a stopword: "english", a list of words, or None.
         """
-        super().__init__(threshold=threshold, n=n)
+        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
         self.n_topics = n_topics
         self.max_features = max_features
 

@@ -54,10 +54,7 @@ doc_1
 0.137  chlorophyll
 0.137  chloroplast
 0.137  absorbs
-0.137  for
 0.087  photosynthesis
-0.051  in
-0.051  the
 0.051  light
 ```
 
@@ -65,9 +62,9 @@ doc_1
 
 - Text is lower-cased and split into words, and punctuation is dropped.
 - Terms are **ranked by score**, highest first. Terms with equal scores keep the order in which they first appear.
-- Without a threshold, **every** word in the document is returned.
+- Without a threshold, every word in the document is returned, except **stopwords** such as `in`, `the` and `for` (see [Stopwords](#stopwords) below).
 
-The words found only in this document (`chlorophyll`, `chloroplast`, `absorbs`, `for`) score highest. `photosynthesis` also occurs in `doc_0`, so it scores lower, and `in`, `the` and `light` occur in three documents each.
+The words found only in this document (`chlorophyll`, `chloroplast`, `absorbs`) score highest. `photosynthesis` also occurs in `doc_0`, so it scores lower, and `light` occurs in three documents.
 
 ## Filtering with a threshold
 
@@ -82,15 +79,15 @@ for doc in results.terms:
 ```
 
 ```text
-doc_0 ['energy', 'converts', 'into', 'chemical', 'plant', 'cells']
-doc_1 ['chlorophyll', 'chloroplast', 'absorbs', 'for']
-doc_2 ['learns', 'from', 'training', 'data']
-doc_3 ['gradient', 'descent', 'updates', 'of']
-doc_4 ['black', 'hole', 'bends', 'with', 'its', 'strong']
+doc_0 ['energy', 'converts', 'chemical', 'plant', 'cells']
+doc_1 ['chlorophyll', 'chloroplast', 'absorbs']
+doc_2 ['learns', 'training', 'data']
+doc_3 ['gradient', 'descent', 'updates']
+doc_4 ['black', 'hole', 'bends', 'strong']
 doc_5 ['holds', 'planets', 'orbit', 'around', 'sun']
 ```
 
-Words that occur in more than one document are gone, including function words like `the` but also topical words like `photosynthesis`, `network` and `gravity`. What remains are the words specific to each document.
+Words that occur in more than one document are gone, including topical words like `photosynthesis`, `network` and `gravity`. What remains are the words specific to each document.
 
 **Choosing a threshold.** TF-IDF scores are small: TF is a fraction of the document's length, so scores shrink as documents get longer or as `n` grows. A threshold that works for one corpus can remove everything in another. Here, `threshold=0.15` keeps just one term in the whole corpus: `energy`, whose score is doubled because it occurs twice in `doc_0` (which is also why it is ranked first above). Look at the scores without a threshold first and pick a value from them. In the scores for `doc_1` shown earlier, everything at or above 0.1 is kept, and nothing reaches 0.15.
 
@@ -106,10 +103,46 @@ print([term["term"] for term in results.terms[3]["terms"]])
 ```
 
 ```text
+['gradient', 'gradient descent', 'descent', 'descent updates', 'updates']
+```
+
+`gradient descent` is found, but so is the fragment `descent updates`, and `neural network` is missing because it appears in two documents (`doc_2` and `doc_3`). TF-IDF has no notion of what makes a good phrase. If multi-word terms matter to you, also try [C-Value](../api/unsupervised/cvalue.md), which is designed for them.
+
+## Stopwords
+
+By default, every method drops candidates that **start or end with a stopword**, using a built-in list of 198 English function words (NLTK's English stopword list). Stopwords *inside* a multi-word candidate are kept, so a term like `degree of freedom` can still be found. Filtering only removes candidates from the results: the scores of the remaining terms are the same as without it.
+
+Pass `stopwords=None` to see every candidate:
+
+```python
+extractor = TermExtractor(method="tfidf", n=2, threshold=0.05, stopwords=None)
+results = extractor.extract(corpus)
+
+print([term["term"] for term in results.terms[3]["terms"]])
+```
+
+```text
 ['gradient', 'gradient descent', 'descent', 'descent updates', 'updates', 'updates the', 'the weights', 'weights of', 'of', 'of a']
 ```
 
-`gradient descent` is found, but so are fragments like `updates the` and `weights of`, and `neural network` is missing because it appears in two documents (`doc_2` and `doc_3`). TF-IDF has no notion of what makes a good phrase. If multi-word terms matter to you, also try [C-Value](../api/unsupervised/cvalue.md), which is designed for them.
+These are fragments such as `updates the`, `weights of` and `of a`, and the function word `of`, which scores highly only because no other document contains it.
+
+You can also pass your own list, for example to add words that are common in your domain but are not terms, or to use another language:
+
+```python
+extractor = TermExtractor(
+    method="tfidf", threshold=0.1, stopwords=["energy", "converts", "into"]
+)
+results = extractor.extract(corpus)
+
+print([term["term"] for term in results.terms[0]["terms"]])
+```
+
+```text
+['chemical', 'plant', 'cells']
+```
+
+A custom list **replaces** the built-in one, which is why `into` has to be included. To extend the built-in list, use `termxtract.stopwords.ENGLISH_STOPWORDS | {"energy", "converts"}`.
 
 ## Using a Teanga corpus
 
@@ -148,7 +181,7 @@ print(results.offsets[3]["offsets"][:3])
 
 ## Limitations and tips
 
-- **No stopword filtering.** Function words such as `for` and `of` score just as highly as content words when they are rare in your corpus. Use a larger corpus, or post-filter the results with a stopword list.
+- **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, or try a method that compares with a reference corpus.
 - **Use enough documents.** With very few documents, IDF can only take a handful of values and many terms tie.
 - **Compare against a reference corpus.** To find terms typical of a *domain* rather than of individual documents, try the [reference corpus methods](reference_corpus_tutorial.md), which compare your corpus with general-language text.
 

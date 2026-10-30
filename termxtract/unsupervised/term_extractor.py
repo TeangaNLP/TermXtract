@@ -2,6 +2,7 @@ from typing import Any, ClassVar
 
 from teanga import Corpus
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 from .basic import BasicTermExtractor
@@ -27,24 +28,39 @@ class TermExtractor:
     """
 
     METHODS: ClassVar[dict[str, tuple[type[BaseTermExtractor], tuple[str, ...]]]] = {
-        "tfidf": (TFIDFTermExtractor, ("threshold", "n")),
-        "ridf": (RIDFTermExtractor, ("threshold", "n")),
-        "cvalue": (CValueTermExtractor, ("threshold", "n")),
-        "basic": (BasicTermExtractor, ("alpha", "threshold", "n")),
-        "combobasic": (ComboBasicTermExtractor, ("alpha", "beta", "threshold", "n")),
+        "tfidf": (TFIDFTermExtractor, ("threshold", "n", "stopwords")),
+        "ridf": (RIDFTermExtractor, ("threshold", "n", "stopwords")),
+        "cvalue": (CValueTermExtractor, ("threshold", "n", "stopwords")),
+        "basic": (BasicTermExtractor, ("alpha", "threshold", "n", "stopwords")),
+        "combobasic": (
+            ComboBasicTermExtractor,
+            ("alpha", "beta", "threshold", "n", "stopwords"),
+        ),
         "domaincoherence": (
             DomainCoherenceTermExtractor,
-            ("window_size", "threshold", "n"),
+            ("window_size", "threshold", "n", "stopwords"),
         ),
-        "relevance": (RelevanceTermExtractor, ("reference_corpus", "threshold", "n")),
-        "topicmodeling": (TopicModelingTermExtractor, ("num_topics", "threshold", "n")),
-        "nmf": (NMFTermExtractor, ("threshold", "n_topics", "max_features", "n")),
+        "relevance": (
+            RelevanceTermExtractor,
+            ("reference_corpus", "threshold", "n", "stopwords"),
+        ),
+        "topicmodeling": (
+            TopicModelingTermExtractor,
+            ("num_topics", "threshold", "n", "stopwords"),
+        ),
+        "nmf": (
+            NMFTermExtractor,
+            ("threshold", "n_topics", "max_features", "n", "stopwords"),
+        ),
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
-            ("reference_corpus", "threshold", "n"),
+            ("reference_corpus", "threshold", "n", "stopwords"),
         ),
-        "weirdness": (WeirdnessTermExtractor, ("reference_corpus", "threshold", "n")),
+        "weirdness": (
+            WeirdnessTermExtractor,
+            ("reference_corpus", "threshold", "n", "stopwords"),
+        ),
     }
 
     def __init__(
@@ -61,6 +77,7 @@ class TermExtractor:
         reference_corpus: Corpus | list[str] | None = None,
         n_topics: int = 10,
         max_features: int | None = None,
+        stopwords: Stopwords = "english",
     ):
         r"""
         Initialize the TermExtractor with the desired method and parameters.
@@ -81,6 +98,10 @@ class TermExtractor:
             reference_corpus (Optional[Union[Corpus, List[str]]]): General-language reference corpus, required by 'domainpertinence', 'weirdness' and 'relevance'. It must have the same type as the corpus passed to `extract`.
             n_topics (int): Number of NMF topics ('nmf').
             max_features (Optional[int]): Maximum vocabulary size ('nmf').
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
+                stopword (all methods except 'rake', which uses `stoplist`): "english" (the
+                default) for the built-in English list, a list of words, or None to keep every
+                candidate. Stopwords inside a multi-word term, as in "degree of freedom", are kept.
 
         Raises:
             ValueError: If the method is unknown, or a parameter it requires is missing.
@@ -103,6 +124,7 @@ class TermExtractor:
             "reference_corpus": reference_corpus,
             "n_topics": n_topics,
             "max_features": max_features,
+            "stopwords": stopwords,
         }
         self.extractor: BaseTermExtractor = extractor_class(
             **{name: params[name] for name in param_names}

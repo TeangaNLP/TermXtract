@@ -30,7 +30,10 @@ def teanga_corpus(texts):
 
 
 def scores(method, corpus, reference):
-    results = TermExtractor(method=method, reference_corpus=reference).extract(corpus)
+    # No stopword filtering, so the scores of function words can be checked too
+    results = TermExtractor(
+        method=method, reference_corpus=reference, stopwords=None
+    ).extract(corpus)
     return {t["term"]: t["score"] for doc in results.terms for t in doc["terms"]}
 
 

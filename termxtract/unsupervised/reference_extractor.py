@@ -4,6 +4,7 @@ from collections import Counter
 
 from teanga import Corpus
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -26,6 +27,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         reference_corpus: Corpus | list[str] | None,
         threshold: float | None = None,
         n: int = 1,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the extractor.
@@ -35,8 +37,10 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 of the same type as the corpus the terms are extracted from.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
+                with a stopword: "english", a list of words, or None.
         """
-        super().__init__(threshold=threshold, n=n)
+        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
         if reference_corpus is None:
             raise ValueError(f"{type(self).__name__} requires a reference corpus.")
         self.reference_corpus = reference_corpus

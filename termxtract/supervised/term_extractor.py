@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from teanga import Corpus
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .adaboost import DEFAULT_WORDNET_LEXICON, AdaBoostTermExtractor
 from .roger import RogerTermExtractor
@@ -42,11 +43,12 @@ class SupervisedTermExtractor:
                 "n_estimators",
                 "estimator",
                 "wordnet_lexicon",
+                "stopwords",
             ),
         ),
         "roger": (
             lambda: RogerTermExtractor,
-            ("population_size", "generations", "subsample_ratio", "n"),
+            ("population_size", "generations", "subsample_ratio", "n", "stopwords"),
         ),
         # Loaded on use because torch/transformers are an optional extra
         "token-classification": (
@@ -59,6 +61,7 @@ class SupervisedTermExtractor:
                 "learning_rate",
                 "max_length",
                 "language",
+                "stopwords",
             ),
         ),
     }
@@ -88,6 +91,7 @@ class SupervisedTermExtractor:
         learning_rate: float = 2e-5,
         max_length: int = 512,
         language: str = "en",
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the TermExtractor with the desired supervised method and parameters.
@@ -110,6 +114,9 @@ class SupervisedTermExtractor:
             learning_rate (float): Learning rate (only for 'token-classification').
             max_length (int): Maximum sequence length (only for 'token-classification').
             language (str): Language code for tokenization (only for 'token-classification').
+            stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or end
+                with a stopword: "english" (the default) for the built-in English list, a list
+                of words, or None to keep every term.
 
         Raises:
             ValueError: If the method is unknown.
@@ -138,6 +145,7 @@ class SupervisedTermExtractor:
             "learning_rate": learning_rate,
             "max_length": max_length,
             "language": language,
+            "stopwords": stopwords,
         }
         self.extractor = load_extractor_class()(
             **{name: params[name] for name in param_names}

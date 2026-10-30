@@ -5,6 +5,7 @@ import numpy as np
 from scipy.stats import rankdata
 from sklearn.utils import resample
 
+from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
 
@@ -17,6 +18,7 @@ class RogerTermExtractor:
         generations: int = 100,
         subsample_ratio: float = 0.8,
         n: int = 1,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the Roger extractor.
@@ -26,11 +28,14 @@ class RogerTermExtractor:
             generations (int): Number of iterations for optimization.
             subsample_ratio (float): Fraction of training data used in each iteration for bagging.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
+                end with a stopword: "english", a list of words, or None.
         """
         self.population_size = population_size
         self.generations = generations
         self.subsample_ratio = subsample_ratio
         self.n = n
+        self.stopwords = load_stopwords(stopwords)
         self.models: list[np.ndarray] = []
 
     def generate_ngrams(self, words: list[str]) -> list[str]:
@@ -177,7 +182,10 @@ class RogerTermExtractor:
 
         term_scores = self.predict_terms_teanga(corpus)
         terms_by_doc = [
-            {"doc_id": doc_id, "terms": rank_terms(term_scores)}
+            {
+                "doc_id": doc_id,
+                "terms": rank_terms(term_scores, stopwords=self.stopwords),
+            }
             for doc_id in corpus.doc_ids
         ]
 
@@ -192,7 +200,10 @@ class RogerTermExtractor:
         return ATEResults(
             corpus=corpus,
             terms=[
-                {"doc_id": f"doc_{i}", "terms": rank_terms(term_scores)}
+                {
+                    "doc_id": f"doc_{i}",
+                    "terms": rank_terms(term_scores, stopwords=self.stopwords),
+                }
                 for i in range(len(corpus))
             ],
         )

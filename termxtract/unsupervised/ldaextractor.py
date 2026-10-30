@@ -7,6 +7,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from teanga import Corpus
 
+from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -15,7 +16,11 @@ class TopicModelingTermExtractor(BaseTermExtractor):
     """Topic Modeling-based term extraction with n-gram support."""
 
     def __init__(
-        self, num_topics: int = 20, threshold: float | None = None, n: int = 1
+        self,
+        num_topics: int = 20,
+        threshold: float | None = None,
+        n: int = 1,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the Topic Modeling extractor.
@@ -24,8 +29,10 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             num_topics (int): Number of topics for topic modeling.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
+                with a stopword: "english", a list of words, or None.
         """
-        super().__init__(threshold=threshold, n=n)
+        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
         self.num_topics = num_topics
         self.lda_model: LatentDirichletAllocation | None = None
         self.vectorizer: CountVectorizer | None = None

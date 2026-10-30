@@ -6,6 +6,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 from wn.morphy import Morphy
 
+from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
 DEFAULT_WORDNET_LEXICON = "oewn:2025+"
@@ -46,6 +47,7 @@ class AdaBoostTermExtractor:
         n_estimators: int = 50,
         estimator: str | None = "decision_tree",
         wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON,
+        stopwords: Stopwords = "english",
     ):
         """
         Initialize the AdaBoost extractor.
@@ -58,12 +60,15 @@ class AdaBoostTermExtractor:
             estimator (str): Type of base estimator ("decision_tree" or "logistic_regression").
             wordnet_lexicon (str): `wn` lexicon used for the semantic feature. It is loaded
                 (and downloaded if needed) on first use, not at construction.
+            stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
+                end with a stopword: "english", a list of words, or None.
         """
         self.threshold = threshold
         self.n = n
         self.max_depth = max_depth
         self.n_estimators = n_estimators
         self.wordnet_lexicon = wordnet_lexicon
+        self.stopwords = load_stopwords(stopwords)
         self._wordnet: wn.Wordnet | None = None
 
         if estimator == "decision_tree":
@@ -214,7 +219,10 @@ class AdaBoostTermExtractor:
         term_scores = self.predict_terms_teanga(corpus)
 
         terms_by_doc = [
-            {"doc_id": doc_id, "terms": rank_terms(term_scores, self.threshold)}
+            {
+                "doc_id": doc_id,
+                "terms": rank_terms(term_scores, self.threshold, self.stopwords),
+            }
             for doc_id in corpus.doc_ids
         ]
 
@@ -228,7 +236,10 @@ class AdaBoostTermExtractor:
         term_scores = self.predict_terms_strings(corpus)
 
         terms_by_doc = [
-            {"doc_id": f"doc_{i}", "terms": rank_terms(term_scores, self.threshold)}
+            {
+                "doc_id": f"doc_{i}",
+                "terms": rank_terms(term_scores, self.threshold, self.stopwords),
+            }
             for i in range(len(corpus))
         ]
 

@@ -45,13 +45,15 @@ results = extractor.extract(corpus)
 
 for doc in results.terms:
     print(doc["doc_id"], doc["terms"][:3])
-# doc_0 [{'term': 'machine learning', 'score': 1.0}, {'term': 'learning is', 'score': 1.0}, {'term': 'is a', 'score': 1.0}]
+# doc_0 [{'term': 'machine learning', 'score': 1.0}, {'term': 'artificial intelligence', 'score': 1.0}, {'term': 'machine', 'score': 0.0}]
 # ...
 ```
 
 Each document's terms are ranked from highest to lowest score.
 
 Pass `threshold=...` to keep only terms scoring at or above a minimum.
+
+Candidates that start or end with a stopword, such as `is a` or `of machine`, are dropped by default, using a built-in list of English function words. Stopwords inside a term, as in `degree of freedom`, are kept. Pass `stopwords=None` to keep every candidate, or a list of words to use your own stopwords.
 
 ### Methods that need a reference corpus
 
@@ -125,7 +127,7 @@ results = TermExtractor(method="basic", n=2).extract(corpus)
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`                          |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
 
-All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). `rake` does not use `n`.
+All methods accept `n` (maximum n-gram length), `threshold` (minimum score) and `stopwords` (default `"english"`). `rake` does not use `n` or `stopwords`; it splits candidates at its own `stoplist`.
 
 ### Supervised — `SupervisedTermExtractor(method=...)`
 
@@ -135,7 +137,7 @@ All methods accept `n` (maximum n-gram length) and `threshold` (minimum score). 
 | `roger`                | Evolutionary ranking-function search                     | `population_size`, `generations`, `subsample_ratio`      |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 
-All supervised methods accept `n` (maximum n-gram length, default 6).
+All supervised methods accept `n` (maximum n-gram length, default 6) and `stopwords`, which filters the extracted terms but not the training candidates.
 
 ## Results
 

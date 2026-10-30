@@ -6,6 +6,7 @@ from typing import Any
 
 from teanga import Corpus, Document
 
+from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
 
@@ -18,16 +19,25 @@ class BaseTermExtractor(ABC):
     `ATEResults` in the same format.
     """
 
-    def __init__(self, threshold: float | None = None, n: int = 1):
+    def __init__(
+        self,
+        threshold: float | None = None,
+        n: int = 1,
+        stopwords: Stopwords = "english",
+    ):
         """
         Initialize the extractor.
 
         Args:
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
+            stopwords (Union[str, Iterable[str], None]): Candidates that start or end with
+                one of these words are dropped: "english" (the default) for the built-in
+                English list, a list of words, or None to keep every candidate.
         """
         self.threshold = threshold
         self.n = n
+        self.stopwords = load_stopwords(stopwords)
 
     @abstractmethod
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
@@ -158,9 +168,12 @@ class BaseTermExtractor(ABC):
 
         Returns:
             Dict[str, Any]: `{"doc_id": doc_id, "terms": [{"term": ..., "score": ...}, ...]}`, with
-            terms below the threshold removed and the rest ranked from highest to lowest score.
+            terms below the threshold or starting or ending with a stopword removed, and the rest ranked from highest to lowest score.
         """
-        return {"doc_id": doc_id, "terms": rank_terms(scores, self.threshold)}
+        return {
+            "doc_id": doc_id,
+            "terms": rank_terms(scores, self.threshold, self.stopwords),
+        }
 
     @staticmethod
     def doc_offsets(

@@ -23,6 +23,8 @@ that was previously only available from GitHub.
 - `TermExtractor.METHODS` and `SupervisedTermExtractor.METHODS`, which map each method
   name to its extractor class and parameters, replacing the `if`/`elif` chains. An
   unknown `method` now raises a `ValueError` that lists the available methods.
+- `stopwords` parameter for every method except RAKE, with a built-in English list
+  (NLTK's, based on Snowball's) in `termxtract.stopwords.ENGLISH_STOPWORDS` (#24).
 - Optional `transformers` extra (`pip install 'termxtract[transformers]'`) for the
   token-classification method.
 - `threshold` and `wordnet_lexicon` parameters for `SupervisedTermExtractor`.
@@ -43,6 +45,9 @@ that was previously only available from GitHub.
   every term missing from the reference corpus, ranking domain terms last; Relevance
   scores are now between 0 and 1, and Weirdness gives finite scores to terms missing from
   the reference corpus. Both input types now use the same formula.
+- *Breaking:* candidates that start or end with an English stopword, such as `of`,
+  `is a` or `the system`, are no longer returned by default (#24). The scores of the
+  other terms are unchanged. Pass `stopwords=None` for the previous behaviour.
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
