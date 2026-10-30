@@ -33,7 +33,12 @@ class DomainPertinenceTermExtractor(BaseTermExtractor):
 
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
+
+        Raises:
+            TypeError: If the reference corpus is not a Teanga corpus.
         """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=True)
+
         # Generate reference IDF from reference corpus
         ref_ngrams = []
         for ref_doc_id in self.reference_corpus.doc_ids:
@@ -80,7 +85,12 @@ class DomainPertinenceTermExtractor(BaseTermExtractor):
 
         Returns:
             ATEResults: Results with ranked terms and scores.
+
+        Raises:
+            TypeError: If the reference corpus is not a list of strings.
         """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=False)
+
         # Generate reference IDF from reference corpus
         ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]
         ref_idf = self.compute_idf(ref_ngrams)

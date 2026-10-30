@@ -32,7 +32,14 @@ class RelevanceTermExtractor(BaseTermExtractor):
         return idf_scores
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
-        """Extract terms from a Teanga corpus using Relevance."""
+        """Extract terms from a Teanga corpus using Relevance.
+
+        Raises:
+            TypeError: If the reference corpus is not a Teanga corpus.
+            ValueError: If the reference corpus is empty.
+        """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=True)
+
         # Ensure reference corpus is valid
         if not self.reference_corpus or not self.reference_corpus.doc_ids:
             raise ValueError("Reference corpus is required and must contain documents.")
@@ -75,7 +82,13 @@ class RelevanceTermExtractor(BaseTermExtractor):
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
 
     def extract_terms_strings(self, corpus: List[str]) -> ATEResults:
-        """Extract terms from a plain list of strings using Relevance."""
+        """Extract terms from a plain list of strings using Relevance.
+
+        Raises:
+            TypeError: If the reference corpus is not a list of strings.
+        """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=False)
+
         # Generate reference IDF from reference corpus
         ref_ngrams = [self.generate_ngrams_strings(re.findall(r'\b\w+\b', doc.lower())) for doc in self.reference_corpus]
         ref_idf = self.compute_idf(ref_ngrams)

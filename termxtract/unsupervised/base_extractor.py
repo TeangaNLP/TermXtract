@@ -1,7 +1,7 @@
 import math
 from abc import ABC, abstractmethod
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from teanga import Corpus, Document
 from ..utils import ATEResults, rank_terms
 
@@ -139,6 +139,37 @@ class BaseTermExtractor(ABC):
             idf[ngram] = math.log(num_docs / (1 + doc_count))
         return idf
 
+    @staticmethod
+    def _check_reference_corpus_matches(
+        reference_corpus: Union[Corpus, List[str]], target_is_teanga: bool
+    ) -> None:
+        """
+        Raise TypeError when the reference corpus type does not match the target input type.
+
+        The weirdness, relevance and domain pertinence extractors score terms by comparing
+        the target corpus against a reference corpus, so both must use the same
+        representation: either both are Teanga corpora, or both are lists of strings.
+        Mixing them currently fails deep inside the extraction with an AttributeError;
+        reject the mismatch up front with a clear error message instead.
+
+        Args:
+            reference_corpus (Union[Corpus, List[str]]): The configured reference corpus.
+            target_is_teanga (bool): Whether the corpus being processed is a Teanga corpus.
+
+        Raises:
+            TypeError: If the reference corpus and the target corpus use different types.
+        """
+        if isinstance(reference_corpus, Corpus) != target_is_teanga:
+            if target_is_teanga:
+                raise TypeError(
+                    "reference_corpus must be a Teanga Corpus when extracting from a "
+                    f"Teanga corpus, got {type(reference_corpus).__name__}"
+                )
+            raise TypeError(
+                "reference_corpus must be a list of strings when extracting from a list "
+                f"of strings, got {type(reference_corpus).__name__}"
+            )
+
     def doc_terms(self, doc_id: str, scores: Dict[str, float]) -> Dict[str, Any]:
         """
         Build one document's entry in `ATEResults.terms`.
@@ -165,7 +196,7 @@ class BaseTermExtractor(ABC):
             doc_terms (Dict[str, Any]): The document's entry in `ATEResults.terms`.
 
         Returns:
-            Dict[str, Any]: `{"doc_id": doc_id, "offsets": [{"term": ..., "offset": (start, end)}, ...]}`,
+            Dict[str, Any]: `{"doc_id": doc_id, "offsets": [{"term": ..., "offset": (start, end)}, ...]}`,  
             listing each occurrence of an extracted term in document order.
         """
         kept = {term["term"] for term in doc_terms["terms"]}

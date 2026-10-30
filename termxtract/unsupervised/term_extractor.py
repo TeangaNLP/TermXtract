@@ -44,7 +44,7 @@ class TermExtractor:
             n (int): Maximum length of n-grams to consider.
             stoplist (Optional[List[str]]): List of stop words (used by RAKE).
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (used by RAKE).
-            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for methods like 'domainpertinence' and 'weirdness'.
+            reference_corpus (Optional[Union[Corpus, List[str]]]): Reference corpus for methods like 'domainpertinence', 'weirdness' and 'relevance'. Its type must match the input corpus: a Teanga corpus for Teanga input, or a list of strings for list-of-strings input.
         """
         if method == "tfidf":
             self.extractor = TFIDFTermExtractor(threshold=threshold, n=n)

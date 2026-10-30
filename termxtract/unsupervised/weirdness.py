@@ -36,7 +36,12 @@ class WeirdnessTermExtractor(BaseTermExtractor):
 
         Returns:
             ATEResults: Results with ranked terms and scores.
+
+        Raises:
+            TypeError: If the reference corpus is not a list of strings.
         """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=False)
+
         # Tokenize and generate n-grams for target corpus
         tokenized_corpus = [re.findall(r'\b\w+\b', doc.lower()) for doc in corpus]
         target_ngrams = [self.generate_ngrams_strings(doc) for doc in tokenized_corpus]
@@ -71,7 +76,13 @@ class WeirdnessTermExtractor(BaseTermExtractor):
 
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
+
+        Raises:
+            TypeError: If the reference corpus is not a Teanga corpus.
+            ValueError: If the reference corpus is empty.
         """
+        self._check_reference_corpus_matches(self.reference_corpus, target_is_teanga=True)
+
         # Ensure reference corpus is valid and has documents
         if not self.reference_corpus or not self.reference_corpus.doc_ids:
             raise ValueError("Reference corpus must be provided and contain documents.")
