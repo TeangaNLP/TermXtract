@@ -3,7 +3,6 @@ import re
 
 import numpy as np
 from scipy.stats import rankdata
-from sklearn.utils import resample
 
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
@@ -123,6 +122,7 @@ class RogerTermExtractor:
             mutations = parents + np.random.normal(0, 0.1, parents.shape)
             population = np.vstack((parents, mutations))
 
+        scores = [self.evaluate_rank_function(model, X, y) for model in population]
         return population[np.argmax(scores)]
 
     def evaluate_rank_function(
@@ -137,13 +137,31 @@ class RogerTermExtractor:
     def train_model(self, corpus: list[str], labels: dict[str, int]):
         """Train multiple ranking functions using bagging."""
         X, y, _ = self.extract_features(corpus, labels)
-        self.models = []
-
-        for _ in range(10):  # Bagging
-            X_sample, y_sample = resample(
-                X, y, n_samples=int(len(X) * self.subsample_ratio)
+        positives = np.flatnonzero(np.array(y) == 1)
+        negatives = np.flatnonzero(np.array(y) != 1)
+        if len(positives) == 0 or len(negatives) == 0:
+            raise ValueError(
+                "Roger needs at least one candidate in the corpus labelled 1 "
+                "and one that is not."
             )
-            model = self.optimize_rank_function(X_sample, y_sample)
+
+        # Stratified bootstrap: every sample keeps the proportion of positives,
+        # with at least one positive and one negative, so its fitness is defined.
+        n_samples = max(2, int(len(X) * self.subsample_ratio))
+        n_positives = min(
+            n_samples - 1, max(1, round(n_samples * len(positives) / len(X)))
+        )
+        self.models = []
+        for _ in range(10):  # Bagging
+            sample = np.concatenate(
+                [
+                    np.random.choice(positives, n_positives),
+                    np.random.choice(negatives, n_samples - n_positives),
+                ]
+            )
+            model = self.optimize_rank_function(
+                [X[i] for i in sample], [y[i] for i in sample]
+            )
             self.models.append(model)
 
     def predict_terms_strings(self, corpus: list[str]) -> dict[str, float]:

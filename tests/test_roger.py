@@ -1,5 +1,8 @@
 import unittest
+import warnings
 
+import numpy as np
+import pytest
 from teanga import Corpus
 
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
@@ -84,3 +87,29 @@ class TestRogerExtraction(unittest.TestCase):
                 self.assertIn(
                     "score", term_data, "Each term entry should have a 'score'."
                 )
+
+
+CORPUS = [
+    "Genetic algorithms optimize ranking functions.",
+    "Machine learning and term extraction.",
+]
+
+
+def test_rare_positives_give_finite_scores():
+    # One positive among 18 candidates: an unstratified bootstrap often has none
+    np.random.seed(0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        results = SupervisedTermExtractor(
+            method="roger", population_size=10, generations=5, n=2
+        ).extract(CORPUS, {"machine learning": 1})
+    scores = [t["score"] for doc in results.terms for t in doc["terms"]]
+    assert scores
+    assert np.all(np.isfinite(scores))
+
+
+@pytest.mark.parametrize("labels", [{}, {"machine learning": 0}])
+def test_requires_a_positive_label(labels):
+    extractor = SupervisedTermExtractor(method="roger", generations=1, n=2)
+    with pytest.raises(ValueError, match="labelled 1"):
+        extractor.extract(CORPUS, labels)

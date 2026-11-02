@@ -65,6 +65,10 @@ that was previously only available from GitHub.
   capital letters were never matched.
 - AdaBoost and Roger list candidates with equal scores in order of first occurrence, so
   their results no longer change from run to run.
+- Roger's bootstrap samples are stratified, so each one contains labelled terms. A
+  sample without any used to get an undefined (NaN) fitness, which the evolutionary
+  search treated as the best, adding an arbitrary ranking function to the ensemble
+  (#27). Roger now raises a `ValueError` when no candidate is labelled `1`.
 - `alpha=0` and `beta=0` are passed to `basic` and `combobasic` instead of being replaced
   by the default of 0.5. `alpha`, `beta` and `num_topics` no longer accept `None`.
 - RIDF no longer crashes when no threshold is given.

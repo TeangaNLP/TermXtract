@@ -32,7 +32,7 @@ A few rules apply to the labels:
 
 - **Write terms in lower case**, with single spaces between words. Plain-text input is lower-cased and split into words before candidates are generated, so `"Photosynthesis"` would never match.
 - **Multi-word terms** are only generated as candidates if `n` is at least their number of words. Use `n=2` for the labels above.
-- **Unlabelled candidates count as non-terms** when training AdaBoost and Roger. Label as many real terms as you can, or the model learns that your unlabelled terms are not terms.
+- **Unlabelled candidates count as non-terms** when training AdaBoost and Roger. Label as many real terms as you can, or the model learns that your unlabelled terms are not terms. Roger raises a `ValueError` if no candidate in the corpus is labelled `1`.
 - **Stopwords are filtered from the results, not from training.** As for the unsupervised methods, extracted terms that start or end with a stopword are dropped (see [Stopwords](tfidf_tutorial.md#stopwords)), but candidates such as `the` and `of` are still used as training examples. Pass `stopwords=None` to keep them in the results.
 
 `extract(corpus, labels)` trains the model on the corpus and then scores the candidates in the **same** corpus. The examples below use this small biology corpus:
@@ -141,14 +141,14 @@ for term in results.terms[0]["terms"][:8]:
 ```
 
 ```text
--0.592  photosynthesis
--0.592  takes
--0.592  takes place
--0.592  place
--0.592  chloroplast
--0.592  plant
--0.592  cell
--0.592  light
+-0.389  photosynthesis
+-0.389  takes
+-0.389  takes place
+-0.389  place
+-0.389  chloroplast
+-0.389  plant
+-0.389  cell
+-0.389  light
 ```
 
 `generations` (default 100) is the number of rounds of the evolutionary search, and `population_size` (default 50) the number of candidate ranking functions in each round. Fewer generations train faster.
