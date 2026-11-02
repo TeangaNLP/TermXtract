@@ -9,6 +9,7 @@ class TestPackage(unittest.TestCase):
     def test_top_level_exports(self):
         """Test that the public classes are importable from the package root."""
         import termxtract
+        from termxtract.evaluation import evaluate
         from termxtract.supervised.term_extractor import SupervisedTermExtractor
         from termxtract.unsupervised.term_extractor import TermExtractor
         from termxtract.utils import ATEResults
@@ -16,9 +17,10 @@ class TestPackage(unittest.TestCase):
         self.assertIs(termxtract.TermExtractor, TermExtractor)
         self.assertIs(termxtract.SupervisedTermExtractor, SupervisedTermExtractor)
         self.assertIs(termxtract.ATEResults, ATEResults)
+        self.assertIs(termxtract.evaluate, evaluate)
         self.assertEqual(
             sorted(termxtract.__all__),
-            ["ATEResults", "SupervisedTermExtractor", "TermExtractor"],
+            ["ATEResults", "SupervisedTermExtractor", "TermExtractor", "evaluate"],
         )
 
     def test_version(self):

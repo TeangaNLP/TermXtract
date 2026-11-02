@@ -151,6 +151,29 @@ All supervised methods accept `n` (maximum n-gram length, default 6), and `stopw
 - `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input, and for `nmf` and `domaincoherence`, which score terms over the whole corpus rather than per document.
 - `results.corpus`: the input corpus.
 
+## Evaluation
+
+`evaluate()` scores the extracted terms against a gold standard, given as a set of terms, one set per document, or a Teanga corpus with a span layer of gold terms (`terms` by default):
+
+```python
+from termxtract import TermExtractor, evaluate
+
+corpus = [
+    "Heart failure patients often have high blood pressure.",
+    "Blood pressure and ejection fraction predict heart failure.",
+]
+gold = {"heart failure", "blood pressure", "ejection fraction"}
+
+results = TermExtractor(method="cvalue", n=2).extract(corpus)
+scores = evaluate(results, gold, ks=(3,))
+print(f"P={scores.precision:.2f} R={scores.recall:.2f} F1={scores.f1:.2f}")
+print(f"AvP={scores.average_precision:.2f} P@3={scores.precision_at_k[3]:.2f}")
+# P=0.17 R=1.00 F1=0.29
+# AvP=0.63 P@3=0.33
+```
+
+Terms match exactly after lowercasing and collapsing whitespace. Precision, recall and F1 compare the distinct terms of the whole corpus by default (`average="corpus"`, as in TermEval), or each document's terms against its own gold terms (`"micro"` or `"macro"`). Average precision, R-precision and precision at K score the ranking. `top_k` keeps only the best terms, and `term_lengths={1}` scores single-word terms only.
+
 ## Development
 
 ```bash
