@@ -2,6 +2,7 @@ import importlib.util
 import inspect
 import re
 
+import numpy as np
 import pytest
 from teanga import Corpus
 
@@ -104,6 +105,8 @@ def test_supervised_words_layer(method):
     )
 
     def extract(layer):
+        # AdaBoost has no random_state; sklearn breaks ties with NumPy's global state
+        np.random.seed(0)
         return SupervisedTermExtractor(method=method, n=2, **params).extract(
             corpus_with_layer(layer), labels
         )
