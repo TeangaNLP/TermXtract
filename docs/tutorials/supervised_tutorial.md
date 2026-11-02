@@ -32,7 +32,7 @@ A few rules apply to the labels:
 
 - **Write terms in lower case**, with single spaces between words. Plain-text input is lower-cased and split into words before candidates are generated, so `"Photosynthesis"` would never match.
 - **Multi-word terms** are only generated as candidates if `n` is at least their number of words. Use `n=2` for the labels above.
-- **Unlabelled candidates count as non-terms** when training AdaBoost and Roger. Label as many real terms as you can, or the model learns that your unlabelled terms are not terms. Roger raises a `ValueError` if no candidate in the corpus is labelled `1`.
+- **Unlabelled candidates count as non-terms** when training AdaBoost. Label as many real terms as you can, or the model learns that your unlabelled terms are not terms. Roger trains only on labelled candidates (see [Roger](#roger)).
 - **Stopwords are filtered from the results, not from training.** As for the unsupervised methods, extracted terms that start or end with a stopword are dropped (see [Stopwords](tfidf_tutorial.md#stopwords)), but candidates such as `the` and `of` are still used as training examples. Pass `stopwords=None` to keep them in the results.
 
 `extract(corpus, labels)` trains the model on the corpus and then scores the candidates in the **same** corpus. The examples below use this small biology corpus:
@@ -125,37 +125,47 @@ The model recognises the terms it was trained on, and also scores the new word `
 
 ## Roger
 
-The Roger method (Azé et al., 2005) learns a **ranking function** instead of a classifier. It computes statistical measures of each candidate, such as its frequency, mutual information and *t*-test score, and uses an evolutionary algorithm to find the weighted sum of these measures that best ranks the labelled terms above the labelled non-terms. It repeats this on random subsamples of the candidates (bagging) and scores each candidate by the median of the learned functions.
+The Roger method (Azé et al., 2005) learns a **ranking function** instead of a classifier. It describes each multi-word candidate by twelve **association measures** between its first words and its last word, such as mutual information, the Dice coefficient, log-likelihood and the *t*-test. These measures compare how often the words occur together with how often they occur apart, so candidates that occur equally often, such as `light energy` and `takes place`, can still be told apart.
 
-The evolutionary search is random. Set NumPy's random seed if you need the same scores on every run:
+An evolutionary algorithm then searches for the function of these measures that ranks the labelled terms above the labelled non-terms, by maximising the area under the ROC curve. It is run several times (`runs`, default 21), and each candidate's score is the median of its scores under the learned functions.
+
+Roger differs from AdaBoost in two ways:
+
+- It **ranks only multi-word candidates**, from 2 to `n` words, because the association measures need two parts. Single words, and labels for them, are ignored, and `n` must be at least 2.
+- It **trains only on the labelled candidates**, so you need at least one multi-word candidate labelled `1` and one labelled `0`. Unlabelled candidates are scored, but not used for training.
+
+The labels above have only one multi-word non-term, `takes place`, which is too few to learn from, so the example below adds three more. The evolutionary search is random, so it also passes `random_state` to get the same scores on every run:
 
 ```python
-import numpy as np
-
-np.random.seed(0)
-extractor = SupervisedTermExtractor(method="roger", n=2, generations=30)
-results = extractor.extract(corpus, labels)
+roger_labels = {
+    **labels,
+    "photosynthesis takes": 0,
+    "absorbs light": 0,
+    "energy stored": 0,
+}
+extractor = SupervisedTermExtractor(method="roger", n=2, random_state=0)
+results = extractor.extract(corpus, roger_labels)
 
 for term in results.terms[0]["terms"][:8]:
     print(f"{term['score']:.3f}  {term['term']}")
 ```
 
 ```text
--0.389  photosynthesis
--0.389  takes
--0.389  takes place
--0.389  place
--0.389  chloroplast
--0.389  plant
--0.389  cell
--0.389  light
+-0.012  light energy
+-0.012  chemical energy
+-0.051  chloroplast contains
+-0.051  plant cells
+-0.051  mitochondria release
+-0.058  takes place
+-0.058  cellular respiration
+-0.064  photosynthesis takes
 ```
 
-`generations` (default 100) is the number of rounds of the evolutionary search, and `population_size` (default 50) the number of candidate ranking functions in each round. Fewer generations train faster.
+The labelled terms `light energy` and `chemical energy` come first, and the labelled non-terms `photosynthesis takes`, `absorbs light` and `energy stored` rank lower. But `takes place` ties with the term `cellular respiration`: each occurs twice, and its words never occur apart, so every association measure has the same value for both. On a corpus this small many candidates have the same counts, so Roger needs a larger corpus to rank well.
 
-Roger's scores are only meaningful for **ranking**: their scale and sign depend on the learned weights.
+`generations` (default 100) is the number of rounds of the evolutionary search in each run, `population_size` (default 20) the number of ranking functions kept from one round to the next, and `offspring_size` (default 100) the number of new functions tried in each round. Fewer generations or runs train faster.
 
-**Limitation.** In the current implementation, every measure Roger uses is computed from the candidate's frequency alone, so Roger can only learn whether frequent candidates tend to be terms. All the candidates that occur equally often get the same score, which is why `takes` and `takes place` tie with `photosynthesis` above. On real data, prefer AdaBoost or token classification.
+Roger's scores are only meaningful for **ranking**: their scale depends on the learned functions.
 
 ## Token classification
 

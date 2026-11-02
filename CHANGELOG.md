@@ -48,6 +48,19 @@ that was previously only available from GitHub.
 - *Breaking:* candidates that start or end with an English stopword, such as `of`,
   `is a` or `the system`, are no longer returned by default (#24). The scores of the
   other terms are unchanged. Pass `stopwords=None` for the previous behaviour.
+- *Breaking:* Roger follows Azé et al. (2005) (#30). It describes each multi-word
+  candidate by 12 association measures between its first words and its last word,
+  instead of 9 functions of its frequency, so it no longer ranks every equally frequent
+  candidate the same. It learns non-linear ranking functions with a (μ+λ) evolution
+  strategy, trains only on labelled candidates, and takes the median over `runs`
+  (default 21) independent runs instead of over bootstrap samples, so `subsample_ratio`
+  is removed. Single words are no longer ranked, and `n` must be at least 2. New
+  parameters: `offspring_size`, `runs` and `random_state`; `population_size` now
+  defaults to 20. Roger raises a `ValueError` unless at least one candidate is
+  labelled `1` and one `0`; a training sample without positive labels used to get an
+  undefined (NaN) fitness, which the search treated as the best (#27). On Teanga input,
+  Roger reads the words layer instead of re-tokenizing joined n-grams, which generated
+  spurious candidates (#32).
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
@@ -65,10 +78,6 @@ that was previously only available from GitHub.
   capital letters were never matched.
 - AdaBoost and Roger list candidates with equal scores in order of first occurrence, so
   their results no longer change from run to run.
-- Roger's bootstrap samples are stratified, so each one contains labelled terms. A
-  sample without any used to get an undefined (NaN) fitness, which the evolutionary
-  search treated as the best, adding an arbitrary ranking function to the ensemble
-  (#27). Roger now raises a `ValueError` when no candidate is labelled `1`.
 - `alpha=0` and `beta=0` are passed to `basic` and `combobasic` instead of being replaced
   by the default of 0.5. `alpha`, `beta` and `num_topics` no longer accept `None`.
 - RIDF no longer crashes when no threshold is given.

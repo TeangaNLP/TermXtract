@@ -1,6 +1,5 @@
 import re
 
-import numpy as np
 import pytest
 from teanga import Corpus
 
@@ -106,11 +105,10 @@ def test_rake_uses_its_own_stoplist():
 
 
 def test_supervised_filtered_by_default():
-    np.random.seed(0)
-    labels = {"degree of freedom": 1, "system": 1, "the": 0, "of": 0}
-    results = SupervisedTermExtractor(method="roger", n=3, generations=5).extract(
-        CORPUS, labels
-    )
+    labels = {"degree of freedom": 1, "of the system": 0, "of a": 0}
+    results = SupervisedTermExtractor(
+        method="roger", n=3, generations=5, runs=3, random_state=0
+    ).extract(CORPUS, labels)
     terms = all_terms(results)
     assert "degree of freedom" in terms
     assert all(is_candidate(t, ENGLISH_STOPWORDS) for t in terms)

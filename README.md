@@ -134,7 +134,7 @@ All methods accept `n` (maximum n-gram length), `threshold` (minimum score) and 
 | `method`               | Description                                              | Extra parameters                                         |
 |------------------------|----------------------------------------------------------|----------------------------------------------------------|
 | `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`, `wordnet_lexicon` |
-| `roger`                | Evolutionary ranking-function search                     | `population_size`, `generations`, `subsample_ratio`      |
+| `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state` |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 
 All supervised methods accept `n` (maximum n-gram length, default 6) and `stopwords`, which filters the extracted terms but not the training candidates.

@@ -48,7 +48,15 @@ class SupervisedTermExtractor:
         ),
         "roger": (
             lambda: RogerTermExtractor,
-            ("population_size", "generations", "subsample_ratio", "n", "stopwords"),
+            (
+                "population_size",
+                "offspring_size",
+                "generations",
+                "runs",
+                "n",
+                "random_state",
+                "stopwords",
+            ),
         ),
         # Loaded on use because torch/transformers are an optional extra
         "token-classification": (
@@ -77,9 +85,11 @@ class SupervisedTermExtractor:
         threshold: float | None = None,
         n: int = 6,
         # Roger parameters
-        population_size: int = 50,
+        population_size: int = 20,
+        offspring_size: int = 100,
         generations: int = 100,
-        subsample_ratio: float = 0.8,
+        runs: int = 21,
+        random_state: int | None = None,
         # AdaBoost parameters
         max_depth: int = 1,
         n_estimators: int = 50,
@@ -102,9 +112,11 @@ class SupervisedTermExtractor:
             model_name (str): Hugging Face model name for token classification.
             threshold (Optional[float]): Minimum score threshold for term inclusion (only for 'adaboost').
             n (int): Maximum length of n-grams to consider.
-            population_size (int): Number of ranking functions (only for 'roger').
-            generations (int): Number of iterations for optimization (only for 'roger').
-            subsample_ratio (float): Data fraction used in each iteration (only for 'roger').
+            population_size (int): Number of parents in each generation (only for 'roger').
+            offspring_size (int): Number of offspring in each generation (only for 'roger').
+            generations (int): Number of generations in each run (only for 'roger').
+            runs (int): Number of independent runs to combine (only for 'roger').
+            random_state (Optional[int]): Seed for reproducible scores (only for 'roger').
             max_depth (int): Maximum depth of the decision tree (only for 'adaboost').
             n_estimators (int): Number of boosting iterations (only for 'adaboost').
             estimator (str): Type of base estimator (only for 'adaboost').
@@ -134,8 +146,10 @@ class SupervisedTermExtractor:
             "threshold": threshold,
             "n": n,
             "population_size": population_size,
+            "offspring_size": offspring_size,
             "generations": generations,
-            "subsample_ratio": subsample_ratio,
+            "runs": runs,
+            "random_state": random_state,
             "max_depth": max_depth,
             "n_estimators": n_estimators,
             "estimator": estimator,
