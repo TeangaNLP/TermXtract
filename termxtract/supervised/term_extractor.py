@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from teanga import Corpus
 
+from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .adaboost import DEFAULT_WORDNET_LEXICON, AdaBoostTermExtractor
@@ -44,6 +45,7 @@ class SupervisedTermExtractor:
                 "estimator",
                 "wordnet_lexicon",
                 "stopwords",
+                "words_layer",
             ),
         ),
         "roger": (
@@ -56,6 +58,7 @@ class SupervisedTermExtractor:
                 "n",
                 "random_state",
                 "stopwords",
+                "words_layer",
             ),
         ),
         # Loaded on use because torch/transformers are an optional extra
@@ -70,6 +73,7 @@ class SupervisedTermExtractor:
                 "max_length",
                 "language",
                 "stopwords",
+                "words_layer",
             ),
         ),
     }
@@ -77,6 +81,9 @@ class SupervisedTermExtractor:
     extractor: (
         "AdaBoostTermExtractor | RogerTermExtractor | TokenClassificationTermExtractor"
     )
+
+    FILTER_PARAMS: ClassVar[tuple[str, ...]] = ("pos_pattern", "pos_layer")
+    """Parameters applied to the results by the wrapper, not passed to the extractor."""
 
     def __init__(
         self,
@@ -102,6 +109,9 @@ class SupervisedTermExtractor:
         max_length: int = 512,
         language: str = "en",
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         """
         Initialize the TermExtractor with the desired supervised method and parameters.
@@ -129,6 +139,17 @@ class SupervisedTermExtractor:
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or end
                 with a stopword: "english" (the default) for the built-in English list, a list
                 of words, or None to keep every term.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the words:
+                None (the default) for `words` or, if the corpus has no `words` layer,
+                `tokens`.
+            pos_pattern (Optional[str]): For Teanga input, keep only the terms whose
+                part-of-speech tags match this pattern in at least one occurrence. Tags are
+                written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
+                pattern in `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
+                default) keeps every term. Scores are unchanged.
+            pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`, based
+                on the words layer: None (the default) for `upos` or, if the corpus has no
+                `upos` layer, `pos`.
 
         Raises:
             ValueError: If the method is unknown.
@@ -160,7 +181,13 @@ class SupervisedTermExtractor:
             "max_length": max_length,
             "language": language,
             "stopwords": stopwords,
+            "words_layer": words_layer,
         }
+        self.words_layer = words_layer
+        self.pos_pattern = (
+            None if pos_pattern is None else compile_pos_pattern(pos_pattern)
+        )
+        self.pos_layer = pos_layer
         self.extractor = load_extractor_class()(
             **{name: params[name] for name in param_names}
         )
@@ -177,8 +204,18 @@ class SupervisedTermExtractor:
             ATEResults: Object containing extracted terms with scores.
         """
         if isinstance(corpus, Corpus):
-            return self.extractor.extract_terms_teanga(corpus, labels)
+            results = self.extractor.extract_terms_teanga(corpus, labels)
+            if self.pos_pattern is None:
+                return results
+            return filter_by_pos(
+                results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
+            )
         elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
+            if self.pos_pattern is not None:
+                raise ValueError(
+                    "pos_pattern needs part-of-speech tags, so it only works with a "
+                    "Teanga corpus with a part-of-speech layer."
+                )
             return self.extractor.extract_terms_strings(corpus, labels)
         else:
             raise ValueError("Corpus must be a Teanga Corpus or a list of strings.")

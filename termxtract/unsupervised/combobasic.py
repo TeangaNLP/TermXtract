@@ -19,6 +19,7 @@ class ComboBasicTermExtractor(BaseTermExtractor):
         threshold: float | None = None,
         n: int = 1,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         r"""
         Initialize the ComboBasic extractor.
@@ -30,10 +31,14 @@ class ComboBasicTermExtractor(BaseTermExtractor):
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
         self.alpha = alpha
         self.beta = beta
-        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
+        super().__init__(
+            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+        )
 
     def compute_combobasic(self, ngrams: list[str]) -> dict[str, float]:
         """

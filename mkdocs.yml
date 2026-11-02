@@ -33,6 +33,7 @@ nav:
   - TermExtractor: api/term_extractor.md
   - SupervisedTermExtractor: api/supervised_term_extractor.md
   - ATEResults: api/results.md
+  - Filters and Layers: api/filters.md
   - Unsupervised Extractors:
     - BaseTermExtractor: api/unsupervised/base.md
     - TF-IDF: api/unsupervised/tfidf.md

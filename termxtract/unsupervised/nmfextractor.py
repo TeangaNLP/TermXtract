@@ -18,6 +18,7 @@ class NMFTermExtractor(BaseTermExtractor):
         n_topics: int = 10,
         max_features: int | None = None,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the NMF extractor.
@@ -29,8 +30,12 @@ class NMFTermExtractor(BaseTermExtractor):
             max_features (Optional[int]): Maximum number of features for TF-IDF vectorization.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
-        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
+        super().__init__(
+            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+        )
         self.n_topics = n_topics
         self.max_features = max_features
 

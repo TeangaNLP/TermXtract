@@ -28,6 +28,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         threshold: float | None = None,
         n: int = 1,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the extractor.
@@ -39,8 +40,12 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
-        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
+        super().__init__(
+            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+        )
         if reference_corpus is None:
             raise ValueError(f"{type(self).__name__} requires a reference corpus.")
         self.reference_corpus = reference_corpus

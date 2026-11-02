@@ -55,6 +55,8 @@ Pass `threshold=...` to keep only terms scoring at or above a minimum.
 
 Candidates that start or end with a stopword, such as `is a` or `of machine`, are dropped by default, using a built-in list of English function words. Stopwords inside a term, as in `degree of freedom`, are kept. Pass `stopwords=None` to keep every candidate, or a list of words to use your own stopwords.
 
+If a Teanga corpus has part-of-speech tags, `pos_pattern="noun_phrase"` keeps only noun phrases, such as `machine learning` or `degree of freedom` (see [Using a Teanga corpus](#using-a-teanga-corpus)).
+
 ### Methods that need a reference corpus
 
 `weirdness`, `domainpertinence` and `relevance` compare the target corpus against a general-language reference corpus:
@@ -106,6 +108,8 @@ doc.words = [(0, 4), (5, 13), (14, 16), (17, 18), (19, 27), (28, 30), (31, 38), 
 results = TermExtractor(method="basic", n=2).extract(corpus)
 ```
 
+Words are read from the `words` layer or, if there is none, from a `tokens` layer, as written by Teanga's CoNLL-U reader and spaCy service; pass `words_layer=...` to use another layer. If the corpus has part-of-speech tags in a `upos` or `pos` layer based on the words, pass `pos_pattern` to keep only the terms whose tags match a pattern, either `"noun_phrase"` or your own pattern such as `"<ADJ|NOUN>*<NOUN>"`. See the [TF-IDF tutorial](https://teanga.io/TermXtract/tutorials/tfidf_tutorial/#part-of-speech-patterns).
+
 ## Available methods
 
 `TermExtractor.METHODS` and `SupervisedTermExtractor.METHODS` map each method name to its implementation, so `list(TermExtractor.METHODS)` lists the available methods. Passing an unknown `method` raises a `ValueError` that lists them too.
@@ -127,7 +131,7 @@ results = TermExtractor(method="basic", n=2).extract(corpus)
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`                          |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
 
-All methods accept `n` (maximum n-gram length), `threshold` (minimum score) and `stopwords` (default `"english"`). `rake` does not use `n` or `stopwords`; it splits candidates at its own `stoplist`.
+All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), and, for Teanga input, `words_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords` or `words_layer`; it splits candidates at its own `stoplist`.
 
 ### Supervised — `SupervisedTermExtractor(method=...)`
 
@@ -137,7 +141,7 @@ All methods accept `n` (maximum n-gram length), `threshold` (minimum score) and 
 | `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state` |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 
-All supervised methods accept `n` (maximum n-gram length, default 6) and `stopwords`, which filters the extracted terms but not the training candidates.
+All supervised methods accept `n` (maximum n-gram length, default 6), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates, and `words_layer` and `pos_layer` for Teanga input.
 
 ## Results
 

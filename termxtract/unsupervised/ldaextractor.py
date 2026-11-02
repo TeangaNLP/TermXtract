@@ -7,6 +7,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from teanga import Corpus
 
+from ..layers import word_spans
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -21,6 +22,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         threshold: float | None = None,
         n: int = 1,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the Topic Modeling extractor.
@@ -31,8 +33,12 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
-        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
+        super().__init__(
+            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+        )
         self.num_topics = num_topics
         self.lda_model: LatentDirichletAllocation | None = None
         self.vectorizer: CountVectorizer | None = None
@@ -50,7 +56,10 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         processed_corpus = []
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words = [doc.text[start:end].lower() for start, end in doc.words]
+            words = [
+                doc.text[start:end].lower()
+                for start, end in word_spans(doc, self.words_layer)
+            ]
             processed_corpus.append(" ".join(words))
         return processed_corpus
 

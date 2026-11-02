@@ -146,7 +146,7 @@ A custom list **replaces** the built-in one, which is why `into` has to be inclu
 
 ## Using a Teanga corpus
 
-The extractor also accepts a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` that has a `words` span layer. This lets you use your own tokenization, and the results then include the **character offsets** of every occurrence of each term.
+The extractor also accepts a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` that has a `words` span layer (or a `tokens` layer, or another span layer named with `words_layer`). This lets you use your own tokenization, and the results then include the **character offsets** of every occurrence of each term.
 
 Here we build the `words` layer with a simple regular expression:
 
@@ -179,9 +179,58 @@ print(results.offsets[3]["offsets"][:3])
 - `doc_id`s are Teanga's document IDs rather than `doc_0`, `doc_1`, ….
 - Words are taken exactly as they appear in your `words` layer, so **case is preserved** (`Gradient`, not `gradient`).
 
+## Part-of-speech patterns
+
+Stopwords only remove function words from the edges of candidates, so fragments such as `descent updates` still get through. Most terms are **noun phrases**, so if your Teanga corpus has part-of-speech tags, you can keep only the candidates whose tags match a pattern.
+
+TermXtract reads the tags from a layer named `upos` or `pos`, which must be based on the layer holding the words. This is how Teanga's [CoNLL-U reader](https://github.com/TeangaNLP/teanga) (`upos` on a `tokens` layer) and its spaCy service (`pos` on a `tokens` layer) store them, and TermXtract reads words from a `tokens` layer when there is no `words` layer, so their output works as it is. Here we add the same layers by hand, with [Universal Dependencies](https://universaldependencies.org/u/pos/) tags:
+
+```python
+tags = [
+    "NOUN VERB NOUN NOUN ADP ADJ NOUN ADP NOUN NOUN",
+    "NOUN ADP DET NOUN VERB NOUN ADP NOUN",
+    "DET ADJ NOUN VERB NOUN ADP NOUN NOUN",
+    "NOUN NOUN VERB DET NOUN ADP DET ADJ NOUN",
+    "DET ADJ NOUN VERB NOUN ADP PRON ADJ NOUN",
+    "NOUN VERB DET NOUN ADP NOUN ADP DET NOUN",
+]
+
+tagged_corpus = Corpus()
+tagged_corpus.add_layer_meta("text")
+tagged_corpus.add_layer_meta("tokens", layer_type="span", base="text")
+tagged_corpus.add_layer_meta("upos", layer_type="seq", base="tokens", data="string")
+for text, doc_tags in zip(corpus, tags):
+    doc = tagged_corpus.add_doc(text)
+    doc.tokens = [match.span() for match in re.finditer(r"\w+", text)]
+    doc.upos = doc_tags.split()
+
+extractor = TermExtractor(
+    method="tfidf", n=2, threshold=0.05, pos_pattern="noun_phrase"
+)
+results = extractor.extract(tagged_corpus)
+
+for doc in results.terms[2:4]:
+    print([term["term"] for term in doc["terms"]])
+```
+
+```text
+['training', 'training data', 'data']
+['Gradient', 'Gradient descent', 'descent']
+```
+
+Without the pattern, these documents also list the verbs `learns` and `updates` and the fragments `network learns`, `learns weights` and `descent updates`. With it, only nouns and noun phrases such as `training data` and `Gradient descent` remain. As with stopwords, the scores of the remaining terms do not change, and a candidate is kept if **any** of its occurrences matches the pattern.
+
+`pos_pattern="noun_phrase"` allows nouns and proper nouns, optionally preceded by adjectives or nouns, and optionally followed by a preposition and a second such phrase, as in `degree of freedom`. You can also write your own pattern, in the syntax of NLTK's `RegexpParser`: each tag is written in angle brackets and combined with regular-expression operators, so `"<ADJ>*<NOUN>+"` allows adjectives followed by nouns. Inside the angle brackets, `|` separates alternative tags and `.` matches any character of a tag, as in `"<ADJ|NOUN>*<N.*>"`.
+
+A few more things to know:
+
+- Pass `pos_layer=...` or `words_layer=...` if your layers have other names.
+- `pos_pattern` needs tags, so it only works with a Teanga corpus, and raises a `ValueError` for plain text.
+- The supervised methods accept `pos_pattern` too. They are still trained on every candidate, and only their results are filtered.
+
 ## Limitations and tips
 
-- **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, or try a method that compares with a reference corpus.
+- **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, use a [part-of-speech pattern](#part-of-speech-patterns), or try a method that compares with a reference corpus.
 - **Use enough documents.** With very few documents, IDF can only take a handful of values and many terms tie.
 - **Compare against a reference corpus.** To find terms typical of a *domain* rather than of individual documents, try the [reference corpus methods](reference_corpus_tutorial.md), which compare your corpus with general-language text.
 

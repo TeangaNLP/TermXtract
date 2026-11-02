@@ -11,6 +11,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from ..layers import word_spans
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
@@ -28,6 +29,7 @@ class TokenClassificationTermExtractor:
         max_length: int = 512,
         language: str = "en",
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the Token Classification Term Extractor.
@@ -42,6 +44,8 @@ class TokenClassificationTermExtractor:
             language (str): Language code for tokenization (en, fr, nl).
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
                 end with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
         self.model_name = model_name
         self.n = n
@@ -51,6 +55,7 @@ class TokenClassificationTermExtractor:
         self.max_length = max_length
         self.language = language
         self.stopwords = load_stopwords(stopwords)
+        self.words_layer = words_layer
 
         # Initialize tokenizers (for preprocessing)
         self.moses_tokenizer = MosesTokenizer(lang=language)
@@ -393,7 +398,7 @@ class TokenClassificationTermExtractor:
 
             # Extract tokens from document
             tokens = []
-            for start, end in doc.words:
+            for start, end in word_spans(doc, self.words_layer):
                 tokens.append(doc.text[start:end])
 
             # Group tokens into sentences (simplistic approach)

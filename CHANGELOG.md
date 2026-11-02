@@ -25,6 +25,13 @@ that was previously only available from GitHub.
   unknown `method` now raises a `ValueError` that lists the available methods.
 - `stopwords` parameter for every method except RAKE, with a built-in English list
   (NLTK's, based on Snowball's) in `termxtract.stopwords.ENGLISH_STOPWORDS` (#24).
+- `pos_pattern` and `pos_layer` parameters for `TermExtractor` and
+  `SupervisedTermExtractor`, which keep only the terms whose part-of-speech tags match
+  a pattern, such as the built-in `"noun_phrase"` or `"<ADJ|NOUN>*<NOUN>"`, in a Teanga
+  corpus (#33). Tags are read from a `upos` or `pos` layer, as written by Teanga's
+  CoNLL-U reader and spaCy service. Scores are unchanged.
+- `words_layer` parameter for every method except RAKE. On Teanga input, words are read
+  from the `words` layer or, if there is none, from a `tokens` layer.
 - Optional `transformers` extra (`pip install 'termxtract[transformers]'`) for the
   token-classification method.
 - `threshold` and `wordnet_lexicon` parameters for `SupervisedTermExtractor`.

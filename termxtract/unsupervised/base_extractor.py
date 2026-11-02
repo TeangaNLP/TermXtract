@@ -6,6 +6,7 @@ from typing import Any
 
 from teanga import Corpus, Document
 
+from ..layers import words_with_offsets
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
@@ -24,6 +25,7 @@ class BaseTermExtractor(ABC):
         threshold: float | None = None,
         n: int = 1,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the extractor.
@@ -34,10 +36,13 @@ class BaseTermExtractor(ABC):
             stopwords (Union[str, Iterable[str], None]): Candidates that start or end with
                 one of these words are dropped: "english" (the default) for the built-in
                 English list, a list of words, or None to keep every candidate.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
         self.threshold = threshold
         self.n = n
         self.stopwords = load_stopwords(stopwords)
+        self.words_layer = words_layer
 
     @abstractmethod
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
@@ -64,18 +69,17 @@ class BaseTermExtractor(ABC):
             ATEResults: Results with ranked terms and scores.
         """
 
-    @staticmethod
-    def teanga_words(doc: Document) -> list[tuple[int, int, str]]:
+    def teanga_words(self, doc: Document) -> list[tuple[int, int, str]]:
         """
         Get the words of a Teanga document with their offsets.
 
         Args:
-            doc (Document): A Teanga document with a `words` span layer.
+            doc (Document): A Teanga document with a words layer (see `words_layer`).
 
         Returns:
             List[Tuple[int, int, str]]: A (start, end, text) tuple for each word.
         """
-        return [(start, end, doc.text[start:end]) for start, end in doc.words]
+        return words_with_offsets(doc, self.words_layer)
 
     def generate_ngrams_teanga(
         self, words_with_offsets: list[tuple[int, int, str]]

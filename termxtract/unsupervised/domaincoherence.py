@@ -3,6 +3,7 @@ import re
 from collections import Counter
 from typing import Any
 
+from ..layers import word_spans
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -18,6 +19,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         n: int = 1,
         window_size: int = 5,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the DomainCoherence extractor.
@@ -28,8 +30,12 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             window_size (int): Size of the context window for NPMI calculation.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
-        super().__init__(threshold=threshold, n=n, stopwords=stopwords)
+        super().__init__(
+            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+        )
         self.window_size = window_size
 
     def extract_terms_teanga(self, corpus) -> ATEResults:
@@ -37,7 +43,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
 
         # Step 1: Extract top 200 candidates using Basic
         basic_extractor = BasicTermExtractor(
-            threshold=None, n=self.n, stopwords=self.stopwords
+            threshold=None,
+            n=self.n,
+            stopwords=self.stopwords,
+            words_layer=self.words_layer,
         )
         basic_results = basic_extractor.extract_terms_teanga(corpus)
 
@@ -112,7 +121,8 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
             words_with_offsets = [
-                (start, end, doc.text[start:end]) for start, end in doc.words
+                (start, end, doc.text[start:end])
+                for start, end in word_spans(doc, self.words_layer)
             ]
             words = [word.lower() for _, _, word in words_with_offsets]
 
@@ -289,7 +299,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                 # Compute probabilities for Teanga corpus
                 for doc_id in corpus.doc_ids:
                     doc = corpus.doc_by_id(doc_id)
-                    words = [doc.text[start:end].lower() for start, end in doc.words]
+                    words = [
+                        doc.text[start:end].lower()
+                        for start, end in word_spans(doc, self.words_layer)
+                    ]
 
                     # Joint probability: term and word co-occurrence
                     if term in words and word in words:
@@ -303,7 +316,9 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                         if term
                         in [
                             doc.text[start:end].lower()
-                            for start, end in corpus.doc_by_id(doc_id).words
+                            for start, end in word_spans(
+                                corpus.doc_by_id(doc_id), self.words_layer
+                            )
                         ]
                     )
                     / num_docs
@@ -318,7 +333,9 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                         if word
                         in [
                             doc.text[start:end].lower()
-                            for start, end in corpus.doc_by_id(doc_id).words
+                            for start, end in word_spans(
+                                corpus.doc_by_id(doc_id), self.words_layer
+                            )
                         ]
                     )
                     / num_docs

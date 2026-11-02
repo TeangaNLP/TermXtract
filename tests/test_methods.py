@@ -1,7 +1,9 @@
 import importlib.util
 import inspect
+import re
 
 import pytest
+from teanga import Corpus
 
 from termxtract import SupervisedTermExtractor, TermExtractor
 
@@ -12,7 +14,11 @@ HAS_TRANSFORMERS = all(
 
 
 def wrapper_params(wrapper):
-    return set(inspect.signature(wrapper.__init__).parameters) - {"self", "method"}
+    return set(inspect.signature(wrapper.__init__).parameters) - {
+        "self",
+        "method",
+        *wrapper.FILTER_PARAMS,
+    }
 
 
 @pytest.mark.parametrize("method", list(TermExtractor.METHODS))
@@ -58,3 +64,48 @@ def test_parameters_reach_the_extractor():
 def test_rake_requires_stoplist_and_delimiters():
     with pytest.raises(ValueError, match="RAKE requires"):
         TermExtractor(method="rake", stoplist=["the"])
+
+
+def corpus_with_layer(layer):
+    texts = [
+        "Machine learning is a field of artificial intelligence.",
+        "Deep learning is a subfield of machine learning.",
+        "Natural language processing applies machine learning to text.",
+    ]
+    corpus = Corpus()
+    corpus.add_layer_meta("text")
+    corpus.add_layer_meta(layer, layer_type="span", base="text")
+    for text in texts:
+        doc = corpus.add_doc(text)
+        doc[layer] = [match.span() for match in re.finditer(r"\w+", text)]
+    return corpus
+
+
+@pytest.mark.parametrize("method", [m for m in TermExtractor.METHODS if m != "rake"])
+def test_unsupervised_words_layer(method):
+    def extract(layer, **params):
+        corpus = corpus_with_layer(layer)
+        if method in ("weirdness", "domainpertinence", "relevance"):
+            params["reference_corpus"] = corpus_with_layer(layer)
+        return TermExtractor(method=method, n=2, **params).extract(corpus)
+
+    expected = extract("words")
+    # "tokens" is used when there is no "words" layer, or when named
+    assert extract("tokens").terms == expected.terms
+    assert extract("segments", words_layer="segments").terms == expected.terms
+    assert expected.terms[0]["terms"]
+
+
+@pytest.mark.parametrize("method", ["adaboost", "roger"])
+def test_supervised_words_layer(method):
+    labels = {"machine learning": 1, "deep learning": 1, "is a": 0, "of machine": 0}
+    params = (
+        {"random_state": 0, "generations": 5, "runs": 2} if method == "roger" else {}
+    )
+
+    def extract(layer):
+        return SupervisedTermExtractor(method=method, n=2, **params).extract(
+            corpus_with_layer(layer), labels
+        )
+
+    assert extract("tokens").terms == extract("words").terms

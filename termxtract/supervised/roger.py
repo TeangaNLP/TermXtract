@@ -154,6 +154,7 @@ class RogerTermExtractor:
         n: int = 2,
         random_state: int | None = None,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the Roger extractor.
@@ -171,6 +172,8 @@ class RogerTermExtractor:
                 reproducible scores.
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
                 end with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
 
         Raises:
             ValueError: If `n` is less than 2.
@@ -184,6 +187,7 @@ class RogerTermExtractor:
         self.n = n
         self.random_state = random_state
         self.stopwords = load_stopwords(stopwords)
+        self.words_layer = words_layer
         self.models: list[tuple[np.ndarray, np.ndarray]] = []
         self.feature_min = np.zeros(len(MEASURES))
         self.feature_range = np.ones(len(MEASURES))
@@ -361,7 +365,7 @@ class RogerTermExtractor:
 
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Score the candidates in a Teanga corpus."""
-        return self.predict(tokenize_teanga(corpus))
+        return self.predict(tokenize_teanga(corpus, self.words_layer))
 
     def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
         self.train(docs, labels)
@@ -389,7 +393,10 @@ class RogerTermExtractor:
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a Teanga corpus using Roger."""
         return self._results(
-            corpus, list(corpus.doc_ids), tokenize_teanga(corpus), labels
+            corpus,
+            list(corpus.doc_ids),
+            tokenize_teanga(corpus, self.words_layer),
+            labels,
         )
 
     def extract_terms_strings(

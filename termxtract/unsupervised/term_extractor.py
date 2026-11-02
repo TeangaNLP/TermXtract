@@ -2,6 +2,7 @@ from typing import Any, ClassVar
 
 from teanga import Corpus
 
+from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -28,40 +29,46 @@ class TermExtractor:
     """
 
     METHODS: ClassVar[dict[str, tuple[type[BaseTermExtractor], tuple[str, ...]]]] = {
-        "tfidf": (TFIDFTermExtractor, ("threshold", "n", "stopwords")),
-        "ridf": (RIDFTermExtractor, ("threshold", "n", "stopwords")),
-        "cvalue": (CValueTermExtractor, ("threshold", "n", "stopwords")),
-        "basic": (BasicTermExtractor, ("alpha", "threshold", "n", "stopwords")),
+        "tfidf": (TFIDFTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
+        "ridf": (RIDFTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
+        "cvalue": (CValueTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
+        "basic": (
+            BasicTermExtractor,
+            ("alpha", "threshold", "n", "stopwords", "words_layer"),
+        ),
         "combobasic": (
             ComboBasicTermExtractor,
-            ("alpha", "beta", "threshold", "n", "stopwords"),
+            ("alpha", "beta", "threshold", "n", "stopwords", "words_layer"),
         ),
         "domaincoherence": (
             DomainCoherenceTermExtractor,
-            ("window_size", "threshold", "n", "stopwords"),
+            ("window_size", "threshold", "n", "stopwords", "words_layer"),
         ),
         "relevance": (
             RelevanceTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords"),
+            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
         ),
         "topicmodeling": (
             TopicModelingTermExtractor,
-            ("num_topics", "threshold", "n", "stopwords"),
+            ("num_topics", "threshold", "n", "stopwords", "words_layer"),
         ),
         "nmf": (
             NMFTermExtractor,
-            ("threshold", "n_topics", "max_features", "n", "stopwords"),
+            ("threshold", "n_topics", "max_features", "n", "stopwords", "words_layer"),
         ),
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords"),
+            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
         ),
         "weirdness": (
             WeirdnessTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords"),
+            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
         ),
     }
+
+    FILTER_PARAMS: ClassVar[tuple[str, ...]] = ("pos_pattern", "pos_layer")
+    """Parameters applied to the results by the wrapper, not passed to the extractor."""
 
     def __init__(
         self,
@@ -78,6 +85,9 @@ class TermExtractor:
         n_topics: int = 10,
         max_features: int | None = None,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         r"""
         Initialize the TermExtractor with the desired method and parameters.
@@ -102,6 +112,17 @@ class TermExtractor:
                 stopword (all methods except 'rake', which uses `stoplist`): "english" (the
                 default) for the built-in English list, a list of words, or None to keep every
                 candidate. Stopwords inside a multi-word term, as in "degree of freedom", are kept.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the words:
+                None (the default) for `words` or, if the corpus has no `words` layer,
+                `tokens`.
+            pos_pattern (Optional[str]): For Teanga input, keep only the terms whose
+                part-of-speech tags match this pattern in at least one occurrence. Tags are
+                written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
+                pattern in `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
+                default) keeps every term. Scores are unchanged.
+            pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`, based
+                on the words layer: None (the default) for `upos` or, if the corpus has no
+                `upos` layer, `pos`.
 
         Raises:
             ValueError: If the method is unknown, or a parameter it requires is missing.
@@ -125,7 +146,13 @@ class TermExtractor:
             "n_topics": n_topics,
             "max_features": max_features,
             "stopwords": stopwords,
+            "words_layer": words_layer,
         }
+        self.words_layer = words_layer
+        self.pos_pattern = (
+            None if pos_pattern is None else compile_pos_pattern(pos_pattern)
+        )
+        self.pos_layer = pos_layer
         self.extractor: BaseTermExtractor = extractor_class(
             **{name: params[name] for name in param_names}
         )
@@ -147,8 +174,18 @@ class TermExtractor:
             ValueError: If the corpus type is not supported or if a required reference corpus is missing.
         """
         if isinstance(corpus, Corpus):
-            return self.extractor.extract_terms_teanga(corpus)
+            results = self.extractor.extract_terms_teanga(corpus)
+            if self.pos_pattern is None:
+                return results
+            return filter_by_pos(
+                results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
+            )
         elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
+            if self.pos_pattern is not None:
+                raise ValueError(
+                    "pos_pattern needs part-of-speech tags, so it only works with a "
+                    "Teanga corpus with a part-of-speech layer."
+                )
             return self.extractor.extract_terms_strings(corpus)
         else:
             raise ValueError("The corpus must be a Teanga Corpus or a list of strings.")

@@ -49,6 +49,7 @@ class AdaBoostTermExtractor:
         estimator: str | None = "decision_tree",
         wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON,
         stopwords: Stopwords = "english",
+        words_layer: str | None = None,
     ):
         """
         Initialize the AdaBoost extractor.
@@ -63,6 +64,8 @@ class AdaBoostTermExtractor:
                 (and downloaded if needed) on first use, not at construction.
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
                 end with a stopword: "english", a list of words, or None.
+            words_layer (Optional[str]): For Teanga input, the span layer holding the
+                words, or None for `words` or, failing that, `tokens`.
         """
         self.threshold = threshold
         self.n = n
@@ -70,6 +73,7 @@ class AdaBoostTermExtractor:
         self.n_estimators = n_estimators
         self.wordnet_lexicon = wordnet_lexicon
         self.stopwords = load_stopwords(stopwords)
+        self.words_layer = words_layer
         self._wordnet: wn.Wordnet | None = None
 
         if estimator == "decision_tree":
@@ -190,7 +194,7 @@ class AdaBoostTermExtractor:
 
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Predict term scores from a **Teanga corpus**."""
-        return self.predict(tokenize_teanga(corpus))
+        return self.predict(tokenize_teanga(corpus, self.words_layer))
 
     def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
         self.train(docs, labels)
@@ -217,7 +221,10 @@ class AdaBoostTermExtractor:
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a **Teanga corpus** using trained AdaBoost."""
         return self._results(
-            corpus, list(corpus.doc_ids), tokenize_teanga(corpus), labels
+            corpus,
+            list(corpus.doc_ids),
+            tokenize_teanga(corpus, self.words_layer),
+            labels,
         )
 
     def extract_terms_strings(
