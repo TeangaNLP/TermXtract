@@ -435,7 +435,10 @@ class TokenClassificationTermExtractor:
         ]
 
     def extract_documents(
-        self, corpus, doc_ids: list[str], documents: list[list[tuple[list[str], str]]]
+        self,
+        corpus: Corpus | list[str],
+        doc_ids: list[str],
+        documents: list[list[tuple[list[str], str]]],
     ) -> ATEResults:
         """
         Tag the sentences of each document with the trained model.
@@ -443,7 +446,7 @@ class TokenClassificationTermExtractor:
         Each document lists the terms the model tagged in its own sentences.
 
         Args:
-            corpus: The input corpus, returned in the results.
+            corpus (Union[Corpus, List[str]]): The input corpus, returned in the results.
             doc_ids (List[str]): The ID of each document.
             documents (List[List[Tuple[List[str], str]]]): For each document, its
                 (tokens, original sentence) tuples.
