@@ -1,5 +1,4 @@
 import math
-import re
 from collections import Counter
 from collections.abc import Iterator
 
@@ -8,6 +7,7 @@ from scipy.stats import rankdata
 
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
+from .words import tokenize_strings, tokenize_teanga
 
 MEASURES = (
     "MI",
@@ -188,19 +188,6 @@ class RogerTermExtractor:
         self.feature_min = np.zeros(len(MEASURES))
         self.feature_range = np.ones(len(MEASURES))
 
-    @staticmethod
-    def tokenize_strings(corpus: list[str]) -> list[list[str]]:
-        """Split each document into lower-case words."""
-        return [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
-
-    @staticmethod
-    def tokenize_teanga(corpus) -> list[list[str]]:
-        """Read each document's lower-case words from the Teanga `words` layer."""
-        docs = [corpus.doc_by_id(doc_id) for doc_id in corpus.doc_ids]
-        return [
-            [doc.text[start:end].lower() for start, end in doc.words] for doc in docs
-        ]
-
     def _ngrams(self, docs: list[list[str]]) -> Iterator[tuple[str, ...]]:
         for words in docs:
             for k in range(2, self.n + 1):
@@ -366,15 +353,15 @@ class RogerTermExtractor:
 
     def train_model(self, corpus: list[str], labels: dict[str, int]):
         """Learn the ranking functions from a list of strings."""
-        self.train(self.tokenize_strings(corpus), labels)
+        self.train(tokenize_strings(corpus), labels)
 
     def predict_terms_strings(self, corpus: list[str]) -> dict[str, float]:
         """Score the candidates in a list of strings."""
-        return self.predict(self.tokenize_strings(corpus))
+        return self.predict(tokenize_strings(corpus))
 
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Score the candidates in a Teanga corpus."""
-        return self.predict(self.tokenize_teanga(corpus))
+        return self.predict(tokenize_teanga(corpus))
 
     def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
         self.train(docs, labels)
@@ -393,7 +380,7 @@ class RogerTermExtractor:
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a Teanga corpus using Roger."""
         return self._results(
-            corpus, list(corpus.doc_ids), self.tokenize_teanga(corpus), labels
+            corpus, list(corpus.doc_ids), tokenize_teanga(corpus), labels
         )
 
     def extract_terms_strings(
@@ -403,6 +390,6 @@ class RogerTermExtractor:
         return self._results(
             corpus,
             [f"doc_{i}" for i in range(len(corpus))],
-            self.tokenize_strings(corpus),
+            tokenize_strings(corpus),
             labels,
         )

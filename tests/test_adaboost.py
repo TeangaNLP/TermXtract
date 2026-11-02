@@ -1,3 +1,4 @@
+import re
 import unittest
 from unittest import mock
 
@@ -130,3 +131,24 @@ class TestWordNetLoading(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_teanga_matches_strings():
+    texts = [
+        "Machine learning is widely used in AI research.",
+        "Deep learning is a kind of machine learning.",
+    ]
+    corpus = Corpus()
+    corpus.add_layer_meta("text")
+    corpus.add_layer_meta("words", layer_type="span", base="text")
+    for text in texts:
+        doc = corpus.add_doc(text)
+        doc.words = [match.span() for match in re.finditer(r"\w+", text)]
+    labels = {"machine learning": 1, "deep learning": 1, "widely used": 0, "is": 0}
+    extractor = AdaBoostTermExtractor(n=2, stopwords=None)
+    extractor.train_model(texts, labels)
+    from_teanga = extractor.predict_terms_teanga(corpus)
+    from_strings = extractor.predict_terms_strings(texts)
+    assert from_teanga == from_strings
+    assert "machine machine" not in from_teanga
+    assert "ai research" in from_teanga  # Teanga words are lower-cased too

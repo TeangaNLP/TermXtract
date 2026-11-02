@@ -13,6 +13,7 @@ from termxtract.supervised.roger import (
     association_measures,
 )
 from termxtract.supervised.term_extractor import SupervisedTermExtractor
+from termxtract.supervised.words import tokenize_strings
 
 CORPUS = [
     "Genetic algorithms optimize ranking functions.",
@@ -77,7 +78,7 @@ def test_measures_finite_without_counter_examples():
 def test_equally_frequent_candidates_differ():
     # "machine learning" and "and machine" both occur twice (#30)
     extractor = RogerTermExtractor(n=2)
-    X, terms = extractor.extract_features(extractor.tokenize_strings(CORPUS))
+    X, terms = extractor.extract_features(tokenize_strings(CORPUS))
     features = dict(zip(terms, X.tolist()))
     assert features["machine learning"] != features["and machine"]
 

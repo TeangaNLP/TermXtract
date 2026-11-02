@@ -1,5 +1,5 @@
 import math
-import re
+from collections import Counter
 
 import wn
 from sklearn.ensemble import AdaBoostClassifier
@@ -8,6 +8,7 @@ from wn.morphy import Morphy
 
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
+from .words import tokenize_strings, tokenize_teanga
 
 DEFAULT_WORDNET_LEXICON = "oewn:2025+"
 
@@ -93,20 +94,6 @@ class AdaBoostTermExtractor:
                     ngrams.append(ngram)
         return ngrams
 
-    def generate_ngrams_teanga(
-        self, words_with_offsets: list[tuple[int, int, str]]
-    ) -> list[str]:
-        """Generate n-grams for a Teanga corpus."""
-        ngrams = []
-        for i in range(len(words_with_offsets)):
-            for j in range(1, self.n + 1):
-                if i + j <= len(words_with_offsets):
-                    ngram = " ".join(
-                        word for _, _, word in words_with_offsets[i : i + j]
-                    )
-                    ngrams.append(ngram)
-        return ngrams
-
     @property
     def wordnet(self) -> wn.Wordnet:
         """The WordNet lexicon, loaded on first access."""
@@ -134,113 +121,104 @@ class AdaBoostTermExtractor:
         }
         return int(any(morpheme in term.lower() for morpheme in greek_latin_morphemes))
 
-    def compute_collocation_score(self, term: str, corpus_ngrams: list[str]) -> float:
+    def compute_collocation_score(self, term: str, ngram_counts: Counter[str]) -> float:
         """Compute collocation score using MI3."""
-        term_count = corpus_ngrams.count(term)
+        term_count = ngram_counts[term]
         if term_count == 0:
             return 0.0
-        total_terms = len(corpus_ngrams)
+        total_terms = ngram_counts.total()
         prob_term = term_count / total_terms
         return math.pow(prob_term, 3) / (prob_term + 1e-9)
 
     def extract_features(
-        self, corpus: list[str], labels: dict[str, int]
+        self, docs: list[list[str]], labels: dict[str, int]
     ) -> tuple[list[list[float]], list[int], list[str]]:
-        """Extract features and labels for training/testing."""
-        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
-        corpus_ngrams = [self.generate_ngrams(doc) for doc in tokenized_corpus]
-        corpus_ngrams_flat = [ngram for doc in corpus_ngrams for ngram in doc]
+        """
+        Extract features and labels for training/testing.
+
+        Args:
+            docs (list[list[str]]): The words of each document.
+            labels (dict[str, int]): Labels of the candidates; unlabelled ones get 0.
+
+        Returns:
+            The feature matrix, the labels and the candidates, in order of first
+            occurrence.
+        """
+        corpus_ngrams_flat = [
+            ngram for doc in docs for ngram in self.generate_ngrams(doc)
+        ]
+        ngram_counts = Counter(corpus_ngrams_flat)
 
         feature_matrix = []
         y_labels = []
-        terms = list(dict.fromkeys(corpus_ngrams_flat))  # In order of first occurrence
+        terms = list(ngram_counts)  # In order of first occurrence
 
         for term in terms:
             features = [
                 self.compute_semantic_score(term),
                 self.compute_greek_latin_score(term),
-                self.compute_collocation_score(term, corpus_ngrams_flat),
+                self.compute_collocation_score(term, ngram_counts),
             ]
             feature_matrix.append(features)
             y_labels.append(labels.get(term, 0))  # Default to 0 if not labeled
 
         return feature_matrix, y_labels, terms
 
-    def train_model(self, corpus: list[str], labels: dict[str, int]):
-        """Train AdaBoost classifier using labeled data."""
-        feature_matrix, y_labels, _ = self.extract_features(corpus, labels)
+    def train(self, docs: list[list[str]], labels: dict[str, int]):
+        """Train the AdaBoost classifier on the labelled candidates in `docs`."""
+        feature_matrix, y_labels, _ = self.extract_features(docs, labels)
         self.classifier.fit(feature_matrix, y_labels)
         self.is_trained = True  # Mark model as trained
 
-    def predict_terms_strings(self, corpus: list[str]) -> dict[str, float]:
-        """Predict term scores from a **list of strings**."""
+    def predict(self, docs: list[list[str]]) -> dict[str, float]:
+        """Score the candidates in `docs` with the trained classifier."""
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
 
-        feature_matrix, _, terms = self.extract_features(
-            corpus, {}
-        )  # No labels needed for prediction
+        feature_matrix, _, terms = self.extract_features(docs, {})
         probabilities = self.classifier.predict_proba(feature_matrix)[:, 1]
 
         return {term: prob for term, prob in zip(terms, probabilities)}
 
+    def train_model(self, corpus: list[str], labels: dict[str, int]):
+        """Train AdaBoost classifier using labeled data."""
+        self.train(tokenize_strings(corpus), labels)
+
+    def predict_terms_strings(self, corpus: list[str]) -> dict[str, float]:
+        """Predict term scores from a **list of strings**."""
+        return self.predict(tokenize_strings(corpus))
+
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Predict term scores from a **Teanga corpus**."""
-        if not self.is_trained:
-            raise RuntimeError("Model must be trained before prediction.")
+        return self.predict(tokenize_teanga(corpus))
 
-        list_corpus = [
-            " ".join(
-                self.generate_ngrams_teanga(
-                    [(start, end, doc.text[start:end]) for start, end in doc.words]
-                )
-            )
-            for doc_id in corpus.doc_ids
-            for doc in [corpus.doc_by_id(doc_id)]
-        ]
-
-        return self.predict_terms_strings(list_corpus)
+    def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
+        self.train(docs, labels)
+        term_scores = self.predict(docs)
+        return ATEResults(
+            corpus=corpus,
+            terms=[
+                {
+                    "doc_id": doc_id,
+                    "terms": rank_terms(term_scores, self.threshold, self.stopwords),
+                }
+                for doc_id in doc_ids
+            ],
+        )
 
     def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
         """Extract terms from a **Teanga corpus** using trained AdaBoost."""
-        self.train_model(
-            [
-                " ".join(
-                    self.generate_ngrams_teanga(
-                        [(start, end, doc.text[start:end]) for start, end in doc.words]
-                    )
-                )
-                for doc_id in corpus.doc_ids
-                for doc in [corpus.doc_by_id(doc_id)]
-            ],
-            labels,
+        return self._results(
+            corpus, list(corpus.doc_ids), tokenize_teanga(corpus), labels
         )
-
-        term_scores = self.predict_terms_teanga(corpus)
-
-        terms_by_doc = [
-            {
-                "doc_id": doc_id,
-                "terms": rank_terms(term_scores, self.threshold, self.stopwords),
-            }
-            for doc_id in corpus.doc_ids
-        ]
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
 
     def extract_terms_strings(
         self, corpus: list[str], labels: dict[str, int]
     ) -> ATEResults:
         """Extract terms from a **list of strings** using trained AdaBoost."""
-        self.train_model(corpus, labels)
-        term_scores = self.predict_terms_strings(corpus)
-
-        terms_by_doc = [
-            {
-                "doc_id": f"doc_{i}",
-                "terms": rank_terms(term_scores, self.threshold, self.stopwords),
-            }
-            for i in range(len(corpus))
-        ]
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return self._results(
+            corpus,
+            [f"doc_{i}" for i in range(len(corpus))],
+            tokenize_strings(corpus),
+            labels,
+        )

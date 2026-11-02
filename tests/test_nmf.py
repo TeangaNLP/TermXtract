@@ -1,3 +1,4 @@
+import re
 import unittest
 
 from teanga import Corpus
@@ -74,3 +75,32 @@ class TestNMFExtraction(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def teanga_corpus(texts):
+    corpus = Corpus()
+    corpus.add_layer_meta("text")
+    corpus.add_layer_meta("words", layer_type="span", base="text")
+    for text in texts:
+        doc = corpus.add_doc(text)
+        doc.words = [match.span() for match in re.finditer(r"\w+", text)]
+    return corpus
+
+
+def test_teanga_matches_strings():
+    # Lower-case text, so the Teanga words match the lower-cased plain-text words
+    texts = [
+        "the chloroplast of a plant cell absorbs light energy",
+        "light energy is converted into chemical energy in a plant",
+        "plant cells store chemical energy as glucose",
+    ]
+    extractor = TermExtractor(method="nmf", n=2, n_topics=2, stopwords=None)
+    from_strings = extractor.extract(texts).terms
+    from_teanga = extractor.extract(teanga_corpus(texts)).terms
+    assert [doc["terms"] for doc in from_teanga] == [
+        doc["terms"] for doc in from_strings
+    ]
+    terms = {t["term"] for t in from_teanga[0]["terms"]}
+    # One-letter words are kept, and no n-gram is formed across a skipped word
+    assert {"a", "a plant", "of a"} <= terms
+    assert not {"of plant", "plant plant"} & terms

@@ -58,9 +58,7 @@ that was previously only available from GitHub.
   parameters: `offspring_size`, `runs` and `random_state`; `population_size` now
   defaults to 20. Roger raises a `ValueError` unless at least one candidate is
   labelled `1` and one `0`; a training sample without positive labels used to get an
-  undefined (NaN) fitness, which the search treated as the best (#27). On Teanga input,
-  Roger reads the words layer instead of re-tokenizing joined n-grams, which generated
-  spurious candidates (#32).
+  undefined (NaN) fitness, which the search treated as the best (#27).
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
@@ -78,6 +76,13 @@ that was previously only available from GitHub.
   capital letters were never matched.
 - AdaBoost and Roger list candidates with equal scores in order of first occurrence, so
   their results no longer change from run to run.
+- NMF, AdaBoost and Roger use the Teanga `words` layer as it is. They used to join the
+  n-grams of each document into a string and generate n-grams from it again, which
+  created spurious candidates such as `neural neural` and inflated counts, so Teanga
+  and plain-text input gave different scores (#32). AdaBoost and Roger lower-case the
+  Teanga words, as they do plain text, to match the labels.
+- NMF keeps one-letter words such as `a`. It used to drop them, which also created
+  n-grams across them, such as `of plant` from `of a plant`.
 - `alpha=0` and `beta=0` are passed to `basic` and `combobasic` instead of being replaced
   by the default of 0.5. `alpha`, `beta` and `num_topics` no longer accept `None`.
 - RIDF no longer crashes when no threshold is given.
