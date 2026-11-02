@@ -243,3 +243,35 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
         [(_, tags)] = extractor.create_training_data([(tokens, "")], labels)
 
         self.assertEqual(tags, ["B-T", "T", "n", "n", "n", "n", "B-T", "T"])
+
+    def test_each_document_lists_the_terms_tagged_in_it(self):
+        from unittest import mock
+
+        from termxtract.stopwords import load_stopwords
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.is_trained = True
+        extractor.stopwords = load_stopwords("english")
+        documents = [
+            [(["Plant", "cells", "grow", "."], ""), (["Cells", "divide", "."], "")],
+            [(["A", "cell", "wall", "."], "")],
+        ]
+        # The model tags "plant cells" and "cells" in document 0, "cell wall" in 1
+        sentence_terms = [{"plant cells": 1.0}, {"cells": 1.0}, {"cell wall": 1.0}]
+        with (
+            mock.patch.object(extractor, "tokenize_and_align_labels"),
+            mock.patch.object(extractor, "create_torch_dataset"),
+            mock.patch.object(
+                extractor, "predict_sentences", return_value=sentence_terms
+            ),
+        ):
+            results = extractor.extract_documents(None, ["d0", "d1"], documents)
+
+        terms = {
+            doc["doc_id"]: {t["term"] for t in doc["terms"]} for doc in results.terms
+        }
+        # "cell" is not listed for document 0, although "cells" contains it
+        self.assertEqual(terms, {"d0": {"plant cells", "cells"}, "d1": {"cell wall"}})

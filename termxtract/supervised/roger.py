@@ -366,14 +366,23 @@ class RogerTermExtractor:
     def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
         self.train(docs, labels)
         term_scores = self.predict(docs)
+        # Each document lists the corpus-level scores of its own candidates
         return ATEResults(
             corpus=corpus,
             terms=[
                 {
                     "doc_id": doc_id,
-                    "terms": rank_terms(term_scores, stopwords=self.stopwords),
+                    "terms": rank_terms(
+                        {
+                            term: term_scores[term]
+                            for term in dict.fromkeys(
+                                " ".join(ngram) for ngram in self._ngrams([words])
+                            )
+                        },
+                        stopwords=self.stopwords,
+                    ),
                 }
-                for doc_id in doc_ids
+                for doc_id, words in zip(doc_ids, docs)
             ],
         )
 

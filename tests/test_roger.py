@@ -38,7 +38,7 @@ def roger(**params):
 
 
 def scores(results):
-    return {t["term"]: t["score"] for t in results.terms[0]["terms"]}
+    return {t["term"]: t["score"] for doc in results.terms for t in doc["terms"]}
 
 
 def teanga_corpus(texts):
@@ -112,7 +112,9 @@ def test_reproducible():
 def test_teanga_matches_strings():
     from_strings = roger().extract(CORPUS, LABELS)
     from_teanga = roger().extract(teanga_corpus(CORPUS), LABELS)
-    assert from_teanga.terms[0]["terms"] == from_strings.terms[0]["terms"]
+    assert [d["terms"] for d in from_teanga.terms] == [
+        d["terms"] for d in from_strings.terms
+    ]
     assert [doc["doc_id"] for doc in from_teanga.terms] == list(
         from_teanga.corpus.doc_ids
     )
@@ -148,3 +150,27 @@ def test_predict_new_documents():
         "learn ranking",
         "ranking functions",
     }
+
+
+@pytest.mark.parametrize("method", ["roger", "adaboost"])
+def test_each_document_lists_its_own_candidates(method):
+    params = (
+        {"generations": 5, "runs": 2, "random_state": 0} if method == "roger" else {}
+    )
+    results = SupervisedTermExtractor(
+        method=method, n=2, stopwords=None, **params
+    ).extract(CORPUS, LABELS)
+    corpus_scores = {}
+    for doc, words in zip(results.terms, tokenize_strings(CORPUS)):
+        doc_ngrams = {
+            " ".join(words[i : i + k])
+            for k in (1, 2)
+            for i in range(len(words) - k + 1)
+        }
+        doc_terms = {t["term"]: t["score"] for t in doc["terms"]}
+        assert set(doc_terms) <= doc_ngrams
+        for term, score in doc_terms.items():
+            # Scores are corpus-level, so a term has the same score in every document
+            assert corpus_scores.setdefault(term, score) == score
+    assert "genetic algorithms" not in {t["term"] for t in results.terms[1]["terms"]}
+    assert "genetic algorithms" in {t["term"] for t in results.terms[2]["terms"]}

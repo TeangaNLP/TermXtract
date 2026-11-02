@@ -60,12 +60,20 @@ The AdaBoost method trains an [AdaBoost](https://scikit-learn.org/stable/modules
 
 The WordNet feature uses the [`wn`](https://github.com/goodmami/wn) package and Open English WordNet. The lexicon is **downloaded automatically on first use** (about 13 MB). To download it in advance, for example on a machine that will be offline, run `python -m wn download oewn:2025+`.
 
+The supervised methods score each candidate once for the whole corpus, and each document's entry in `results.terms` lists the candidates that occur in that document, with their corpus-level scores. To see the ranking of the whole corpus, merge the documents:
+
 ```python
+def corpus_ranking(results):
+    """Merge the terms of all documents into one ranking."""
+    scores = {t["term"]: t["score"] for doc in results.terms for t in doc["terms"]}
+    return sorted(scores.items(), key=lambda item: item[1], reverse=True)
+
+
 extractor = SupervisedTermExtractor(method="adaboost", n=2)
 results = extractor.extract(corpus, labels)
 
-for term in results.terms[0]["terms"][:10]:
-    print(f"{term['score']:.3f}  {term['term']}")
+for term, score in corpus_ranking(results)[:10]:
+    print(f"{score:.3f}  {term}")
 ```
 
 ```text
@@ -83,14 +91,22 @@ for term in results.terms[0]["terms"][:10]:
 
 The score is the classifier's **probability that the candidate is a term**, between 0 and 1. Most of the labelled terms come first, and the phrases labelled `0`, such as `takes place`, rank lower. But the labelled term `light energy` also scores 0.465, the same as `takes place`: neither is in WordNet, neither has a Greek or Latin morpheme, and both occur twice, so the features cannot tell them apart. Each feature takes only a few values on a corpus this small, so many candidates share a score.
 
-The supervised methods score each candidate once for the whole corpus. At present, every document's entry in `results.terms` holds the **same ranking of all the candidates in the corpus**, not just the candidates in that document, so it is enough to read `results.terms[0]`.
+Each document lists only its own candidates. The first document, "Photosynthesis takes place in the chloroplast of a plant cell.", lists:
+
+```python
+print([term["term"] for term in results.terms[0]["terms"]])
+```
+
+```text
+['photosynthesis', 'chloroplast', 'plant cell', 'takes place', 'photosynthesis takes', 'takes', 'place', 'plant', 'cell']
+```
 
 Use `threshold` to keep only candidates the classifier considers more likely than not to be terms:
 
 ```python
 extractor = SupervisedTermExtractor(method="adaboost", n=2, threshold=0.5)
 results = extractor.extract(corpus, labels)
-print([term["term"] for term in results.terms[0]["terms"]])
+print([term for term, _ in corpus_ranking(results)])
 ```
 
 ```text
@@ -146,8 +162,8 @@ roger_labels = {
 extractor = SupervisedTermExtractor(method="roger", n=2, random_state=0)
 results = extractor.extract(corpus, roger_labels)
 
-for term in results.terms[0]["terms"][:8]:
-    print(f"{term['score']:.3f}  {term['term']}")
+for term, score in corpus_ranking(results)[:8]:
+    print(f"{score:.3f}  {term}")
 ```
 
 ```text
@@ -198,7 +214,7 @@ Things to know about this method:
 
 - **Only the terms labelled `1` are used.** Every occurrence of a labelled term in the corpus is tagged as a term, and all other tokens as non-terms, so the `0` labels make no difference. Labels are matched case-insensitively.
 - **Every extracted term has a score of 1.0.** The model tags terms rather than scoring them, so `threshold` is not used.
-- **Each document lists the extracted terms that occur in it.**
+- **Each document lists the terms the model tagged in it.**
 - `n` (default 6) is the longest term, in words, that is tagged from the labels. `max_length` (default 512) is the maximum number of model tokens per sentence; longer sentences are truncated.
 - `language` (default `"en"`) selects the [Moses](https://github.com/hplt-project/sacremoses) tokenizer used to split sentences into words.
 - Training writes checkpoints to `./results` and logs to `./logs` in the current directory.

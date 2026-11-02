@@ -311,18 +311,19 @@ class TokenClassificationTermExtractor:
         self.trainer.train()
         self.is_trained = True
 
-    def predict(
+    def predict_sentences(
         self, tokenized_dataset: torch.utils.data.Dataset, texts
-    ) -> dict[str, float]:
+    ) -> list[dict[str, float]]:
         """
-        Make predictions using the trained model.
+        Make predictions using the trained model, for each sentence.
 
         Args:
             tokenized_dataset: Dataset for prediction.
             texts (List[List[str]]): Original tokenized texts.
 
         Returns:
-            Dict[str, float]: Dictionary of extracted terms with confidence scores.
+            List[Dict[str, float]]: The terms extracted from each sentence, with
+            confidence scores.
         """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
@@ -347,23 +348,48 @@ class TokenClassificationTermExtractor:
             for prediction, label in zip(predictions, labels)  # type: ignore[arg-type]
         ]
 
-        # Extract terms
-        return self.extract_terms_from_predictions(true_predictions, texts)
+        # Extract the terms of each sentence
+        return [
+            self.extract_terms_from_predictions([prediction], [text])
+            for prediction, text in zip(true_predictions, texts)
+        ]
 
-    def prepare_teanga_corpus(self, corpus: Corpus) -> list[tuple[list[str], str]]:
+    def predict(
+        self, tokenized_dataset: torch.utils.data.Dataset, texts
+    ) -> dict[str, float]:
         """
-        Prepare a Teanga corpus for term extraction.
+        Make predictions using the trained model.
+
+        Args:
+            tokenized_dataset: Dataset for prediction.
+            texts (List[List[str]]): Original tokenized texts.
+
+        Returns:
+            Dict[str, float]: Dictionary of extracted terms with confidence scores.
+        """
+        term_scores: dict[str, float] = {}
+        for sentence_terms in self.predict_sentences(tokenized_dataset, texts):
+            term_scores.update(sentence_terms)
+        return term_scores
+
+    def prepare_teanga_documents(
+        self, corpus: Corpus
+    ) -> list[list[tuple[list[str], str]]]:
+        """
+        Split each document of a Teanga corpus into sentences.
 
         Args:
             corpus: Teanga corpus object.
 
         Returns:
-            List[Tuple[List[str], str]]: List of (tokens, original sentence) tuples.
+            List[List[Tuple[List[str], str]]]: For each document, its (tokens, original
+            sentence) tuples.
         """
-        sentence_list = []
+        documents = []
 
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
+            sentence_list = []
 
             # Extract tokens from document
             tokens = []
@@ -388,7 +414,66 @@ class TokenClassificationTermExtractor:
             if current_sentence:
                 sentence_list.append((current_sentence, current_text.strip()))
 
-        return sentence_list
+            documents.append(sentence_list)
+
+        return documents
+
+    def prepare_teanga_corpus(self, corpus: Corpus) -> list[tuple[list[str], str]]:
+        """
+        Prepare a Teanga corpus for term extraction.
+
+        Args:
+            corpus: Teanga corpus object.
+
+        Returns:
+            List[Tuple[List[str], str]]: List of (tokens, original sentence) tuples.
+        """
+        return [
+            sentence
+            for sentences in self.prepare_teanga_documents(corpus)
+            for sentence in sentences
+        ]
+
+    def extract_documents(
+        self, corpus, doc_ids: list[str], documents: list[list[tuple[list[str], str]]]
+    ) -> ATEResults:
+        """
+        Tag the sentences of each document with the trained model.
+
+        Each document lists the terms the model tagged in its own sentences.
+
+        Args:
+            corpus: The input corpus, returned in the results.
+            doc_ids (List[str]): The ID of each document.
+            documents (List[List[Tuple[List[str], str]]]): For each document, its
+                (tokens, original sentence) tuples.
+
+        Returns:
+            ATEResults: Results object with extracted terms.
+        """
+        if not self.is_trained:
+            raise RuntimeError("Model must be trained before prediction.")
+
+        # Tag every sentence, with dummy labels (all "n") for the tokenizer
+        texts = [tokens for sentences in documents for tokens, _ in sentences]
+        tags = [["n"] * len(tokens) for tokens in texts]
+        tokenized_inputs = self.tokenize_and_align_labels(texts, tags)
+        tokenized_dataset = self.create_torch_dataset(tokenized_inputs)
+        sentence_terms = iter(self.predict_sentences(tokenized_dataset, texts))
+
+        terms_by_doc = []
+        for doc_id, sentences in zip(doc_ids, documents):
+            doc_scores: dict[str, float] = {}
+            for _ in sentences:
+                doc_scores.update(next(sentence_terms))
+            terms_by_doc.append(
+                {
+                    "doc_id": doc_id,
+                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
+                }
+            )
+
+        return ATEResults(corpus=corpus, terms=terms_by_doc)
 
     def extract_terms_teanga(
         self, corpus: Corpus, labels: dict[str, int] | None = None
@@ -407,43 +492,9 @@ class TokenClassificationTermExtractor:
         if labels is not None:
             return self.train_terms_teanga(corpus, labels)
 
-        # Prepare corpus for prediction
-        sentence_list = self.prepare_teanga_corpus(corpus)
-
-        # Create dummy labels (all "n") for the tokenizer
-        training_data = []
-        for tokens, _ in sentence_list:
-            training_data.append((tokens, ["n"] * len(tokens)))
-
-        # Separate tokens and tags
-        texts = [tup[0] for tup in training_data]
-        tags = [tup[1] for tup in training_data]
-
-        # Tokenize for the model
-        tokenized_inputs = self.tokenize_and_align_labels(texts, tags)
-        tokenized_dataset = self.create_torch_dataset(tokenized_inputs)
-
-        # Get predictions
-        term_scores = self.predict(tokenized_dataset, texts)
-
-        # Create results object
-        terms_by_doc = []
-        for doc_id in corpus.doc_ids:
-            doc_text = corpus.doc_by_id(doc_id).text.lower()
-            # Keep the terms that appear in the document
-            doc_scores = {
-                term: score
-                for term, score in term_scores.items()
-                if term.lower() in doc_text
-            }
-            terms_by_doc.append(
-                {
-                    "doc_id": doc_id,
-                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
-                }
-            )
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return self.extract_documents(
+            corpus, list(corpus.doc_ids), self.prepare_teanga_documents(corpus)
+        )
 
     def train_terms_teanga(self, corpus: Corpus, labels: dict[str, int]) -> ATEResults:
         """
@@ -495,48 +546,11 @@ class TokenClassificationTermExtractor:
         if labels is not None:
             return self.train_terms_strings(corpus, labels)
 
-        if not self.is_trained:
-            raise RuntimeError("Model must be trained before prediction.")
-
-        # Preprocess text
-        sentence_list = []
-        for doc in corpus:
-            sentence_list.extend(self.preprocess_text(doc))
-
-        # Create dummy labels (all "n") for the tokenizer
-        training_data = []
-        for tokens, _ in sentence_list:
-            training_data.append((tokens, ["n"] * len(tokens)))
-
-        # Separate tokens and tags
-        texts = [tup[0] for tup in training_data]
-        tags = [tup[1] for tup in training_data]
-
-        # Tokenize for the model
-        tokenized_inputs = self.tokenize_and_align_labels(texts, tags)
-        tokenized_dataset = self.create_torch_dataset(tokenized_inputs)
-
-        # Get predictions
-        term_scores = self.predict(tokenized_dataset, texts)
-
-        # Create results object
-        terms_by_doc = []
-        for i, doc in enumerate(corpus):
-            doc_lower = doc.lower()
-            # Keep the terms that appear in the document
-            doc_scores = {
-                term: score
-                for term, score in term_scores.items()
-                if term.lower() in doc_lower
-            }
-            terms_by_doc.append(
-                {
-                    "doc_id": f"doc_{i}",
-                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
-                }
-            )
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return self.extract_documents(
+            corpus,
+            [f"doc_{i}" for i in range(len(corpus))],
+            [self.preprocess_text(doc) for doc in corpus],
+        )
 
     def train_terms_strings(
         self, corpus: list[str], labels: dict[str, int]

@@ -83,6 +83,12 @@ that was previously only available from GitHub.
   Teanga words, as they do plain text, to match the labels.
 - NMF keeps one-letter words such as `a`. It used to drop them, which also created
   n-grams across them, such as `of plant` from `of a plant`.
+- Each document's entry in `results.terms` lists only its own terms for the supervised
+  methods (#31). AdaBoost and Roger used to list every candidate in the corpus under
+  every document; they now list the document's candidates, with their corpus-level
+  scores. Token classification lists the terms the model tagged in the document's own
+  sentences, instead of every predicted term that occurs as a substring of the
+  document, so `cell` is no longer listed for a document that only contains `cells`.
 - `alpha=0` and `beta=0` are passed to `basic` and `combobasic` instead of being replaced
   by the default of 0.5. `alpha`, `beta` and `num_topics` no longer accept `None`.
 - RIDF no longer crashes when no threshold is given.
