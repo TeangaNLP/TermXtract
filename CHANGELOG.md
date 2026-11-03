@@ -38,6 +38,10 @@ that was previously only available from GitHub.
 - README, API reference for every extractor, a rewritten TF-IDF tutorial, and tutorials
   for the reference-corpus and supervised methods at <https://teanga.io/TermXtract/>.
 - Apache-2.0 license and full package metadata.
+- `termxtract.datasets`, which loads term-extraction datasets as Teanga corpora with
+  their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
+  sources on first use, checked against a SHA-256 checksum, and cached under
+  `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
 
 ### Changed
 
