@@ -15,6 +15,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 | Name | Dataset | Languages | Domains | License | Splits | Options |
 |------|---------|-----------|---------|---------|--------|---------|
 | `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
+| `genia` | [GENIA term corpus 3.02](http://www.geniaproject.org/genia-corpus/term-corpus) | en | biomedicine | GENIA Project License (annotations CC BY 3.0) | | `nested`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
 ## ACTER
@@ -42,6 +43,19 @@ Two annotators annotated the abstracts, and 171 were annotated by both. By defau
         - load_acl_rd_tec
         - CLASSES
         - PTB_TO_UPOS
+
+## GENIA
+
+The GENIA term corpus 3.02 annotates biomedical terms in 2,000 MEDLINE abstracts on transcription factors in human blood cells, in 36 classes of the GENIA ontology such as `protein_molecule` and `cell_type`. Each title and abstract is a document. It is downloaded from NaCTeM. The annotations are licensed under CC BY 3.0 and must be attributed as "Corpus annotations (c) GENIA Project"; the abstracts are under PubMed's terms.
+
+Terms nest deeply in GENIA (`IL-2 gene expression` contains `IL-2 gene`, which contains `IL-2`). By default only the outermost terms are gold terms; pass `nested=True` for all of them. Coordinated terms such as `alpha- and beta-globin` are left out. The corpus is not tokenised, so the loader splits the text at whitespace and splits punctuation off the ends of words, keeping words such as `IL-2`, `Ca2+` and `1,25(OH)2D3` whole so that extracted terms can match the gold terms.
+
+::: termxtract.datasets.genia
+    options:
+      show_root_heading: false
+      members:
+        - load_genia
+        - CLASSES
 
 ## Adding a dataset
 
