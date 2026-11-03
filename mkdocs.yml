@@ -33,6 +33,7 @@ nav:
   - TermExtractor: api/term_extractor.md
   - SupervisedTermExtractor: api/supervised_term_extractor.md
   - ATEResults: api/results.md
+  - Evaluation: api/evaluation.md
   - Datasets: api/datasets.md
   - Filters and Layers: api/filters.md
   - Unsupervised Extractors:

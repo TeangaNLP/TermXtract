@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .evaluation import evaluate
     from .supervised.term_extractor import SupervisedTermExtractor
     from .unsupervised.term_extractor import TermExtractor
     from .utils import ATEResults
@@ -23,9 +24,10 @@ _LAZY_IMPORTS = {
     "TermExtractor": ".unsupervised.term_extractor",
     "SupervisedTermExtractor": ".supervised.term_extractor",
     "ATEResults": ".utils",
+    "evaluate": ".evaluation",
 }
 
-__all__ = ["ATEResults", "SupervisedTermExtractor", "TermExtractor"]
+__all__ = ["ATEResults", "SupervisedTermExtractor", "TermExtractor", "evaluate"]
 
 
 def __getattr__(name: str):
