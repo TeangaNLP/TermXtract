@@ -53,6 +53,8 @@ that was previously only available from GitHub.
 - The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
   computational linguistics papers with terms in seven classes, a choice of annotator,
   and lemmas and part-of-speech tags (#39).
+- The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
+  biomedical terms in 36 classes, outermost or nested (#38).
 
 ### Changed
 
