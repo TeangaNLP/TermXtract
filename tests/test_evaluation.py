@@ -4,7 +4,12 @@ import pytest
 from teanga import Corpus
 
 from termxtract import TermExtractor, evaluate
-from termxtract.evaluation import average_precision, normalize_term, precision_at
+from termxtract.evaluation import (
+    average_precision,
+    matthews_corrcoef,
+    normalize_term,
+    precision_at,
+)
 from termxtract.utils import ATEResults
 
 
@@ -86,6 +91,26 @@ def test_top_k():
     assert (scores.true_positives, scores.false_positives) == (1, 1)
     # The ranking scores still use the whole ranking
     assert scores.average_precision == pytest.approx((1 / 1 + 2 / 4) / 4)
+    # "care" and "blood pressure" were scored but cut off; "blood pressure" is gold
+    assert (scores.false_negatives, scores.true_negatives) == (3, 1)
+    assert scores.mcc == pytest.approx((1 * 1 - 1 * 3) / (2 * 4 * 2 * 4) ** 0.5)
+
+
+def test_mcc_without_cutoff():
+    # Every scored term is extracted, so there are no true negatives
+    scores = evaluate(RESULTS, GOLD)
+    assert scores.true_negatives == 0
+    assert scores.mcc == pytest.approx((0 - 2 * 2) / (4 * 4 * 2 * 2) ** 0.5)
+
+
+def test_matthews_corrcoef():
+    assert matthews_corrcoef(5, 0, 0, 5) == 1.0
+    assert matthews_corrcoef(0, 5, 5, 0) == -1.0
+    assert matthews_corrcoef(3, 1, 2, 4) == pytest.approx(
+        (12 - 2) / (4 * 5 * 5 * 6) ** 0.5
+    )
+    # A zero denominator gives 0
+    assert matthews_corrcoef(0, 0, 3, 0) == 0.0
 
 
 def test_term_lengths():
@@ -125,6 +150,13 @@ def test_micro_top_k_per_document():
     micro = evaluate(RESULTS, PER_DOC, average="micro", top_k=1)
     # Document 1 keeps "heart failure"; document 2 keeps "patients"
     assert (micro.true_positives, micro.false_positives) == (1, 1)
+    # Document 1 cuts off "care" (gold); document 2 cuts off "heart failure" (not
+    # gold) and "blood pressure" (gold)
+    assert (micro.false_negatives, micro.true_negatives) == (3, 1)
+    assert micro.mcc == pytest.approx((1 * 1 - 1 * 3) / (2 * 4 * 2 * 4) ** 0.5)
+    macro = evaluate(RESULTS, PER_DOC, average="macro", top_k=1)
+    # Document 1: tp 1, fn 1, so MCC 0; document 2: fp 1, fn 2, tn 1
+    assert macro.mcc == pytest.approx((0 + (0 - 2) / (1 * 2 * 2 * 3) ** 0.5) / 2)
 
 
 def test_gold_by_document_id():
@@ -217,4 +249,4 @@ def test_errors():
 def test_empty():
     scores = evaluate(results([]), set())
     assert (scores.precision, scores.recall, scores.f1) == (0.0, 0.0, 0.0)
-    assert scores.average_precision == scores.r_precision == 0.0
+    assert scores.average_precision == scores.r_precision == scores.mcc == 0.0

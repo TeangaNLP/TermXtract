@@ -40,8 +40,9 @@ that was previously only available from GitHub.
 - Apache-2.0 license and full package metadata.
 - `termxtract.evaluate()`, which scores extracted terms against a gold standard: a set of
   terms, one set per document, or a Teanga corpus with a span layer of gold terms (#34).
-  It reports precision, recall and F1 over the corpus or per document (micro- or
-  macro-averaged), and average precision, R-precision and precision at K of the ranking.
+  It reports precision, recall, F1 and Matthews correlation coefficient over the corpus
+  or per document (micro- or macro-averaged), and average precision, R-precision and
+  precision at K of the ranking.
 
 ### Changed
 

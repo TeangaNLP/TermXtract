@@ -1,3 +1,4 @@
+import math
 from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TypeAlias
@@ -44,9 +45,13 @@ class Evaluation:
         precision (float): The fraction of extracted terms that are gold terms.
         recall (float): The fraction of gold terms that were extracted.
         f1 (float): The harmonic mean of precision and recall.
+        mcc (float): Matthews correlation coefficient, between -1 and 1, treating the
+            terms the extractor scored as the candidates; see `evaluate`.
         true_positives (int): The number of extracted terms that are gold terms.
         false_positives (int): The number of extracted terms that are not gold terms.
         false_negatives (int): The number of gold terms that were not extracted.
+        true_negatives (int): The number of scored terms that are not gold terms and
+            were not extracted, because they fell outside `top_k`.
         average_precision (float): The mean of the precision at the rank of each gold
             term in the corpus ranking, counting gold terms that were not extracted as
             zero.
@@ -60,9 +65,11 @@ class Evaluation:
     precision: float
     recall: float
     f1: float
+    mcc: float
     true_positives: int
     false_positives: int
     false_negatives: int
+    true_negatives: int
     average_precision: float
     r_precision: float
     precision_at_k: dict[int, float] = field(default_factory=dict)
@@ -92,8 +99,15 @@ def evaluate(
       distinct gold terms, as in the TermEval shared task.
     - `"micro"`: the terms of each document against that document's gold terms, adding
       up the true positives, false positives and false negatives of all documents.
-    - `"macro"`: the same per-document comparison, averaging the precision, recall and
-      F1 of the documents.
+    - `"macro"`: the same per-document comparison, averaging the precision, recall,
+      F1 and MCC of the documents.
+
+    Matthews correlation coefficient (MCC) also needs true negatives. The candidates are
+    the terms the extractor scored, plus the gold terms, and the true negatives are the
+    scored terms that are not gold terms and were not extracted. Extractors return every
+    candidate they score, so there are true negatives only when `top_k` cuts the
+    ranking; without it, MCC is 0 or negative. As for the other scores, an MCC with a
+    zero denominator is taken as 0.
 
     The ranking scores (average precision, R-precision and precision at K) always use the
     corpus ranking, where each term is ranked by its highest score in any document, and
@@ -142,39 +156,51 @@ def evaluate(
         extracted = set(ranking[:top_k])
         tp = len(extracted & corpus_gold)
         fp, fn = len(extracted) - tp, len(corpus_gold) - tp
+        tn = len(set(ranking) - extracted - corpus_gold)
         precision, recall, f1 = _prf(tp, fp, fn)
+        mcc = matthews_corrcoef(tp, fp, fn, tn)
     else:
         if doc_gold is None:
             raise ValueError(
                 f"average={average!r} needs gold terms for each document, but the gold "
                 "standard is a single collection of terms for the whole corpus."
             )
-        tp = fp = fn = 0
+        tp = fp = fn = tn = 0
         doc_scores = []
         for doc, gold_terms in zip(results.terms, doc_gold):
             doc_ranking = _dedupe(normalize(t["term"]) for t in doc["terms"])
-            extracted = set([term for term in doc_ranking if keep(term)][:top_k])
+            doc_ranking = [term for term in doc_ranking if keep(term)]
+            extracted = set(doc_ranking[:top_k])
             gold_terms = {term for term in gold_terms if keep(term)}
             doc_tp = len(extracted & gold_terms)
             doc_fp, doc_fn = len(extracted) - doc_tp, len(gold_terms) - doc_tp
-            tp, fp, fn = tp + doc_tp, fp + doc_fp, fn + doc_fn
-            doc_scores.append(_prf(doc_tp, doc_fp, doc_fn))
+            doc_tn = len(set(doc_ranking) - extracted - gold_terms)
+            tp, fp, fn, tn = tp + doc_tp, fp + doc_fp, fn + doc_fn, tn + doc_tn
+            doc_scores.append(
+                (
+                    *_prf(doc_tp, doc_fp, doc_fn),
+                    matthews_corrcoef(doc_tp, doc_fp, doc_fn, doc_tn),
+                )
+            )
         if average == "micro":
             precision, recall, f1 = _prf(tp, fp, fn)
+            mcc = matthews_corrcoef(tp, fp, fn, tn)
         else:
             n = len(doc_scores)
-            precision, recall, f1 = (
+            precision, recall, f1, mcc = (
                 (sum(scores[i] for scores in doc_scores) / n if n else 0.0)
-                for i in range(3)
+                for i in range(4)
             )
 
     return Evaluation(
         precision=precision,
         recall=recall,
         f1=f1,
+        mcc=mcc,
         true_positives=tp,
         false_positives=fp,
         false_negatives=fn,
+        true_negatives=tn,
         average_precision=average_precision(ranking, corpus_gold),
         r_precision=precision_at(ranking, corpus_gold, len(corpus_gold)),
         precision_at_k={k: precision_at(ranking, corpus_gold, k) for k in ks},
@@ -223,6 +249,23 @@ def average_precision(ranking: list[str], gold: Collection[str]) -> float:
             hits += 1
             total += hits / rank
     return total / len(gold)
+
+
+def matthews_corrcoef(tp: int, fp: int, fn: int, tn: int) -> float:
+    """
+    Get Matthews correlation coefficient from the counts of a binary classification.
+
+    Args:
+        tp (int): The number of true positives.
+        fp (int): The number of false positives.
+        fn (int): The number of false negatives.
+        tn (int): The number of true negatives.
+
+    Returns:
+        float: The coefficient, between -1 and 1, or 0 if its denominator is 0.
+    """
+    denominator = math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+    return (tp * tn - fp * fn) / denominator if denominator else 0.0
 
 
 def _prf(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
