@@ -43,6 +43,10 @@ that was previously only available from GitHub.
   It reports precision, recall, F1 and Matthews correlation coefficient over the corpus
   or per document (micro- or macro-averaged), and average precision, R-precision and
   precision at K of the ranking.
+- `termxtract.datasets`, which loads term-extraction datasets as Teanga corpora with
+  their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
+  sources on first use, checked against a SHA-256 checksum, and cached under
+  `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
 
 ### Changed
 
