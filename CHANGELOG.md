@@ -50,6 +50,9 @@ that was previously only available from GitHub.
 - The ACTER 1.5 dataset, as `datasets.load("acter")`, in English, French and Dutch, with
   the TermEval 2020 train and test splits, gold terms with their labels, and IOB labels
   (#36).
+- The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
+  computational linguistics papers with terms in seven classes, a choice of annotator,
+  and lemmas and part-of-speech tags (#39).
 
 ### Changed
 

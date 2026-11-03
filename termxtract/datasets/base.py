@@ -20,6 +20,13 @@ CATEGORY_LAYER = "categories"
 """The sequence layer, based on `GOLD_LAYER`, that holds the class of each gold term,
 for datasets that classify their terms."""
 
+SOURCE_LAYER = "source"
+"""The characters layer holding the name of the file or record each document comes
+from, such as `htfl_en_001`."""
+
+SENTENCES_LAYER = "sentences"
+"""The span layer of the sentences of each document."""
+
 
 @dataclass(frozen=True)
 class Resource:
