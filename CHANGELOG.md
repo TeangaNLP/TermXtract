@@ -55,6 +55,8 @@ that was previously only available from GitHub.
   and lemmas and part-of-speech tags (#39).
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
+- `BENCHMARKS.md`, with the results of every method on ACTER, the ACL RD-TEC and GENIA
+  next to published results, and `benchmarks/english.py`, which reproduces them (#55).
 
 ### Changed
 
