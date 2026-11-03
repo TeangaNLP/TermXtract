@@ -108,8 +108,7 @@ A2). The ATR4S results for GENIA need part-of-speech tags to reproduce.
 ### Results
 
 Times are in seconds on a desktop machine (32 cores, with an RTX 4090 for token
-classification) and include training for the supervised methods. Roger's result is
-still to come: with its default settings, training takes hours (#60).
+classification) and include training for the supervised methods.
 
 #### ACTER
 
@@ -128,6 +127,7 @@ still to come: with its default settings, training takes hours (#60).
 | nmf | 6,376 | 0.158 | 58.0 | 4.4 | 44.4 | 14.5 | 35.9 | 20.2 | 29.4 | 25.8 | 18 |
 | rake | 928 | 0.217 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 2 |
 | adaboost | 12,283 | 0.075 | 53.0 | 4.0 | 25.4 | 8.3 | 21.2 | 11.9 | 20.1 | 17.7 | 489 |
+| roger | 8,989 | 0.089 | 34.0 | 2.6 | 25.8 | 8.4 | 20.5 | 11.5 | 15.5 | 13.6 | 9758 |
 | token-classification | 1,896 | 0.432 | 73.0 | 5.5 | 68.2 | 22.3 | 64.8 | 36.5 | 61.8 | 52.7 | 383 |
 
 #### ACL RD-TEC 2.0
@@ -197,7 +197,7 @@ results above are of the code as it is.
   "95 % ci ,", which top the C-value ranking on ACTER. The benchmark filters them out.
 - **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
   (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
-  training candidate for every offspring (#60).
+  training candidate for every offspring: it took 2.7 hours to train on ACTER (#60).
 - **Token classification** saves a checkpoint of the model, with its optimizer state,
   every 500 training steps in `./results`, several gigabytes in all for the default
   model, which filled the temporary directory of the first run.
