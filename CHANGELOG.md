@@ -47,6 +47,9 @@ that was previously only available from GitHub.
   their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
   sources on first use, checked against a SHA-256 checksum, and cached under
   `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
+- The ACTER 1.5 dataset, as `datasets.load("acter")`, in English, French and Dutch, with
+  the TermEval 2020 train and test splits, gold terms with their labels, and IOB labels
+  (#36).
 
 ### Changed
 
