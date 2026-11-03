@@ -15,10 +15,12 @@ extractor and, as the gold standard, to `termxtract.evaluate`.
 """
 
 # Importing a dataset module registers the dataset
-from . import acter
+from . import acl_rd_tec, acter
 from .base import (
     CATEGORY_LAYER,
     GOLD_LAYER,
+    SENTENCES_LAYER,
+    SOURCE_LAYER,
     DatasetInfo,
     Resource,
     data_home,
@@ -33,8 +35,11 @@ from .base import (
 __all__ = [
     "CATEGORY_LAYER",
     "GOLD_LAYER",
+    "SENTENCES_LAYER",
+    "SOURCE_LAYER",
     "DatasetInfo",
     "Resource",
+    "acl_rd_tec",
     "acter",
     "data_home",
     "download",

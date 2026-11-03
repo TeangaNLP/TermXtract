@@ -14,6 +14,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 
 | Name | Dataset | Languages | Domains | License | Splits | Options |
 |------|---------|-----------|---------|---------|--------|---------|
+| `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
 ## ACTER
@@ -27,6 +28,20 @@ ACTER lists the terms of each language and domain, not their occurrences, so the
       show_root_heading: false
       members:
         - load_acter
+
+## ACL RD-TEC 2.0
+
+The ACL RD-TEC 2.0 annotates terms in context in 300 abstracts of ACL Anthology papers (1978–2006), and classes each term as a method or technique (`tech`), tool, language resource (`lr`), named language resource (`lr-prod`), model, measure (`measure(ment)`) or other. It is downloaded from LINDAT/CLARIN.
+
+Two annotators annotated the abstracts, and 171 were annotated by both. By default each abstract is loaded once, with the annotations of annotator 1 where there are two, since annotator 1 was the more consistent in the authors' self-agreement study; pass `annotator=1` or `annotator=2` for one annotator's abstracts and annotations. The documents also have the `lemma`, `pos` (Penn Treebank) and `upos` (Universal Dependencies) layers of the distribution's tagged files, so `pos_pattern="noun_phrase"` works without a tagger.
+
+::: termxtract.datasets.acl_rd_tec
+    options:
+      show_root_heading: false
+      members:
+        - load_acl_rd_tec
+        - CLASSES
+        - PTB_TO_UPOS
 
 ## Adding a dataset
 
@@ -47,3 +62,5 @@ A dataset is a `DatasetInfo` passed to `register`. Its `loader` receives the pat
         - Resource
         - GOLD_LAYER
         - CATEGORY_LAYER
+        - SOURCE_LAYER
+        - SENTENCES_LAYER

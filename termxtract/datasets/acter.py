@@ -8,7 +8,15 @@ from pathlib import Path
 
 from teanga import Corpus
 
-from .base import CATEGORY_LAYER, GOLD_LAYER, DatasetInfo, Resource, register
+from .base import (
+    CATEGORY_LAYER,
+    GOLD_LAYER,
+    SENTENCES_LAYER,
+    SOURCE_LAYER,
+    DatasetInfo,
+    Resource,
+    register,
+)
 
 _COMMIT = "f05b09e985cad37eeaa8daa8b3f383197aa5324e"
 """The commit of the v1.5 tag of https://github.com/AylaRT/ACTER."""
@@ -28,13 +36,6 @@ NAMED_ENTITY = "Named_Entity"
 
 SPLITS = {"train": ("corp", "equi", "wind"), "test": ("htfl",)}
 """The domains of each split, as in the TermEval 2020 shared task."""
-
-SOURCE_LAYER = "source"
-"""The characters layer holding the name of the file each document comes from, such as
-`htfl_en_001`."""
-
-SENTENCES_LAYER = "sentences"
-"""The span layer of the sentences of each document."""
 
 IOB_LAYER = "iob"
 """The sequence layer, based on `tokens`, of ACTER's IOB labels."""
