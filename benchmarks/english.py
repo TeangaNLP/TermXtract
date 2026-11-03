@@ -76,7 +76,9 @@ REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
 SUPERVISED = ["adaboost", "roger", "token-classification"]
 
 SKIP = {
-    ("genia", "ridf"): "not run: RIDF takes hours on GENIA (see the known problems)",
+    ("genia", "ridf"): (
+        "not run: RIDF takes nearly 8 hours on GENIA (see the known problems)"
+    ),
     (
         "genia",
         "nmf",

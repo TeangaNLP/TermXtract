@@ -930,7 +930,7 @@
         "seconds": 38.39817285351455
       },
       "ridf": {
-        "skipped": "not run: RIDF takes hours on GENIA (see the known problems)"
+        "skipped": "not run: RIDF takes nearly 8 hours on GENIA (see the known problems)"
       },
       "cvalue": {
         "candidates": 44005,

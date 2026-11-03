@@ -152,7 +152,7 @@ classification) and include training for the supervised methods.
 | Method | Candidates | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P@1000 | F1@1000 | P@2000 | F1@2000 | Time (s) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | tfidf | 44,005 | 0.269 | 88.0 | 0.6 | 81.6 | 2.5 | 74.7 | 4.6 | 68.5 | 8.2 | 38 |
-| ridf | not run: RIDF takes hours on GENIA (see the known problems) |
+| ridf | not run: RIDF takes nearly 8 hours on GENIA (see the known problems) |
 | cvalue | 44,005 | 0.082 | 35.0 | 0.2 | 45.0 | 1.4 | 39.7 | 2.4 | 26.5 | 3.2 | 27 |
 | basic | 44,005 | 0.274 | 76.0 | 0.5 | 78.0 | 2.4 | 75.1 | 4.6 | 68.8 | 8.2 | 26 |
 | combobasic | 44,005 | 0.271 | 77.0 | 0.5 | 77.8 | 2.4 | 75.3 | 4.6 | 68.8 | 8.2 | 47 |
@@ -177,8 +177,8 @@ results above are of the code as it is.
 - **Residual IDF** (`ridf`) computes log(observed / expected) document frequency rather
   than log(expected / observed), and the Poisson expectation uses exp(-cf) rather than
   exp(-cf / D), so it favours common n-grams. It is also quadratic, counting each
-  n-gram in each document with `list.count`: 7.5 minutes on ACTER, and hours on GENIA,
-  where it is not run.
+  n-gram in each document with `list.count`: 7.5 minutes on ACTER, and 7 hours 40
+  minutes on GENIA, where the benchmark does not run it.
 - **Basic** and **ComboBasic** also score each document separately, though here this
   does not seem to hurt.
 - **Domain pertinence** (`domainpertinence`) divides the target frequency by the larger
