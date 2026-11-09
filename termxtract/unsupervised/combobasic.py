@@ -25,8 +25,12 @@ class ComboBasicTermExtractor(NestedTermExtractor):
         Initialize the ComboBasic extractor.
 
         Args:
-            alpha (float): Weight for \( e_t \) (number of terms containing \( t \)).
-            beta (float): Weight for \( e'_t \) (number of terms contained in \( t \)).
+            alpha (float): Weight for \( e_t \), the number of candidates containing
+                \( t \). Higher values favour intermediate terms.
+            beta (float): Weight for \( e'_t \), the number of candidates contained in
+                \( t \). Higher values favour more specific terms. ATR4S uses
+                `alpha=0.75` and `beta=0.1`; the results of the English benchmark are
+                within a point of those with the defaults of 0.5.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end

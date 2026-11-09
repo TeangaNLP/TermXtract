@@ -23,7 +23,10 @@ class BasicTermExtractor(NestedTermExtractor):
         Initialize the Basic extractor.
 
         Args:
-            alpha (float): Weight for \( e_t \) (number of terms containing \( t \)).
+            alpha (float): Weight for \( e_t \), the number of candidates containing
+                \( t \). ATR4S uses 0.72, from Astrakhantsev (2015), and Bordea et al.
+                (2013) use 3.5; the results of the English benchmark are within a point
+                of those with the default of 0.5.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
