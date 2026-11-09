@@ -6,7 +6,9 @@ from typing import Any
 
 from teanga import Corpus, Document
 
-from ..layers import words_with_offsets
+from ..candidates import candidate_spans, compile_word_pattern
+from ..layers import pos_tags, words_with_offsets
+from ..pos import compile_pos_pattern
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
@@ -27,9 +29,18 @@ class BaseTermExtractor(ABC):
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         """
         Initialize the extractor.
+
+        The candidates are the n-grams of the corpus that pass the filters set by
+        `stopwords`, `word_pattern`, `pos_pattern` and `min_frequency`. Only the
+        occurrences that pass them are counted, so they change the scores as well as
+        which terms are returned.
 
         Args:
             threshold (Optional[float]): Minimum score for term inclusion.
@@ -44,12 +55,35 @@ class BaseTermExtractor(ABC):
                 as its lemma, so inflected forms such as "cell" and "cells" are counted as
                 one term, which is reported by its lemmas. None (the default) reads the
                 words as written.
+            min_frequency (int): Drop candidates that occur fewer times than this in the
+                corpus. ATR4S uses 2. The default of 1 keeps every candidate.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression, or the name of a pattern in
+                `termxtract.candidates.WORD_PATTERNS`: "alphanumeric" (the default)
+                drops words without a letter or digit, and "atr4s" is ATR4S's noise
+                filter. None keeps every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences
+                whose part-of-speech tags match this pattern. Tags are written in angle
+                brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a pattern in
+                `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
+                default) allows every tag sequence.
+            pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`,
+                based on the words layer: None (the default) for `upos` or, if the
+                corpus has no `upos` layer, `pos`.
         """
         self.threshold = threshold
         self.n = n
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
         self.lemma_layer = lemma_layer
+        self.min_frequency = min_frequency
+        self.word_pattern = (
+            None if word_pattern is None else compile_word_pattern(word_pattern)
+        )
+        self.pos_pattern = (
+            None if pos_pattern is None else compile_pos_pattern(pos_pattern)
+        )
+        self.pos_layer = pos_layer
 
     @abstractmethod
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
@@ -88,6 +122,96 @@ class BaseTermExtractor(ABC):
             text is the word's lemma if `lemma_layer` is set.
         """
         return words_with_offsets(doc, self.words_layer, self.lemma_layer)
+
+    def candidate_ngrams_teanga(
+        self, corpus: Corpus
+    ) -> dict[str, list[tuple[str, tuple[int, int]]]]:
+        """
+        Find the occurrences of the candidates in a Teanga corpus.
+
+        Args:
+            corpus (Corpus): A Teanga corpus with a words layer (see `words_layer`) and,
+                if `pos_pattern` is set, a part-of-speech layer.
+
+        Returns:
+            Dict[str, List[Tuple[str, Tuple[int, int]]]]: For each document ID, every
+            occurrence of a candidate, with its start and end character offsets.
+        """
+        ngrams_by_doc = {}
+        for doc_id in corpus.doc_ids:
+            doc = corpus.doc_by_id(doc_id)
+            words = self.teanga_words(doc)
+            tags = (
+                None
+                if self.pos_pattern is None
+                else pos_tags(doc, self.pos_layer, self.words_layer)
+            )
+            texts = [text for _, _, text in words]
+            ngrams_by_doc[doc_id] = [
+                (" ".join(texts[i:j]), (words[i][0], words[j - 1][1]))
+                for i, j in candidate_spans(
+                    texts,
+                    self.n,
+                    self.stopwords,
+                    self.word_pattern,
+                    tags,
+                    self.pos_pattern,
+                )
+            ]
+        frequent = self.frequent_candidates(
+            ngram for ngrams in ngrams_by_doc.values() for ngram, _ in ngrams
+        )
+        return {
+            doc_id: [(ngram, offset) for ngram, offset in ngrams if ngram in frequent]
+            for doc_id, ngrams in ngrams_by_doc.items()
+        }
+
+    def candidate_ngrams_strings(self, docs: list[list[str]]) -> list[list[str]]:
+        """
+        Find the occurrences of the candidates in documents split into words.
+
+        Args:
+            docs (List[List[str]]): The words of each document.
+
+        Returns:
+            List[List[str]]: Every occurrence of a candidate in each document.
+
+        Raises:
+            ValueError: If `pos_pattern` is set, since plain text has no tags.
+        """
+        if self.pos_pattern is not None:
+            raise ValueError(
+                "pos_pattern needs part-of-speech tags, so it only works with a "
+                "Teanga corpus with a part-of-speech layer."
+            )
+        ngrams_by_doc = [
+            [
+                " ".join(words[i:j])
+                for i, j in candidate_spans(
+                    words, self.n, self.stopwords, self.word_pattern
+                )
+            ]
+            for words in docs
+        ]
+        frequent = self.frequent_candidates(
+            ngram for ngrams in ngrams_by_doc for ngram in ngrams
+        )
+        return [
+            [ngram for ngram in ngrams if ngram in frequent] for ngrams in ngrams_by_doc
+        ]
+
+    def frequent_candidates(self, ngrams: Iterable[str]) -> set[str]:
+        """
+        Find the candidates that occur at least `min_frequency` times.
+
+        Args:
+            ngrams (Iterable[str]): Every occurrence of a candidate in the corpus.
+
+        Returns:
+            Set[str]: The candidates that occur often enough.
+        """
+        counts = Counter(ngrams)
+        return {ngram for ngram, count in counts.items() if count >= self.min_frequency}
 
     def generate_ngrams_teanga(
         self, words_with_offsets: list[tuple[int, int, str]]
@@ -134,21 +258,37 @@ class BaseTermExtractor(ABC):
                     ngrams.append(ngram)
         return ngrams
 
-    def compute_tf(self, ngrams: list[str]) -> dict[str, float]:
+    def compute_tf(
+        self, ngrams: list[str], total: int | None = None
+    ) -> dict[str, float]:
         """
         Compute the relative frequency of each n-gram in a document.
 
         Args:
-            ngrams (List[str]): All n-grams in the document.
+            ngrams (List[str]): The n-grams in the document.
+            total (Optional[int]): The number to divide the counts by, or None for the
+                number of `ngrams`.
 
         Returns:
             Dict[str, float]: Count of each n-gram divided by the total number of n-grams.
         """
         if not ngrams:
             return {}
-        ngram_count = len(ngrams)
+        ngram_count = len(ngrams) if total is None else total
         term_frequencies = Counter(ngrams)
         return {ngram: count / ngram_count for ngram, count in term_frequencies.items()}
+
+    def ngram_total(self, num_words: int) -> int:
+        """
+        Count the n-grams of up to `n` words in a document, candidates or not.
+
+        Args:
+            num_words (int): The number of words of the document.
+
+        Returns:
+            int: The number of n-grams.
+        """
+        return sum(max(0, num_words - k + 1) for k in range(1, self.n + 1))
 
     def compute_idf(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """

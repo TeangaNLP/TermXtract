@@ -82,5 +82,7 @@ def test_combobasic():
 
 def test_stopword_bounded_ngrams_do_not_contain_candidates():
     extractor = CValueTermExtractor(n=2)
-    by_term = extractor.corpus_scores([["the", "heart", "the heart"]])
+    by_term = extractor.corpus_scores(
+        extractor.candidate_ngrams_strings([["the", "heart"]])
+    )
     assert by_term == {"heart": pytest.approx(math.log2(1.1))}

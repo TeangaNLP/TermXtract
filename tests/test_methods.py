@@ -18,7 +18,7 @@ def wrapper_params(wrapper):
     return set(inspect.signature(wrapper.__init__).parameters) - {
         "self",
         "method",
-        *wrapper.FILTER_PARAMS,
+        *getattr(wrapper, "FILTER_PARAMS", ()),
     }
 
 

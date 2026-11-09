@@ -33,6 +33,12 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   are counted, and returned, as one term (#70). `pos_pattern` then matches the lemmas,
   and `datasets.gold_terms` takes a `lemma_layer` too, so gold terms can be compared by
   their lemmas.
+- `min_frequency` and `word_pattern` parameters for every unsupervised method except
+  RAKE (#67). `min_frequency` drops candidates that occur fewer times in the corpus
+  (default 1). `word_pattern` drops candidates with a word that does not match a
+  regular expression, or a named pattern of `termxtract.candidates.WORD_PATTERNS`:
+  `"alphanumeric"` (the default) for words with a letter or digit, or `"atr4s"` for
+  ATR4S's noise filter.
 
 ### Changed
 
@@ -61,6 +67,16 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   candidate scores log f(t) times the sum of its words' largest topic probabilities,
   where f(t) is its frequency in the corpus, not in each document, so a term has the
   same score in every document.
+- *Breaking:* the unsupervised methods except RAKE apply their candidate filters before
+  scoring, as ATR4S does (#67): only the occurrences that neither start nor end with a
+  stopword, match `word_pattern` and, if given, `pos_pattern`, are counted, and only
+  candidates count as containing others in C-value, Basic and ComboBasic. `pos_pattern`
+  used to filter the terms after scoring, without changing their scores; a term whose
+  occurrences do not all match is now scored by the ones that do. Candidates with a
+  word without a letter or digit, such as "95 % CI" on Teanga input, are dropped by
+  default; pass `word_pattern=None` to keep them. TF-IDF's term frequencies are still
+  relative to every n-gram of the document, so its scores only change for terms with
+  occurrences that are filtered out.
 
 ## [0.1.0] - 2026-11-02
 

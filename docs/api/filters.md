@@ -1,6 +1,12 @@
 # Filters and layers
 
-Stopword and part-of-speech filtering, used by the `stopwords` and `pos_pattern` parameters, and the helpers that read words and tags from Teanga corpora.
+Candidate filtering, used by the `stopwords`, `word_pattern`, `pos_pattern` and `min_frequency` parameters, and the helpers that read words and tags from Teanga corpora.
+
+## Candidates
+
+::: termxtract.candidates
+    options:
+      show_root_heading: false
 
 ## Stopwords
 

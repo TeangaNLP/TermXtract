@@ -20,6 +20,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         """
         Initialize the DomainCoherence extractor.
@@ -35,6 +39,14 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
                 lemma of each word, to count inflected forms such as "cell" and "cells"
                 as one term, or None to use the words as written.
+            min_frequency (int): Drop candidates that occur fewer times in the corpus.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression or named pattern ("alphanumeric", "atr4s"),
+                or None to keep every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences
+                whose part-of-speech tags match this pattern, or None.
+            pos_layer (Optional[str]): The part-of-speech layer for `pos_pattern`, or
+                None for `upos` or, failing that, `pos`.
         """
         super().__init__(
             threshold=threshold,
@@ -42,6 +54,10 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             stopwords=stopwords,
             words_layer=words_layer,
             lemma_layer=lemma_layer,
+            min_frequency=min_frequency,
+            word_pattern=word_pattern,
+            pos_pattern=pos_pattern,
+            pos_layer=pos_layer,
         )
         self.window_size = window_size
 
@@ -56,6 +72,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             words_layer=self.words_layer,
             lemma_layer=self.lemma_layer,
         )
+        self._share_filters(basic_extractor)
         basic_results = basic_extractor.extract_terms_teanga(corpus)
 
         # Extract the top 200 terms from Basic results
@@ -95,6 +112,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         basic_extractor = BasicTermExtractor(
             threshold=None, n=self.n, stopwords=self.stopwords
         )
+        self._share_filters(basic_extractor)
         basic_results = basic_extractor.extract_terms_strings(corpus)
 
         # A term has the same score in every document it occurs in, so list it once
@@ -126,6 +144,13 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         ]
 
         return ATEResults(corpus=corpus, terms=terms_by_doc)
+
+    def _share_filters(self, extractor: BaseTermExtractor) -> None:
+        """Give another extractor the candidate filters of this one."""
+        extractor.min_frequency = self.min_frequency
+        extractor.word_pattern = self.word_pattern
+        extractor.pos_pattern = self.pos_pattern
+        extractor.pos_layer = self.pos_layer
 
     def _extract_context_words_teanga(
         self, corpus, top_terms: list[dict[str, Any]]
