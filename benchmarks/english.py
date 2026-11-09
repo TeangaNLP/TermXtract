@@ -7,14 +7,22 @@ the ACL RD-TEC 2.0 and the GENIA term corpus.
     python benchmarks/english.py --markdown           # print the tables of a saved run
 
 The datasets are downloaded on first use (see `termxtract.datasets`), as is the Brown
-corpus, which the reference-corpus methods use as general-language text. The
-token-classification method needs the `transformers` extra, and a GPU to finish in
-reasonable time.
+corpus, which the reference-corpus methods use as general-language text. Corpora without
+part-of-speech tags and lemmas (ACTER, GENIA and Brown) are tagged with spaCy's
+`en_core_web_sm`, which must be installed:
 
-The settings follow ATR4S (Astrakhantsev, 2018), whose results BENCHMARKS.md compares
-with: candidates of up to four words, which neither start nor end with a stopword,
-consist of words with at least one letter or digit, and occur at least twice in the
-corpus, and, where the dataset has part-of-speech tags, match the `noun_phrase` pattern.
+    pip install spacy
+    python -m spacy download en_core_web_sm
+
+The tags are cached next to the datasets. The token-classification method needs the
+`transformers` extra, and a GPU to finish in reasonable time.
+
+The unsupervised methods use the candidates of ATR4S (Astrakhantsev, 2018), whose
+results BENCHMARKS.md compares with: sequences of up to four lemmas, counting only the
+occurrences that neither start nor end with a stopword, match `POS_PATTERN`, and pass
+ATR4S's noise filter (`word_pattern="atr4s"`), and that occur at least twice. The
+supervised methods read the words as written, and keep the candidates that
+occur at least twice and consist of words with a letter or digit.
 """
 
 import argparse
@@ -45,15 +53,26 @@ MIN_FREQUENCY = 2
 KS = (100, 500, 1000, 2000)
 """The numbers of top-ranked terms that precision, recall and F1 are reported at."""
 
-DATASETS: dict[str, tuple[dict[str, Any], dict[str, Any] | None, str | None]] = {
-    # name: (options of the test corpus, options of the training corpus, POS pattern)
+POS_PATTERN = "(<NNS?>|<JJ>|<NNPS?>)*<NNS?|NNPS?>"
+"""
+ATR4S's part-of-speech pattern, `(NN(S)?|JJ|NNP|NN(S?)IN)*(NN(S)?)`, over Penn Treebank
+tags, adapted to spaCy's tags. The prepositions are left out, since the tags of ATR4S's
+noise filter rule them out, and candidates may also end in a proper noun: spaCy tags
+many biomedical names, such as HIV and AP-1, as proper nouns, and without them a third
+of the occurrences of GENIA's gold terms would not be counted.
+"""
+
+TAGGER = "en_core_web_sm"
+"""The spaCy model that tags the corpora without part-of-speech tags and lemmas."""
+
+DATASETS: dict[str, tuple[dict[str, Any], dict[str, Any] | None]] = {
+    # name: (options of the test corpus, options of the training corpus)
     "acter": (
         {"split": "test", "include_named_entities": True},
         {"split": "train", "include_named_entities": True},
-        None,
     ),
-    "acl-rd-tec": ({}, None, "noun_phrase"),
-    "genia": ({}, None, None),
+    "acl-rd-tec": ({}, None),
+    "genia": ({}, None),
 }
 
 TITLES = {"acter": "ACTER", "acl-rd-tec": "ACL RD-TEC 2.0", "genia": "GENIA"}
@@ -75,15 +94,8 @@ UNSUPERVISED = [
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
 SUPERVISED = ["adaboost", "roger", "token-classification"]
 
-SKIP = {
-    ("genia", "ridf"): (
-        "not run: RIDF takes nearly 8 hours on GENIA (see the known problems)"
-    ),
-    (
-        "genia",
-        "nmf",
-    ): "not run: NMF runs out of memory on GENIA (see the known problems)",
-}
+SKIP: dict[tuple[str, str], str] = {}
+"""Methods that are not run on a dataset, as (dataset, method), with the reason."""
 
 BROWN = datasets.Resource(
     "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/corpora/"
@@ -122,18 +134,53 @@ def load_brown() -> Corpus:
     return corpus
 
 
-def ngram_counts(corpus: Corpus) -> Counter[str]:
-    """The number of occurrences of each lowercased n-gram of up to `N` tokens."""
+def tag(corpus: Corpus, name: str) -> Corpus:
+    """
+    Add `pos` (Penn Treebank) and `lemma` layers, based on `tokens`, to a corpus without
+    them, with spaCy's `TAGGER`. The tags are cached under the data directory.
+    """
+    if "pos" in corpus.meta and "lemma" in corpus.meta:
+        return corpus
+    import spacy
+    from spacy.tokens import Doc
+
+    nlp = spacy.load(TAGGER, exclude=["parser", "ner"])
+    model = f"{TAGGER}-{nlp.meta['version']}"
+    path = base.data_home() / "benchmark-tags" / f"{name}-{model}.json"
+    if path.exists():
+        tags = json.loads(path.read_text())
+    else:
+        tags = {}
+        for doc_id in corpus.doc_ids:
+            words = list(corpus.doc_by_id(doc_id)["tokens"].text)
+            tagged = list(nlp(Doc(nlp.vocab, words=words))) if words else []
+            tags[doc_id] = [[t.tag_ for t in tagged], [t.lemma_ for t in tagged]]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(tags))
+    corpus.add_layer_meta("pos", layer_type="seq", base="tokens", data="string")
+    corpus.add_layer_meta("lemma", layer_type="seq", base="tokens", data="string")
+    for doc_id in corpus.doc_ids:
+        doc = corpus.doc_by_id(doc_id)
+        doc.pos, doc.lemma = tags[doc_id]
+    return corpus
+
+
+def ngram_counts(corpus: Corpus, layer: str = "tokens") -> Counter[str]:
+    """The number of occurrences of each lowercased n-gram of up to `N` words, read
+    from the `tokens` layer or from a sequence layer based on it, such as `lemma`."""
     counts: Counter[str] = Counter()
     for doc_id in corpus.doc_ids:
-        words = [normalize_term(w) for w in corpus.doc_by_id(doc_id).tokens.text]
+        doc = corpus.doc_by_id(doc_id)
+        tokens = doc.tokens.text if layer == "tokens" else doc[layer]
+        words = [normalize_term(str(w)) for w in tokens]
         for n in range(1, N + 1):
             counts.update(" ".join(words[i : i + n]) for i in range(len(words) - n + 1))
     return counts
 
 
-def candidate_filter(corpus: Corpus):
-    """The ATR4S-style filter of candidates for a corpus, on top of the stopwords."""
+def written_filter(corpus: Corpus) -> Callable[[str], bool]:
+    """The candidates for the supervised methods: n-grams of words as written that occur
+    at least `MIN_FREQUENCY` times and whose words have a letter or digit."""
     counts = ngram_counts(corpus)
 
     def keep(term: str) -> bool:
@@ -144,7 +191,7 @@ def candidate_filter(corpus: Corpus):
     return keep
 
 
-def ranking(results: ATEResults, keep) -> ATEResults:
+def ranking(results: ATEResults, keep: Callable[[str], bool]) -> ATEResults:
     """The corpus ranking of some results, as a single document, filtered by `keep`."""
     best: dict[str, float] = {}
     for doc in results.terms:
@@ -166,8 +213,10 @@ def ranking(results: ATEResults, keep) -> ATEResults:
 
 def atr4s_average_precision(ranked: list[str], gold: set[str]) -> float:
     """
-    Average precision as ATR4S reports it: of the first K terms, where K is the number
-    of gold terms among the candidates, so a perfect ranking scores 1.
+    Average precision as ATR4S reports it: over the first K terms, where K is the number
+    of gold terms among the candidates, averaging the precision at each gold term found.
+    A perfect ranking scores 1, and a random one about the share of candidates that are
+    gold terms.
     """
     k = len(set(ranked) & gold)
     hits = 0
@@ -176,7 +225,7 @@ def atr4s_average_precision(ranked: list[str], gold: set[str]) -> float:
         if term in gold:
             hits += 1
             total += hits / rank
-    return total / k if k else 0.0
+    return total / hits if hits else 0.0
 
 
 def scores(results: ATEResults, gold: set[str]) -> dict:
@@ -199,17 +248,24 @@ def scores(results: ATEResults, gold: set[str]) -> dict:
     return out
 
 
-def unsupervised(method: str, pos_pattern: str | None, reference: Corpus | None):
+def unsupervised(method: str, reference: Corpus | None):
     """An unsupervised extractor with the benchmark settings."""
     options: dict = {}
     if method in REFERENCE_METHODS:
         options["reference_corpus"] = reference
     if method == "rake":
+        # RAKE reads the text itself, so it has no lemmas
         options["stoplist"] = sorted(load_stopwords("english"))
         options["phrase_delimiters"] = list(".,;:!?()[]\"'")
-    return TermExtractor(
-        method=method, n=N, words_layer="tokens", pos_pattern=pos_pattern, **options
-    )
+    else:
+        options.update(
+            lemma_layer="lemma",
+            min_frequency=MIN_FREQUENCY,
+            word_pattern="atr4s",
+            pos_pattern=POS_PATTERN,
+            pos_layer="pos",
+        )
+    return TermExtractor(method=method, n=N, words_layer="tokens", **options)
 
 
 def supervised(method: str, train: Corpus, test: Corpus) -> ATEResults:
@@ -253,11 +309,15 @@ def run(
     save: Callable[[], None],
 ) -> None:
     """Run the methods on a dataset, adding the scores of each to `out` and saving."""
-    test_options, train_options, pos_pattern = DATASETS[dataset]
-    test = datasets.load(dataset, **test_options)
+    test_options, train_options = DATASETS[dataset]
+    test = tag(datasets.load(dataset, **test_options), dataset)
     train = datasets.load(dataset, **train_options) if train_options else None
-    gold = {normalize_term(t) for t in datasets.gold_terms(test)}
-    keep = candidate_filter(test)
+    # The unsupervised methods find lemmas, and the supervised ones words as written
+    lemma_gold = {
+        normalize_term(t) for t in datasets.gold_terms(test, lemma_layer="lemma")
+    }
+    written_gold = {normalize_term(t) for t in datasets.gold_terms(test)}
+    keep_written = written_filter(test)
     for method in methods:
         if method in SUPERVISED and train is None:
             continue
@@ -270,17 +330,21 @@ def run(
         if method in SUPERVISED:
             assert train is not None
             results = supervised(method, train, test)
-        else:
-            results = unsupervised(method, pos_pattern, reference).extract(test)
-        out[method] = {
+            gold = written_gold
             # Token classification tags terms rather than ranking candidates, so its
             # terms are not filtered, as in Lang et al. (2021)
-            **scores(
-                ranking(results, keep if method != "token-classification" else bool),
-                gold,
-            ),
-            "seconds": time.perf_counter() - start,
-        }
+            ranked = ranking(
+                results, bool if method == "token-classification" else keep_written
+            )
+        elif method == "rake":
+            results = unsupervised(method, reference).extract(test)
+            gold = written_gold
+            ranked = ranking(results, keep_written)
+        else:
+            results = unsupervised(method, reference).extract(test)
+            gold = lemma_gold
+            ranked = ranking(results, bool)
+        out[method] = {**scores(ranked, gold), "seconds": time.perf_counter() - start}
         save()
         f1 = out[method]["2000"]["f1"]
         print(f"{dataset} {method}: F1@2000 {f1:.3f}", flush=True)
@@ -293,10 +357,10 @@ def markdown(results: dict) -> str:
         lines += [
             f"#### {TITLES[dataset]}",
             "",
-            "| Method | Candidates | AvP (ATR4S) | "
+            "| Method | Candidates | Gold | AvP (ATR4S) | "
             + " | ".join(f"P@{k} | F1@{k}" for k in KS)
             + " | Time (s) |",
-            "|---|---:|---:|" + "---:|---:|" * len(KS) + "---:|",
+            "|---|---:|---:|---:|" + "---:|---:|" * len(KS) + "---:|",
         ]
         for method in UNSUPERVISED + SUPERVISED:
             if method not in methods:
@@ -309,8 +373,9 @@ def markdown(results: dict) -> str:
                 f"{s[str(k)]['precision'] * 100:.1f} | {s[str(k)]['f1'] * 100:.1f}"
                 for k in KS
             ]
+            share = s["gold_candidates"] / s["candidates"] if s["candidates"] else 0
             lines.append(
-                f"| {method} | {s['candidates']:,} | "
+                f"| {method} | {s['candidates']:,} | {share:.0%} | "
                 f"{s['atr4s_average_precision']:.3f} | "
                 + " | ".join(cells)
                 + f" | {s['seconds']:.0f} |"
@@ -335,7 +400,7 @@ def main() -> None:
         print(markdown(json.loads(args.output.read_text())))
         return
 
-    reference = load_brown()
+    reference = tag(load_brown(), "brown")
     # Add to a saved run, so methods and datasets can be run separately
     results = (
         json.loads(args.output.read_text())
