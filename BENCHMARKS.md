@@ -173,37 +173,38 @@ results above are of the code as it is.
   single abstract rather than of the corpus. It also counts a candidate as nested in
   another when it is a substring of it, so "art" is nested in "heart", and, as in the
   original definition, gives every single-word candidate a score of 0, where ATR4S uses
-  log2(|t| + 0.1) so that single words can be ranked.
+  log2(|t| + 0.1) so that single words can be ranked (#62).
 - **Residual IDF** (`ridf`) computes log(observed / expected) document frequency rather
   than log(expected / observed), and the Poisson expectation uses exp(-cf) rather than
   exp(-cf / D), so it favours common n-grams. It is also quadratic, counting each
   n-gram in each document with `list.count`: 7.5 minutes on ACTER, and 7 hours 40
-  minutes on GENIA, where the benchmark does not run it.
+  minutes on GENIA, where the benchmark does not run it (#63).
 - **Basic** and **ComboBasic** also score each document separately, though here this
-  does not seem to hurt.
+  does not seem to hurt (#62).
 - **Domain pertinence** (`domainpertinence`) divides the target frequency by the larger
   of the target and reference frequencies, so every candidate that is rarer in the
   reference corpus scores 1, and most candidates tie. In ATR4S it is the ratio of the
-  two frequencies, which ranks candidates exactly as weirdness does.
+  two frequencies, which ranks candidates exactly as weirdness does (#64).
 - **Topic modelling** (`topicmodeling`) adds up the topic probabilities of a
   candidate's words, so longer candidates score higher: its first terms on ACTER are
-  "risk of heart failure" and "risk of heart".
+  "risk of heart failure" and "risk of heart" (#65).
 - **Domain coherence** (`domaincoherence`) returns only a few dozen terms for a whole
   corpus (71 on the ACL RD-TEC), all scored 0 (#52).
 - **NMF** (`nmf`) and domain coherence list every term of the corpus in every
   document's results. On GENIA, that is about 900,000 terms in each of 2,000 documents,
-  and NMF runs out of memory, so it is not run.
+  and NMF runs out of memory, so it is not run (#66).
 - **Punctuation**: candidates may contain tokens with no letters or digits, such as
-  "95 % ci ,", which top the C-value ranking on ACTER. The benchmark filters them out.
+  "95 % ci ,", which top the C-value ranking on ACTER, and there is no minimum
+  frequency. The benchmark filters candidates itself (#67).
 - **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
   (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
   training candidate for every offspring: it took 2.7 hours to train on ACTER (#60).
 - **Token classification** saves a checkpoint of the model, with its optimizer state,
   every 500 training steps in `./results`, several gigabytes in all for the default
-  model, which filled the temporary directory of the first run.
+  model, which filled the temporary directory of the first run (#68).
 - `SupervisedTermExtractor.extract` trains and predicts on the same corpus, so the
   benchmark calls the extractors' own methods to train on one corpus and test on
-  another (see #43 for token classification).
+  another (#43).
 
 ### References
 
