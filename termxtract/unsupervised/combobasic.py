@@ -1,16 +1,16 @@
 import math
-import re
 from collections import Counter
 
-from teanga import Corpus
-
 from ..stopwords import Stopwords
-from ..utils import ATEResults
-from .base_extractor import BaseTermExtractor
+from .nested_extractor import NestedTermExtractor
 
 
-class ComboBasicTermExtractor(BaseTermExtractor):
-    """ComboBasic-based term extraction with n-gram support."""
+class ComboBasicTermExtractor(NestedTermExtractor):
+    """
+    ComboBasic term extraction (Astrakhantsev, 2015), which extends Basic by also
+    favouring candidates that contain many other candidates. Frequencies and nesting are
+    counted over the corpus.
+    """
 
     def __init__(
         self,
@@ -40,99 +40,31 @@ class ComboBasicTermExtractor(BaseTermExtractor):
             threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
         )
 
-    def compute_combobasic(self, ngrams: list[str]) -> dict[str, float]:
-        """
-        Compute ComboBasic scores for n-grams.
+    def score_terms(
+        self, frequencies: Counter[str], containing: dict[str, set[str]]
+    ) -> dict[str, float]:
+        r"""
+        Compute the ComboBasic score of each candidate:
+        \( |t| \log f(t) + \alpha e_t + \beta e'_t \), where \( e_t \) is the number
+        of candidates that contain \( t \) (0 if \( t \) is a single word) and \( e'_t \)
+        the number that \( t \) contains.
 
         Args:
-            ngrams (List[str]): List of n-grams.
+            frequencies (Counter[str]): The number of occurrences of each candidate in
+                the corpus.
+            containing (Dict[str, Set[str]]): For each candidate, the other candidates
+                it is nested in.
 
         Returns:
-            Dict[str, float]: ComboBasic scores for each n-gram.
+            Dict[str, float]: ComboBasic score for each candidate.
         """
-        # Frequency of each n-gram
-        term_frequencies = Counter(ngrams)
-
-        # Nested term statistics
-        term_data = {
-            term: {
-                "frequency": freq,
-                "contained_in": 0,
-                "contains": 0,
-            }
-            for term, freq in term_frequencies.items()
+        contains: Counter[str] = Counter(
+            longer for longers in containing.values() for longer in longers
+        )
+        # As in ATR4S, only candidates of two or more words gain from being nested
+        return {
+            term: len(term.split()) * math.log(frequency)
+            + self.alpha * (len(containing[term]) if " " in term else 0)
+            + self.beta * contains[term]
+            for term, frequency in frequencies.items()
         }
-
-        # Count containment relationships
-        for term, data in term_data.items():
-            for other_term in term_data:
-                if term in other_term and term != other_term:
-                    data["contained_in"] += 1
-                elif other_term in term and term != other_term:
-                    data["contains"] += 1
-
-        # Calculate ComboBasic scores
-        combobasic_scores = {}
-        for term, data in term_data.items():
-            length = len(term.split())
-            frequency = data["frequency"]
-            e_t = data["contained_in"]
-            e_prime_t = data["contains"]
-
-            # ComboBasic formula
-            combobasic_scores[term] = (
-                length * math.log(frequency + 1)
-                + self.alpha * e_t
-                + self.beta * e_prime_t
-            )
-
-        return combobasic_scores
-
-    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
-        """
-        Extract terms from a Teanga corpus using ComboBasic.
-
-        Args:
-            corpus: A Teanga Corpus object.
-
-        Returns:
-            ATEResults: Results with ranked terms and scores, and term offsets.
-        """
-        terms_by_doc = []
-        offsets_by_doc = []
-        for doc_id in corpus.doc_ids:
-            doc = corpus.doc_by_id(doc_id)
-            ngrams_with_offsets = self.generate_ngrams_teanga(self.teanga_words(doc))
-            scores = self.compute_combobasic(
-                [ngram for ngram, _ in ngrams_with_offsets]
-            )
-            doc_terms = self.doc_terms(doc_id, scores)
-            terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(
-                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
-            )
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
-
-    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
-        """
-        Extract terms from a plain list of strings using ComboBasic.
-
-        Args:
-            corpus (List[str]): List of documents as strings.
-
-        Returns:
-            ATEResults: Results with ranked terms and scores.
-        """
-        terms_by_doc = []
-        processed_corpus = []
-        for idx, doc_text in enumerate(corpus):
-            doc_id = f"doc_{idx}"
-            processed_corpus.append({"doc_id": doc_id, "text": doc_text})
-
-            ngrams = self.generate_ngrams_strings(
-                re.findall(r"\b\w+\b", doc_text.lower())
-            )
-            terms_by_doc.append(self.doc_terms(doc_id, self.compute_combobasic(ngrams)))
-
-        return ATEResults(corpus=processed_corpus, terms=terms_by_doc)

@@ -51,10 +51,14 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         basic_results = basic_extractor.extract_terms_teanga(corpus)
 
         # Extract the top 200 terms from Basic results
-        basic_terms = [
-            {"term": term["term"], "score": term["score"]}
+        # A term has the same score in every document it occurs in, so list it once
+        basic_scores = {
+            term["term"]: term["score"]
             for doc in basic_results.terms
             for term in doc["terms"]
+        }
+        basic_terms = [
+            {"term": term, "score": score} for term, score in basic_scores.items()
         ]
         top_200_terms = sorted(basic_terms, key=lambda x: x["score"], reverse=True)[
             :200
@@ -85,10 +89,14 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         )
         basic_results = basic_extractor.extract_terms_strings(corpus)
 
-        basic_terms = [
-            {"term": term["term"], "score": term["score"]}
+        # A term has the same score in every document it occurs in, so list it once
+        basic_scores = {
+            term["term"]: term["score"]
             for doc in basic_results.terms
             for term in doc["terms"]
+        }
+        basic_terms = [
+            {"term": term, "score": score} for term, score in basic_scores.items()
         ]
         top_200_terms = sorted(basic_terms, key=lambda x: x["score"], reverse=True)[
             :200

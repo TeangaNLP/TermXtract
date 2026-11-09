@@ -83,6 +83,16 @@ that was previously only available from GitHub.
   defaults to 20. Roger raises a `ValueError` unless at least one candidate is
   labelled `1` and one `0`; a training sample without positive labels used to get an
   undefined (NaN) fitness, which the search treated as the best (#27).
+- *Breaking:* C-value, Basic and ComboBasic follow their published definitions, as
+  implemented in ATR4S (#62), so their scores change. Frequencies and nesting are
+  counted over the whole corpus rather than in each document, so a term has the same
+  score in every document. A candidate is nested in another when its words are part of
+  the other's words, so "art" is no longer nested in "heart", and only candidates that
+  neither start nor end with a stopword count as containing others. C-value ranks
+  single words, using log2(|t| + 0.1) (Ventura et al., 2013) instead of log2(|t|), which
+  gave them all 0. Basic and ComboBasic use log f(t) instead of log(f(t) + 1), and
+  single words no longer gain from being nested in longer candidates. Domain coherence,
+  which starts from Basic's top 200 terms, lists each of them once.
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
