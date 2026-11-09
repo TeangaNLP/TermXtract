@@ -134,7 +134,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required)         |
 | `weirdness`        | Weirdness                                           | `reference_corpus` (required)         |
 | `relevance`        | Relevance                                           | `reference_corpus` (required)         |
-| `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`                          |
+| `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
 
 All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.

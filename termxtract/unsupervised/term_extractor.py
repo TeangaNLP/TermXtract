@@ -81,7 +81,15 @@ class TermExtractor:
         ),
         "topicmodeling": (
             TopicModelingTermExtractor,
-            ("num_topics", "threshold", "n", "stopwords", "words_layer", "lemma_layer"),
+            (
+                "num_topics",
+                "top_words",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "nmf": (
             NMFTermExtractor,
@@ -131,6 +139,7 @@ class TermExtractor:
         threshold: float | None = None,
         n: int = 1,
         num_topics: int = 20,
+        top_words: int = 200,
         window_size: int = 5,
         stoplist: list[str] | None = None,
         phrase_delimiters: list[str] | None = None,
@@ -156,6 +165,8 @@ class TermExtractor:
             threshold (Optional[float]): Minimum score threshold for term inclusion.
             n (int): Maximum length of n-grams to consider (all methods except 'rake').
             num_topics (int): Number of LDA topics ('topicmodeling').
+            top_words (int): Number of most probable words of each topic that count
+                towards the scores ('topicmodeling').
             window_size (int): Context window size ('domaincoherence').
             stoplist (Optional[List[str]]): List of stop words (required by 'rake').
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (required by 'rake').
@@ -198,6 +209,7 @@ class TermExtractor:
             "threshold": threshold,
             "n": n,
             "num_topics": num_topics,
+            "top_words": top_words,
             "window_size": window_size,
             "stoplist": stoplist,
             "phrase_delimiters": phrase_delimiters,

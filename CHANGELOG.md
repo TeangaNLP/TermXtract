@@ -28,6 +28,11 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   and lemmas and part-of-speech tags (#39).
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
+- `lemma_layer` parameter for every unsupervised method except RAKE, which reads each
+  word of a Teanga corpus as its lemma, so inflected forms such as "cell" and "cells"
+  are counted, and returned, as one term (#70). `pos_pattern` then matches the lemmas,
+  and `datasets.gold_terms` takes a `lemma_layer` too, so gold terms can be compared by
+  their lemmas.
 
 ### Changed
 
@@ -48,6 +53,14 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   gave them all 0. Basic and ComboBasic use log f(t) instead of log(f(t) + 1), and
   single words no longer gain from being nested in longer candidates. Domain coherence,
   which starts from Basic's top 200 terms, lists each of them once.
+- *Breaking:* the topic-modelling method follows the Novel Topic Model as implemented
+  in ATR4S (#65), so its scores change. Its LDA model is trained on single words without
+  stopwords, instead of on every n-gram with them, and only the `top_words` (new
+  parameter, default 200) most probable words of each topic count towards a
+  candidate's score, so long candidates full of common words no longer come first. A
+  candidate scores log f(t) times the sum of its words' largest topic probabilities,
+  where f(t) is its frequency in the corpus, not in each document, so a term has the
+  same score in every document.
 
 ## [0.1.0] - 2026-11-02
 
@@ -80,28 +93,6 @@ previously only available from GitHub.
 - README, API reference for every extractor, a rewritten TF-IDF tutorial, and tutorials
   for the reference-corpus and supervised methods at <https://teanga.io/TermXtract/>.
 - Apache-2.0 license and full package metadata.
-- `termxtract.evaluate()`, which scores extracted terms against a gold standard: a set of
-  terms, one set per document, or a Teanga corpus with a span layer of gold terms (#34).
-  It reports precision, recall, F1 and Matthews correlation coefficient over the corpus
-  or per document (micro- or macro-averaged), and average precision, R-precision and
-  precision at K of the ranking.
-- `termxtract.datasets`, which loads term-extraction datasets as Teanga corpora with
-  their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
-  sources on first use, checked against a SHA-256 checksum, and cached under
-  `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
-- The ACTER 1.5 dataset, as `datasets.load("acter")`, in English, French and Dutch, with
-  the TermEval 2020 train and test splits, gold terms with their labels, and IOB labels
-  (#36).
-- The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
-  computational linguistics papers with terms in seven classes, a choice of annotator,
-  and lemmas and part-of-speech tags (#39).
-- The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
-  biomedical terms in 36 classes, outermost or nested (#38).
-- `lemma_layer` parameter for every unsupervised method except RAKE, which reads each
-  word of a Teanga corpus as its lemma, so inflected forms such as "cell" and "cells"
-  are counted, and returned, as one term (#70). `pos_pattern` then matches the lemmas,
-  and `datasets.gold_terms` takes a `lemma_layer` too, so gold terms can be compared by
-  their lemmas.
 
 ### Changed
 
