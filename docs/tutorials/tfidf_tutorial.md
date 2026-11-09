@@ -228,6 +228,10 @@ A few more things to know:
 - `pos_pattern` needs tags, so it only works with a Teanga corpus, and raises a `ValueError` for plain text.
 - The supervised methods accept `pos_pattern` too. They are still trained on every candidate, and only their results are filtered.
 
+### Lemmas
+
+By default, `cell` and `cells` are different candidates, each with its own frequency. If your corpus has a lemma layer, such as the `lemma` layer of Teanga's spaCy service or of the ACL RD-TEC dataset, pass `lemma_layer="lemma"` to read every word as its lemma. Inflected forms are then counted together, and each term is returned as its lemmas, such as `cell` or `degree of freedom`, while `results.offsets` still gives the position of every form in the text. The lemma layer must be a sequence layer based on the words layer, and `pos_pattern` matches the lemmas' tags as before. To compare with gold terms, read those by their lemmas too, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
+
 ## Limitations and tips
 
 - **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, use a [part-of-speech pattern](#part-of-speech-patterns), or try a method that compares with a reference corpus.

@@ -11,6 +11,8 @@ from typing import Any
 
 from teanga import Corpus
 
+from ..layers import find_layer, words_with_offsets
+
 logger = logging.getLogger(__name__)
 
 GOLD_LAYER = "terms"
@@ -258,7 +260,10 @@ def load(
 
 
 def gold_terms(
-    corpus: Corpus, layer: str = GOLD_LAYER, by_document: bool = False
+    corpus: Corpus,
+    layer: str = GOLD_LAYER,
+    by_document: bool = False,
+    lemma_layer: str | None = None,
 ) -> set[str] | dict[str, set[str]]:
     """
     Get the gold terms of a loaded dataset.
@@ -268,18 +273,27 @@ def gold_terms(
         layer (str): The span layer of gold terms.
         by_document (bool): Return the terms of each document instead of those of the
             whole corpus.
+        lemma_layer (Optional[str]): A sequence layer holding the lemma of each word, as
+            for the `lemma_layer` of `TermExtractor`. If given, each gold term is given
+            by the lemmas of the words it covers, to compare with terms extracted with
+            the same layer. Terms that cover no whole word are given as written.
 
     Returns:
         Union[Set[str], Dict[str, Set[str]]]: The distinct gold terms, lowercased and
         with whitespace collapsed, or a dictionary from document IDs to them.
     """
-    by_doc = {
-        doc_id: {
-            " ".join(term.lower().split())
-            for term in corpus.doc_by_id(doc_id)[layer].text
-        }
-        for doc_id in corpus.doc_ids
-    }
+    by_doc = {}
+    for doc_id in corpus.doc_ids:
+        doc = corpus.doc_by_id(doc_id)
+        texts = [" ".join(term.lower().split()) for term in doc[layer].text]
+        if lemma_layer is not None:
+            base = corpus.meta[find_layer(corpus.meta, lemma_layer, (), "lemma_layer")]
+            words = words_with_offsets(doc, base.base, lemma_layer)
+            for i, (start, end) in enumerate(doc[layer]):
+                lemmas = [w for s, e, w in words if s >= start and e <= end]
+                if lemmas:
+                    texts[i] = " ".join(" ".join(lemmas).lower().split())
+        by_doc[doc_id] = set(texts)
     if by_document:
         return by_doc
     return set().union(*by_doc.values())
