@@ -61,7 +61,7 @@ def word_spans(doc: Document, words_layer: str | None = None) -> list[tuple[int,
 
 
 def words_with_offsets(
-    doc: Document, words_layer: str | None = None
+    doc: Document, words_layer: str | None = None, lemma_layer: str | None = None
 ) -> list[tuple[int, int, str]]:
     """
     Get the words of a Teanga document with their offsets.
@@ -70,14 +70,55 @@ def words_with_offsets(
         doc (Document): A Teanga document.
         words_layer (Optional[str]): The span layer holding the words, or None for
             `words` or, failing that, `tokens`.
+        lemma_layer (Optional[str]): A sequence layer, based on the words layer, holding
+            the lemma of each word. If given, each word is its lemma, so that inflected
+            forms are counted together; if None, each word is its text.
 
     Returns:
-        List[Tuple[int, int, str]]: A (start, end, text) tuple for each word.
+        List[Tuple[int, int, str]]: A (start, end, text) tuple for each word, where text
+        is the lemma if `lemma_layer` is given.
     """
-    text = doc.text
-    return [
-        (start, end, text[start:end]) for start, end in word_spans(doc, words_layer)
-    ]
+    spans = word_spans(doc, words_layer)
+    if lemma_layer is None:
+        text = doc.text
+        return [(start, end, text[start:end]) for start, end in spans]
+    lemmas = word_annotations(doc, lemma_layer, (), "lemma_layer", words_layer)
+    return [(start, end, lemma) for (start, end), lemma in zip(spans, lemmas)]
+
+
+def word_annotations(
+    doc: Document,
+    layer: str | None,
+    defaults: tuple[str, ...],
+    parameter: str,
+    words_layer: str | None = None,
+) -> list[str]:
+    """
+    Get the value of a sequence layer, such as tags or lemmas, for each word of a document.
+
+    Args:
+        doc (Document): A Teanga document.
+        layer (Optional[str]): The sequence layer, or None for the first of `defaults`
+            that the corpus has.
+        defaults (Tuple[str, ...]): The layers to try when `layer` is None.
+        parameter (str): The name of the parameter that sets the layer, for messages.
+        words_layer (Optional[str]): The words layer, as for `word_spans`.
+
+    Returns:
+        List[str]: One value per word.
+
+    Raises:
+        ValueError: If the layer is missing or not based on the words layer.
+    """
+    words = find_layer(doc.meta, words_layer, WORDS_LAYERS, "words_layer")
+    name = find_layer(doc.meta, layer, defaults, parameter)
+    base = doc.meta[name].base
+    if base != words:
+        raise ValueError(
+            f"The layer {name!r} is based on {base!r}, but the words are read from "
+            f"{words!r}. Pass words_layer={base!r}."
+        )
+    return [str(value) for value in doc[name]]
 
 
 def pos_tags(
@@ -96,15 +137,6 @@ def pos_tags(
         List[str]: One tag per word.
 
     Raises:
-        ValueError: If the tag layer is not based on the words layer.
+        ValueError: If the tag layer is missing or not based on the words layer.
     """
-    words = find_layer(doc.meta, words_layer, WORDS_LAYERS, "words_layer")
-    layer = find_layer(doc.meta, pos_layer, POS_LAYERS, "pos_layer")
-    base = doc.meta[layer].base
-    if base != words:
-        raise ValueError(
-            f"The part-of-speech layer {layer!r} is based on {base!r}, but the words are "
-            f"read from {words!r}. Pass words_layer={base!r}."
-        )
-    tags = [str(tag) for tag in doc[layer]]
-    return tags
+    return word_annotations(doc, pos_layer, POS_LAYERS, "pos_layer", words_layer)

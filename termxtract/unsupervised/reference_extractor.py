@@ -29,6 +29,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         n: int = 1,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
     ):
         """
         Initialize the extractor.
@@ -42,9 +43,16 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 with a stopword: "english", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
+                lemma of each word, to count inflected forms such as "cell" and "cells"
+                as one term, or None to use the words as written.
         """
         super().__init__(
-            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+            threshold=threshold,
+            n=n,
+            stopwords=stopwords,
+            words_layer=words_layer,
+            lemma_layer=lemma_layer,
         )
         if reference_corpus is None:
             raise ValueError(f"{type(self).__name__} requires a reference corpus.")

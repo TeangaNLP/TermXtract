@@ -57,6 +57,7 @@ def filter_by_pos(
     pattern: re.Pattern[str],
     pos_layer: str | None = None,
     words_layer: str | None = None,
+    lemma_layer: str | None = None,
 ) -> ATEResults:
     """
     Keep the terms that match a part-of-speech pattern in at least one occurrence.
@@ -72,6 +73,8 @@ def filter_by_pos(
             failing that, `pos`.
         words_layer (Optional[str]): The words layer, or None for `words` or, failing
             that, `tokens`.
+        lemma_layer (Optional[str]): The lemma layer the terms were extracted with, if
+            any, so that terms are matched to the lemmas of the words.
 
     Returns:
         ATEResults: The filtered results.
@@ -82,7 +85,10 @@ def filter_by_pos(
     matching = set()
     for doc_id in corpus.doc_ids:
         doc = corpus.doc_by_id(doc_id)
-        words = [word.lower() for _, _, word in words_with_offsets(doc, words_layer)]
+        words = [
+            word.lower()
+            for _, _, word in words_with_offsets(doc, words_layer, lemma_layer)
+        ]
         tags = [f"<{tag}>" for tag in pos_tags(doc, pos_layer, words_layer)]
         for i in range(len(words)):
             for k in range(1, min(max_length, len(words) - i) + 1):
