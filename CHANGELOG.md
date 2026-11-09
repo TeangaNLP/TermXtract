@@ -9,8 +9,50 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 
 ## [Unreleased]
 
-Nothing has been published to PyPI yet. This section lists the changes since the code
-that was previously only available from GitHub.
+### Added
+
+- `termxtract.evaluate()`, which scores extracted terms against a gold standard: a set of
+  terms, one set per document, or a Teanga corpus with a span layer of gold terms (#34).
+  It reports precision, recall, F1 and Matthews correlation coefficient over the corpus
+  or per document (micro- or macro-averaged), and average precision, R-precision and
+  precision at K of the ranking.
+- `termxtract.datasets`, which loads term-extraction datasets as Teanga corpora with
+  their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
+  sources on first use, checked against a SHA-256 checksum, and cached under
+  `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
+- The ACTER 1.5 dataset, as `datasets.load("acter")`, in English, French and Dutch, with
+  the TermEval 2020 train and test splits, gold terms with their labels, and IOB labels
+  (#36).
+- The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
+  computational linguistics papers with terms in seven classes, a choice of annotator,
+  and lemmas and part-of-speech tags (#39).
+- The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
+  biomedical terms in 36 classes, outermost or nested (#38).
+
+### Changed
+
+- *Breaking:* Residual IDF uses the formula of Church & Gale (1999), as in ATR4S and
+  JATE 2.0 (#63): log2(D / df) + log2(1 - e^(-cf / D)), computed once over the corpus,
+  so a term has the same score in every document. It used to compute
+  log(df / (1 + D (1 - e^(-cf)))), the inverse of the residual with the wrong Poisson
+  rate, which favoured common n-grams, and multiplied it by each document's term
+  frequency. It is also much faster: it counted each n-gram in each document
+  separately, taking hours on 2,000 abstracts, and now takes seconds.
+- *Breaking:* C-value, Basic and ComboBasic follow their published definitions, as
+  implemented in ATR4S (#62), so their scores change. Frequencies and nesting are
+  counted over the whole corpus rather than in each document, so a term has the same
+  score in every document. A candidate is nested in another when its words are part of
+  the other's words, so "art" is no longer nested in "heart", and only candidates that
+  neither start nor end with a stopword count as containing others. C-value ranks
+  single words, using log2(|t| + 0.1) (Ventura et al., 2013) instead of log2(|t|), which
+  gave them all 0. Basic and ComboBasic use log f(t) instead of log(f(t) + 1), and
+  single words no longer gain from being nested in longer candidates. Domain coherence,
+  which starts from Basic's top 200 terms, lists each of them once.
+
+## [0.1.0] - 2026-11-02
+
+The first release on PyPI. This section lists the changes since the code that was
+previously only available from GitHub.
 
 ### Added
 
@@ -38,23 +80,6 @@ that was previously only available from GitHub.
 - README, API reference for every extractor, a rewritten TF-IDF tutorial, and tutorials
   for the reference-corpus and supervised methods at <https://teanga.io/TermXtract/>.
 - Apache-2.0 license and full package metadata.
-- `termxtract.evaluate()`, which scores extracted terms against a gold standard: a set of
-  terms, one set per document, or a Teanga corpus with a span layer of gold terms (#34).
-  It reports precision, recall, F1 and Matthews correlation coefficient over the corpus
-  or per document (micro- or macro-averaged), and average precision, R-precision and
-  precision at K of the ranking.
-- `termxtract.datasets`, which loads term-extraction datasets as Teanga corpora with
-  their gold terms in a `terms` layer (#35). Datasets are downloaded from their original
-  sources on first use, checked against a SHA-256 checksum, and cached under
-  `~/.cache/termxtract` or `$TERMXTRACT_DATA`.
-- The ACTER 1.5 dataset, as `datasets.load("acter")`, in English, French and Dutch, with
-  the TermEval 2020 train and test splits, gold terms with their labels, and IOB labels
-  (#36).
-- The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
-  computational linguistics papers with terms in seven classes, a choice of annotator,
-  and lemmas and part-of-speech tags (#39).
-- The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
-  biomedical terms in 36 classes, outermost or nested (#38).
 
 ### Changed
 
@@ -145,4 +170,5 @@ that was previously only available from GitHub.
   (`eval_strategy`).
 - Docstrings no longer raise `SyntaxWarning` on import.
 
-[Unreleased]: https://github.com/TeangaNLP/TermXtract/commits/main
+[Unreleased]: https://github.com/TeangaNLP/TermXtract/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/TeangaNLP/TermXtract/releases/tag/v0.1.0
