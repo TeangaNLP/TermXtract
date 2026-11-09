@@ -19,6 +19,19 @@ from .ridf import RIDFTermExtractor
 from .tfidf import TFIDFTermExtractor
 from .weirdness import WeirdnessTermExtractor
 
+CANDIDATE_PARAMS = (
+    "threshold",
+    "n",
+    "stopwords",
+    "words_layer",
+    "lemma_layer",
+    "min_frequency",
+    "word_pattern",
+    "pos_pattern",
+    "pos_layer",
+)
+"""The parameters of `BaseTermExtractor`, which every method except RAKE takes."""
+
 
 class TermExtractor:
     """
@@ -29,107 +42,28 @@ class TermExtractor:
     """
 
     METHODS: ClassVar[dict[str, tuple[type[BaseTermExtractor], tuple[str, ...]]]] = {
-        "tfidf": (
-            TFIDFTermExtractor,
-            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
-        ),
-        "ridf": (
-            RIDFTermExtractor,
-            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
-        ),
-        "cvalue": (
-            CValueTermExtractor,
-            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
-        ),
-        "basic": (
-            BasicTermExtractor,
-            ("alpha", "threshold", "n", "stopwords", "words_layer", "lemma_layer"),
-        ),
-        "combobasic": (
-            ComboBasicTermExtractor,
-            (
-                "alpha",
-                "beta",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
-        ),
+        "tfidf": (TFIDFTermExtractor, CANDIDATE_PARAMS),
+        "ridf": (RIDFTermExtractor, CANDIDATE_PARAMS),
+        "cvalue": (CValueTermExtractor, CANDIDATE_PARAMS),
+        "basic": (BasicTermExtractor, ("alpha", *CANDIDATE_PARAMS)),
+        "combobasic": (ComboBasicTermExtractor, ("alpha", "beta", *CANDIDATE_PARAMS)),
         "domaincoherence": (
             DomainCoherenceTermExtractor,
-            (
-                "window_size",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
+            ("window_size", *CANDIDATE_PARAMS),
         ),
-        "relevance": (
-            RelevanceTermExtractor,
-            (
-                "reference_corpus",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
-        ),
+        "relevance": (RelevanceTermExtractor, ("reference_corpus", *CANDIDATE_PARAMS)),
         "topicmodeling": (
             TopicModelingTermExtractor,
-            (
-                "num_topics",
-                "top_words",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
+            ("num_topics", "top_words", *CANDIDATE_PARAMS),
         ),
-        "nmf": (
-            NMFTermExtractor,
-            (
-                "threshold",
-                "n_topics",
-                "max_features",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
-        ),
+        "nmf": (NMFTermExtractor, ("n_topics", "max_features", *CANDIDATE_PARAMS)),
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
-            (
-                "reference_corpus",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
+            ("reference_corpus", *CANDIDATE_PARAMS),
         ),
-        "weirdness": (
-            WeirdnessTermExtractor,
-            (
-                "reference_corpus",
-                "threshold",
-                "n",
-                "stopwords",
-                "words_layer",
-                "lemma_layer",
-            ),
-        ),
+        "weirdness": (WeirdnessTermExtractor, ("reference_corpus", *CANDIDATE_PARAMS)),
     }
-
-    FILTER_PARAMS: ClassVar[tuple[str, ...]] = ("pos_pattern", "pos_layer")
-    """Parameters applied to the results by the wrapper, not passed to the extractor."""
 
     def __init__(
         self,
@@ -149,6 +83,8 @@ class TermExtractor:
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
         pos_pattern: str | None = None,
         pos_layer: str | None = None,
     ):
@@ -185,11 +121,22 @@ class TermExtractor:
                 If given, words are read as their lemmas, so inflected forms such as
                 "cell" and "cells" are counted, and returned, as one term. None (the
                 default) reads the words as written.
-            pos_pattern (Optional[str]): For Teanga input, keep only the terms whose
-                part-of-speech tags match this pattern in at least one occurrence. Tags are
-                written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
-                pattern in `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
-                default) keeps every term. Scores are unchanged.
+            min_frequency (int): Drop candidates that occur fewer times than this in the
+                corpus (all methods except 'rake'). ATR4S uses 2. The default of 1 keeps
+                every candidate.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression (all methods except 'rake'), or the name of
+                a pattern in `termxtract.candidates.WORD_PATTERNS`: "alphanumeric" (the
+                default) drops words without a letter or digit, such as "%", and
+                "atr4s" keeps words of three or more letters, digits and hyphens, as
+                ATR4S's noise filter does. None keeps every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences of
+                candidates whose part-of-speech tags match this pattern, so a term must
+                match it in at least one occurrence. Tags are written in angle brackets,
+                as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a pattern in
+                `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
+                default) allows every tag sequence. RAKE's terms are filtered after
+                scoring instead, so its scores are unchanged.
             pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`, based
                 on the words layer: None (the default) for `upos` or, if the corpus has no
                 `upos` layer, `pos`.
@@ -219,6 +166,10 @@ class TermExtractor:
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,
+            "min_frequency": min_frequency,
+            "word_pattern": word_pattern,
+            "pos_pattern": pos_pattern,
+            "pos_layer": pos_layer,
         }
         self.words_layer = words_layer
         self.lemma_layer = lemma_layer
@@ -226,6 +177,9 @@ class TermExtractor:
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
         self.pos_layer = pos_layer
+        # Methods that take pos_pattern count only the matching occurrences; the terms
+        # of the others are filtered after extraction
+        self.filters_by_pos = "pos_pattern" not in param_names
         self.extractor: BaseTermExtractor = extractor_class(
             **{name: params[name] for name in param_names}
         )
@@ -248,7 +202,7 @@ class TermExtractor:
         """
         if isinstance(corpus, Corpus):
             results = self.extractor.extract_terms_teanga(corpus)
-            if self.pos_pattern is None:
+            if self.pos_pattern is None or not self.filters_by_pos:
                 return results
             return filter_by_pos(
                 results,

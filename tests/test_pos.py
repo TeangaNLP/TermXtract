@@ -78,9 +78,12 @@ def test_filters_terms_and_offsets():
     terms = all_terms(filtered)
     assert {"degree of freedom", "number of degrees", "system", "energy"} <= terms
     assert not {"system adds", "adds energy", "small", "adds"} & terms
-    # Scores are unchanged, and only the remaining terms have offsets
-    for doc, all_doc in zip(filtered.terms, unfiltered.terms):
-        assert doc["terms"] == [t for t in all_doc["terms"] if t["term"] in terms]
+    # Terms whose occurrences all match keep their scores, and only the remaining
+    # terms have offsets
+    scores = {t["term"]: t["score"] for t in unfiltered.terms[1]["terms"]}
+    assert {t["term"]: t["score"] for t in filtered.terms[1]["terms"]}[
+        "degree of freedom"
+    ] == pytest.approx(scores["degree of freedom"])
     assert all(o["term"] in terms for doc in filtered.offsets for o in doc["offsets"])
     assert any(o["term"] == "degree of freedom" for o in filtered.offsets[1]["offsets"])
 

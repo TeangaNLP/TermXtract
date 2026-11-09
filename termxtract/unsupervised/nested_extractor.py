@@ -4,7 +4,6 @@ from collections import Counter
 
 from teanga import Corpus
 
-from ..stopwords import is_candidate
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -17,8 +16,9 @@ class NestedTermExtractor(BaseTermExtractor):
     Subclasses implement `score_terms`. Frequencies and nesting are counted over the whole
     corpus, so a term has the same score in every document it occurs in. One candidate
     is nested in another when its words are a contiguous part of the other's words, so
-    "heart" is nested in "heart failure" but not in "hearth". Only candidates that
-    neither start nor end with a stopword are counted as containing others.
+    "heart" is nested in "heart failure" but not in "hearth". Only candidates, which
+    pass the filters of `BaseTermExtractor`, are counted as containing others, and only
+    their occurrences that pass the filters are counted.
     """
 
     @abstractmethod
@@ -64,17 +64,13 @@ class NestedTermExtractor(BaseTermExtractor):
         Count the candidates of a corpus and score them with `score_terms`.
 
         Args:
-            corpus_ngrams (List[List[str]]): The n-grams of each document.
+            corpus_ngrams (List[List[str]]): The occurrences of candidates in each
+                document, from `candidate_ngrams_teanga` or `candidate_ngrams_strings`.
 
         Returns:
             Dict[str, float]: The score of each candidate.
         """
-        frequencies = Counter(
-            ngram
-            for doc in corpus_ngrams
-            for ngram in doc
-            if is_candidate(ngram, self.stopwords)
-        )
+        frequencies = Counter(ngram for doc in corpus_ngrams for ngram in doc)
         return self.score_terms(frequencies, self.nesting(set(frequencies)))
 
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
@@ -87,12 +83,7 @@ class NestedTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
-        ngrams_by_doc = {
-            doc_id: self.generate_ngrams_teanga(
-                self.teanga_words(corpus.doc_by_id(doc_id))
-            )
-            for doc_id in corpus.doc_ids
-        }
+        ngrams_by_doc = self.candidate_ngrams_teanga(corpus)
         scores = self.corpus_scores(
             [[ngram for ngram, _ in ngrams] for ngrams in ngrams_by_doc.values()]
         )
@@ -125,10 +116,9 @@ class NestedTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores.
         """
-        corpus_ngrams = [
-            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
-            for doc in corpus
-        ]
+        corpus_ngrams = self.candidate_ngrams_strings(
+            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        )
         scores = self.corpus_scores(corpus_ngrams)
 
         terms_by_doc = [

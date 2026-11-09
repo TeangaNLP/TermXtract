@@ -30,6 +30,10 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         """
         Initialize the extractor.
@@ -46,6 +50,14 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
                 lemma of each word, to count inflected forms such as "cell" and "cells"
                 as one term, or None to use the words as written.
+            min_frequency (int): Drop candidates that occur fewer times in the corpus.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression or named pattern ("alphanumeric", "atr4s"),
+                or None to keep every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences
+                whose part-of-speech tags match this pattern, or None.
+            pos_layer (Optional[str]): The part-of-speech layer for `pos_pattern`, or
+                None for `upos` or, failing that, `pos`.
         """
         super().__init__(
             threshold=threshold,
@@ -53,6 +65,10 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             stopwords=stopwords,
             words_layer=words_layer,
             lemma_layer=lemma_layer,
+            min_frequency=min_frequency,
+            word_pattern=word_pattern,
+            pos_pattern=pos_pattern,
+            pos_layer=pos_layer,
         )
         if reference_corpus is None:
             raise ValueError(f"{type(self).__name__} requires a reference corpus.")
@@ -106,10 +122,9 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 "The reference corpus is a Teanga Corpus, so the corpus to extract "
                 "terms from must also be a Teanga Corpus, not a list of strings."
             )
-        target_ngrams = [
-            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
-            for doc in corpus
-        ]
+        target_ngrams = self.candidate_ngrams_strings(
+            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        )
         ref_ngrams = [
             self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
             for doc in self.reference_corpus
@@ -143,12 +158,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 "The reference corpus is a list of strings, so the corpus to extract "
                 "terms from must also be a list of strings, not a Teanga Corpus."
             )
-        ngrams_by_doc = {
-            doc_id: self.generate_ngrams_teanga(
-                self.teanga_words(corpus.doc_by_id(doc_id))
-            )
-            for doc_id in corpus.doc_ids
-        }
+        ngrams_by_doc = self.candidate_ngrams_teanga(corpus)
         target_ngrams = [
             [ngram for ngram, _ in ngrams_with_offsets]
             for ngrams_with_offsets in ngrams_by_doc.values()

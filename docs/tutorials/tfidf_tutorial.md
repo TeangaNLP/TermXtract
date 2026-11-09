@@ -218,7 +218,7 @@ for doc in results.terms[2:4]:
 ['Gradient', 'Gradient descent', 'descent']
 ```
 
-Without the pattern, these documents also list the verbs `learns` and `updates` and the fragments `network learns`, `learns weights` and `descent updates`. With it, only nouns and noun phrases such as `training data` and `Gradient descent` remain. As with stopwords, the scores of the remaining terms do not change, and a candidate is kept if **any** of its occurrences matches the pattern.
+Without the pattern, these documents also list the verbs `learns` and `updates` and the fragments `network learns`, `learns weights` and `descent updates`. With it, only nouns and noun phrases such as `training data` and `Gradient descent` remain. A candidate is kept if **any** of its occurrences matches the pattern, and only the occurrences that match are counted, so the scores of terms whose occurrences all match do not change. A word that is sometimes a noun and sometimes a verb is scored by its uses as a noun.
 
 `pos_pattern="noun_phrase"` allows nouns and proper nouns, optionally preceded by adjectives or nouns, and optionally followed by a preposition and a second such phrase, as in `degree of freedom`. You can also write your own pattern, in the syntax of NLTK's `RegexpParser`: each tag is written in angle brackets and combined with regular-expression operators, so `"<ADJ>*<NOUN>+"` allows adjectives followed by nouns. Inside the angle brackets, `|` separates alternative tags and `.` matches any character of a tag, as in `"<ADJ|NOUN>*<N.*>"`.
 
@@ -226,7 +226,16 @@ A few more things to know:
 
 - Pass `pos_layer=...` or `words_layer=...` if your layers have other names.
 - `pos_pattern` needs tags, so it only works with a Teanga corpus, and raises a `ValueError` for plain text.
-- The supervised methods accept `pos_pattern` too. They are still trained on every candidate, and only their results are filtered.
+- The supervised methods accept `pos_pattern` too. They are still trained on every candidate, and only their results are filtered. So is RAKE, whose scores do not change.
+
+### Rare and noisy candidates
+
+Two more filters decide which n-grams are candidates, for every method except RAKE:
+
+- `min_frequency` drops candidates that occur fewer times in the corpus. Many methods rank candidates that occur only once highly, and most term extractors, such as ATR4S, use `min_frequency=2`. The default of 1 keeps every candidate.
+- `word_pattern` is a regular expression that every word of a candidate must match. The default, `"alphanumeric"`, drops candidates with a word that has no letter or digit, such as `95 % CI`, and `"atr4s"` is ATR4S's stricter noise filter, which only keeps words of three or more letters, digits and hyphens. Pass `None` to keep every word.
+
+Like `pos_pattern`, these filters are applied before scoring: only the occurrences of candidates are counted, and a candidate that is too rare cannot make a longer one look nested in it for methods such as C-value.
 
 ### Lemmas
 

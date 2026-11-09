@@ -19,6 +19,10 @@ class BasicTermExtractor(NestedTermExtractor):
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         r"""
         Initialize the Basic extractor.
@@ -37,6 +41,14 @@ class BasicTermExtractor(NestedTermExtractor):
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
                 lemma of each word, to count inflected forms such as "cell" and "cells"
                 as one term, or None to use the words as written.
+            min_frequency (int): Drop candidates that occur fewer times in the corpus.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression or named pattern ("alphanumeric", "atr4s"),
+                or None to keep every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences
+                whose part-of-speech tags match this pattern, or None.
+            pos_layer (Optional[str]): The part-of-speech layer for `pos_pattern`, or
+                None for `upos` or, failing that, `pos`.
         """
         self.alpha = alpha
         super().__init__(
@@ -45,6 +57,10 @@ class BasicTermExtractor(NestedTermExtractor):
             stopwords=stopwords,
             words_layer=words_layer,
             lemma_layer=lemma_layer,
+            min_frequency=min_frequency,
+            word_pattern=word_pattern,
+            pos_pattern=pos_pattern,
+            pos_layer=pos_layer,
         )
 
     def score_terms(
