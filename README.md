@@ -13,7 +13,13 @@ Every method takes either a plain list of strings or a [Teanga](https://github.c
 
 ## Installation
 
-TermXtract needs **Python 3.10 or later**. It is not yet on PyPI, so install it from GitHub:
+TermXtract needs **Python 3.10 or later**. Install it from PyPI:
+
+```bash
+pip install termxtract
+```
+
+or install the development version, with the changes since the last release, from GitHub:
 
 ```bash
 pip install git+https://github.com/TeangaNLP/TermXtract.git
@@ -22,7 +28,7 @@ pip install git+https://github.com/TeangaNLP/TermXtract.git
 The transformer-based `token-classification` extractor needs PyTorch and Hugging Face Transformers, which are large, so they are an optional extra. Install them with:
 
 ```bash
-pip install "termxtract[transformers] @ git+https://github.com/TeangaNLP/TermXtract.git"
+pip install "termxtract[transformers]"
 ```
 
 All other methods work with the base install.
@@ -131,7 +137,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
 
-All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
+All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), `min_frequency` (default 1), `word_pattern` (default `"alphanumeric"`, dropping words without a letter or digit), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `min_frequency`, `word_pattern`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
 
 ### Supervised — `SupervisedTermExtractor(method=...)`
 
@@ -176,8 +182,6 @@ Version numbers follow [Semantic Versioning](https://semver.org/): bump the patc
 2. Set the version with `poetry version X.Y.Z` (or `poetry version patch`, `minor` or `major`).
 3. Commit both files as `Release X.Y.Z` and get the commit onto `main`.
 4. On GitHub, draft a release with a new tag `vX.Y.Z` on that commit, paste the changelog section as the release notes, and publish it. The release workflow checks that the tag matches the version, builds the package and uploads it to PyPI.
-
-`pyproject.toml` is still at 0.1.0 and nothing has been published, so the first release can be 0.1.0 without a version bump.
 
 ## License
 

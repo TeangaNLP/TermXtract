@@ -45,6 +45,10 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
+        pos_pattern: str | None = None,
+        pos_layer: str | None = None,
     ):
         """
         Initialize the Topic Modeling extractor.
@@ -63,6 +67,14 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
                 lemma of each word, to count inflected forms such as "cell" and "cells"
                 as one term, or None to use the words as written.
+            min_frequency (int): Drop candidates that occur fewer times in the corpus.
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression or named pattern ("alphanumeric", "atr4s"),
+                or None to keep every word.
+            pos_pattern (Optional[str]): For Teanga input, count only the occurrences
+                whose part-of-speech tags match this pattern, or None.
+            pos_layer (Optional[str]): The part-of-speech layer for `pos_pattern`, or
+                None for `upos` or, failing that, `pos`.
         """
         super().__init__(
             threshold=threshold,
@@ -70,6 +82,10 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             stopwords=stopwords,
             words_layer=words_layer,
             lemma_layer=lemma_layer,
+            min_frequency=min_frequency,
+            word_pattern=word_pattern,
+            pos_pattern=pos_pattern,
+            pos_layer=pos_layer,
         )
         self.num_topics = num_topics
         self.top_words = top_words
@@ -158,21 +174,16 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
-        words_by_doc = {
-            doc_id: self.teanga_words(corpus.doc_by_id(doc_id))
-            for doc_id in corpus.doc_ids
-        }
         if not self.lda_model:
             self.train_topic_model(
                 [
-                    self.topic_words([text for _, _, text in words])
-                    for words in words_by_doc.values()
+                    self.topic_words(
+                        [text for _, _, text in self.teanga_words(corpus.doc_by_id(d))]
+                    )
+                    for d in corpus.doc_ids
                 ]
             )
-        ngrams_by_doc = {
-            doc_id: self.generate_ngrams_teanga(words)
-            for doc_id, words in words_by_doc.items()
-        }
+        ngrams_by_doc = self.candidate_ngrams_teanga(corpus)
         scores = self.compute_ntm_scores(
             [ngram for ngrams in ngrams_by_doc.values() for ngram, _ in ngrams]
         )
@@ -208,7 +219,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         words_by_doc = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         if not self.lda_model:
             self.train_topic_model([self.topic_words(words) for words in words_by_doc])
-        ngrams_by_doc = [self.generate_ngrams_strings(words) for words in words_by_doc]
+        ngrams_by_doc = self.candidate_ngrams_strings(words_by_doc)
         scores = self.compute_ntm_scores(
             [ngram for ngrams in ngrams_by_doc for ngram in ngrams]
         )

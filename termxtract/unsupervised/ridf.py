@@ -52,12 +52,7 @@ class RIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
-        ngrams_by_doc = {
-            doc_id: self.generate_ngrams_teanga(
-                self.teanga_words(corpus.doc_by_id(doc_id))
-            )
-            for doc_id in corpus.doc_ids
-        }
+        ngrams_by_doc = self.candidate_ngrams_teanga(corpus)
         ridf_scores = self.compute_ridf(
             [[ngram for ngram, _ in ngrams] for ngrams in ngrams_by_doc.values()]
         )
@@ -85,10 +80,9 @@ class RIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores.
         """
-        corpus_ngrams = [
-            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
-            for doc in corpus
-        ]
+        corpus_ngrams = self.candidate_ngrams_strings(
+            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        )
         ridf_scores = self.compute_ridf(corpus_ngrams)
 
         terms_by_doc = [
