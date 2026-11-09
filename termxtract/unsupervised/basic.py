@@ -1,16 +1,15 @@
 import math
-import re
 from collections import Counter
 
-from teanga import Corpus
-
 from ..stopwords import Stopwords
-from ..utils import ATEResults
-from .base_extractor import BaseTermExtractor
+from .nested_extractor import NestedTermExtractor
 
 
-class BasicTermExtractor(BaseTermExtractor):
-    """Basic-based term extraction with n-gram support."""
+class BasicTermExtractor(NestedTermExtractor):
+    """
+    Basic term extraction (Bordea et al., 2013), which favours candidates that are part
+    of many other candidates. Frequencies and nesting are counted over the corpus.
+    """
 
     def __init__(
         self,
@@ -24,7 +23,10 @@ class BasicTermExtractor(BaseTermExtractor):
         Initialize the Basic extractor.
 
         Args:
-            alpha (float): Weight for \( e_t \) (number of terms containing \( t \)).
+            alpha (float): Weight for \( e_t \), the number of candidates containing
+                \( t \). ATR4S uses 0.72, from Astrakhantsev (2015), and Bordea et al.
+                (2013) use 3.5; the results of the English benchmark are within a point
+                of those with the default of 0.5.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
@@ -37,89 +39,26 @@ class BasicTermExtractor(BaseTermExtractor):
             threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
         )
 
-    def compute_basic(self, ngrams: list[str]) -> dict[str, float]:
-        """
-        Compute Basic scores for n-grams.
+    def score_terms(
+        self, frequencies: Counter[str], containing: dict[str, set[str]]
+    ) -> dict[str, float]:
+        r"""
+        Compute the Basic score of each candidate: \( |t| \log f(t) + \alpha e_t \),
+        where \( e_t \) is the number of candidates that contain \( t \), or 0 if \( t \)
+        is a single word.
 
         Args:
-            ngrams (List[str]): List of n-grams.
+            frequencies (Counter[str]): The number of occurrences of each candidate in
+                the corpus.
+            containing (Dict[str, Set[str]]): For each candidate, the other candidates
+                it is nested in.
 
         Returns:
-            Dict[str, float]: Basic scores for each n-gram.
+            Dict[str, float]: Basic score for each candidate.
         """
-        # Frequency of each n-gram
-        term_frequencies = Counter(ngrams)
-
-        # Nested term statistics
-        term_data = {
-            term: {
-                "frequency": freq,
-                "contained_in": 0,
-            }
-            for term, freq in term_frequencies.items()
+        # As in ATR4S, only candidates of two or more words gain from being nested
+        return {
+            term: len(term.split()) * math.log(frequency)
+            + self.alpha * (len(containing[term]) if " " in term else 0)
+            for term, frequency in frequencies.items()
         }
-
-        # Count containment relationships
-        for term, data in term_data.items():
-            for other_term in term_data:
-                if term in other_term and term != other_term:
-                    data["contained_in"] += 1
-
-        # Calculate Basic scores
-        basic_scores = {}
-        for term, data in term_data.items():
-            length = len(term.split())
-            frequency = data["frequency"]
-            e_t = data["contained_in"]
-
-            # Basic formula
-            basic_scores[term] = length * math.log(frequency + 1) + self.alpha * e_t
-
-        return basic_scores
-
-    def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
-        """
-        Extract terms from a Teanga corpus using Basic.
-
-        Args:
-            corpus: A Teanga Corpus object.
-
-        Returns:
-            ATEResults: Results with ranked terms and scores, and term offsets.
-        """
-        terms_by_doc = []
-        offsets_by_doc = []
-        for doc_id in corpus.doc_ids:
-            doc = corpus.doc_by_id(doc_id)
-            ngrams_with_offsets = self.generate_ngrams_teanga(self.teanga_words(doc))
-            scores = self.compute_basic([ngram for ngram, _ in ngrams_with_offsets])
-            doc_terms = self.doc_terms(doc_id, scores)
-            terms_by_doc.append(doc_terms)
-            offsets_by_doc.append(
-                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
-            )
-
-        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
-
-    def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
-        """
-        Extract terms from a plain list of strings using Basic.
-
-        Args:
-            corpus (List[str]): List of documents as strings.
-
-        Returns:
-            ATEResults: Results with ranked terms and scores.
-        """
-        terms_by_doc = []
-        processed_corpus = []
-        for idx, doc_text in enumerate(corpus):
-            doc_id = f"doc_{idx}"
-            processed_corpus.append({"doc_id": doc_id, "text": doc_text})
-
-            ngrams = self.generate_ngrams_strings(
-                re.findall(r"\b\w+\b", doc_text.lower())
-            )
-            terms_by_doc.append(self.doc_terms(doc_id, self.compute_basic(ngrams)))
-
-        return ATEResults(corpus=processed_corpus, terms=terms_by_doc)
