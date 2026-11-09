@@ -114,7 +114,7 @@ doc.words = [(0, 4), (5, 13), (14, 16), (17, 18), (19, 27), (28, 30), (31, 38), 
 results = TermExtractor(method="basic", n=2).extract(corpus)
 ```
 
-Words are read from the `words` layer or, if there is none, from a `tokens` layer, as written by Teanga's CoNLL-U reader and spaCy service; pass `words_layer=...` to use another layer. If the corpus has part-of-speech tags in a `upos` or `pos` layer based on the words, pass `pos_pattern` to keep only the terms whose tags match a pattern, either `"noun_phrase"` or your own pattern such as `"<ADJ|NOUN>*<NOUN>"`. See the [TF-IDF tutorial](https://teanga.io/TermXtract/tutorials/tfidf_tutorial/#part-of-speech-patterns).
+Words are read from the `words` layer or, if there is none, from a `tokens` layer, as written by Teanga's CoNLL-U reader and spaCy service; pass `words_layer=...` to use another layer. If the corpus has part-of-speech tags in a `upos` or `pos` layer based on the words, pass `pos_pattern` to keep only the terms whose tags match a pattern, either `"noun_phrase"` or your own pattern such as `"<ADJ|NOUN>*<NOUN>"`, and if it has lemmas, pass `lemma_layer="lemma"` to count `cell` and `cells` as one term. See the [TF-IDF tutorial](https://teanga.io/TermXtract/tutorials/tfidf_tutorial/#part-of-speech-patterns).
 
 ## Available methods
 
@@ -137,7 +137,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
 
-All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), and, for Teanga input, `words_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords` or `words_layer`; it splits candidates at its own `stoplist`.
+All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
 
 ### Supervised — `SupervisedTermExtractor(method=...)`
 

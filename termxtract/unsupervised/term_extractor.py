@@ -29,41 +29,102 @@ class TermExtractor:
     """
 
     METHODS: ClassVar[dict[str, tuple[type[BaseTermExtractor], tuple[str, ...]]]] = {
-        "tfidf": (TFIDFTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
-        "ridf": (RIDFTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
-        "cvalue": (CValueTermExtractor, ("threshold", "n", "stopwords", "words_layer")),
+        "tfidf": (
+            TFIDFTermExtractor,
+            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
+        ),
+        "ridf": (
+            RIDFTermExtractor,
+            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
+        ),
+        "cvalue": (
+            CValueTermExtractor,
+            ("threshold", "n", "stopwords", "words_layer", "lemma_layer"),
+        ),
         "basic": (
             BasicTermExtractor,
-            ("alpha", "threshold", "n", "stopwords", "words_layer"),
+            ("alpha", "threshold", "n", "stopwords", "words_layer", "lemma_layer"),
         ),
         "combobasic": (
             ComboBasicTermExtractor,
-            ("alpha", "beta", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "alpha",
+                "beta",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "domaincoherence": (
             DomainCoherenceTermExtractor,
-            ("window_size", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "window_size",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "relevance": (
             RelevanceTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "reference_corpus",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "topicmodeling": (
             TopicModelingTermExtractor,
-            ("num_topics", "top_words", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "num_topics",
+                "top_words",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "nmf": (
             NMFTermExtractor,
-            ("threshold", "n_topics", "max_features", "n", "stopwords", "words_layer"),
+            (
+                "threshold",
+                "n_topics",
+                "max_features",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "reference_corpus",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
         "weirdness": (
             WeirdnessTermExtractor,
-            ("reference_corpus", "threshold", "n", "stopwords", "words_layer"),
+            (
+                "reference_corpus",
+                "threshold",
+                "n",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+            ),
         ),
     }
 
@@ -87,6 +148,7 @@ class TermExtractor:
         max_features: int | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
         pos_pattern: str | None = None,
         pos_layer: str | None = None,
     ):
@@ -118,6 +180,11 @@ class TermExtractor:
             words_layer (Optional[str]): For Teanga input, the span layer holding the words:
                 None (the default) for `words` or, if the corpus has no `words` layer,
                 `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on the
+                words layer, holding the lemma of each word (all methods except 'rake').
+                If given, words are read as their lemmas, so inflected forms such as
+                "cell" and "cells" are counted, and returned, as one term. None (the
+                default) reads the words as written.
             pos_pattern (Optional[str]): For Teanga input, keep only the terms whose
                 part-of-speech tags match this pattern in at least one occurrence. Tags are
                 written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
@@ -151,8 +218,10 @@ class TermExtractor:
             "max_features": max_features,
             "stopwords": stopwords,
             "words_layer": words_layer,
+            "lemma_layer": lemma_layer,
         }
         self.words_layer = words_layer
+        self.lemma_layer = lemma_layer
         self.pos_pattern = (
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
@@ -182,7 +251,12 @@ class TermExtractor:
             if self.pos_pattern is None:
                 return results
             return filter_by_pos(
-                results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
+                results,
+                corpus,
+                self.pos_pattern,
+                self.pos_layer,
+                self.words_layer,
+                self.lemma_layer,
             )
         elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
             if self.pos_pattern is not None:
