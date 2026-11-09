@@ -26,6 +26,7 @@ class BaseTermExtractor(ABC):
         n: int = 1,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
     ):
         """
         Initialize the extractor.
@@ -38,11 +39,17 @@ class BaseTermExtractor(ABC):
                 English list, a list of words, or None to keep every candidate.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on the
+                words layer, holding the lemma of each word. If given, every word is read
+                as its lemma, so inflected forms such as "cell" and "cells" are counted as
+                one term, which is reported by its lemmas. None (the default) reads the
+                words as written.
         """
         self.threshold = threshold
         self.n = n
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
+        self.lemma_layer = lemma_layer
 
     @abstractmethod
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
@@ -77,9 +84,10 @@ class BaseTermExtractor(ABC):
             doc (Document): A Teanga document with a words layer (see `words_layer`).
 
         Returns:
-            List[Tuple[int, int, str]]: A (start, end, text) tuple for each word.
+            List[Tuple[int, int, str]]: A (start, end, text) tuple for each word, where
+            text is the word's lemma if `lemma_layer` is set.
         """
-        return words_with_offsets(doc, self.words_layer)
+        return words_with_offsets(doc, self.words_layer, self.lemma_layer)
 
     def generate_ngrams_teanga(
         self, words_with_offsets: list[tuple[int, int, str]]

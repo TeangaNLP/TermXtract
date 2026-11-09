@@ -18,6 +18,7 @@ class BasicTermExtractor(NestedTermExtractor):
         n: int = 1,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
     ):
         r"""
         Initialize the Basic extractor.
@@ -33,10 +34,17 @@ class BasicTermExtractor(NestedTermExtractor):
                 with a stopword: "english", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
+                lemma of each word, to count inflected forms such as "cell" and "cells"
+                as one term, or None to use the words as written.
         """
         self.alpha = alpha
         super().__init__(
-            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+            threshold=threshold,
+            n=n,
+            stopwords=stopwords,
+            words_layer=words_layer,
+            lemma_layer=lemma_layer,
         )
 
     def score_terms(

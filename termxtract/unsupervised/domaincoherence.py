@@ -3,7 +3,6 @@ import re
 from collections import Counter
 from typing import Any
 
-from ..layers import word_spans
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -20,6 +19,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
         window_size: int = 5,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
     ):
         """
         Initialize the DomainCoherence extractor.
@@ -32,9 +32,16 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                 with a stopword: "english", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
+                lemma of each word, to count inflected forms such as "cell" and "cells"
+                as one term, or None to use the words as written.
         """
         super().__init__(
-            threshold=threshold, n=n, stopwords=stopwords, words_layer=words_layer
+            threshold=threshold,
+            n=n,
+            stopwords=stopwords,
+            words_layer=words_layer,
+            lemma_layer=lemma_layer,
         )
         self.window_size = window_size
 
@@ -47,6 +54,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             n=self.n,
             stopwords=self.stopwords,
             words_layer=self.words_layer,
+            lemma_layer=self.lemma_layer,
         )
         basic_results = basic_extractor.extract_terms_teanga(corpus)
 
@@ -128,11 +136,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
 
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words_with_offsets = [
-                (start, end, doc.text[start:end])
-                for start, end in word_spans(doc, self.words_layer)
-            ]
-            words = [word.lower() for _, _, word in words_with_offsets]
+            words = [word.lower() for _, _, word in self.teanga_words(doc)]
 
             for term in term_set:
                 term_positions = [i for i, word in enumerate(words) if word == term]
@@ -307,10 +311,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                 # Compute probabilities for Teanga corpus
                 for doc_id in corpus.doc_ids:
                     doc = corpus.doc_by_id(doc_id)
-                    words = [
-                        doc.text[start:end].lower()
-                        for start, end in word_spans(doc, self.words_layer)
-                    ]
+                    words = [word.lower() for _, _, word in self.teanga_words(doc)]
 
                     # Joint probability: term and word co-occurrence
                     if term in words and word in words:
@@ -323,10 +324,8 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                         for doc_id in corpus.doc_ids
                         if term
                         in [
-                            doc.text[start:end].lower()
-                            for start, end in word_spans(
-                                corpus.doc_by_id(doc_id), self.words_layer
-                            )
+                            w.lower()
+                            for _, _, w in self.teanga_words(corpus.doc_by_id(doc_id))
                         ]
                     )
                     / num_docs
@@ -340,10 +339,8 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
                         for doc_id in corpus.doc_ids
                         if word
                         in [
-                            doc.text[start:end].lower()
-                            for start, end in word_spans(
-                                corpus.doc_by_id(doc_id), self.words_layer
-                            )
+                            w.lower()
+                            for _, _, w in self.teanga_words(corpus.doc_by_id(doc_id))
                         ]
                     )
                     / num_docs

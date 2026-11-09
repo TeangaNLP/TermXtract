@@ -55,6 +55,11 @@ that was previously only available from GitHub.
   and lemmas and part-of-speech tags (#39).
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
+- `lemma_layer` parameter for every unsupervised method except RAKE, which reads each
+  word of a Teanga corpus as its lemma, so inflected forms such as "cell" and "cells"
+  are counted, and returned, as one term (#70). `pos_pattern` then matches the lemmas,
+  and `datasets.gold_terms` takes a `lemma_layer` too, so gold terms can be compared by
+  their lemmas.
 
 ### Changed
 
