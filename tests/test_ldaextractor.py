@@ -1,5 +1,8 @@
+import math
+import re
 import unittest
 
+import pytest
 from teanga import Corpus
 
 from termxtract.unsupervised.term_extractor import TermExtractor
@@ -81,6 +84,67 @@ class TestTopicModelingTermExtractor(unittest.TestCase):
                 self.assertIn(
                     "score", term_data, "Each term entry should have a 'score'."
                 )
+
+
+CORPUS = [
+    "The degree of freedom of the model.",
+    "Each degree of freedom adds a parameter to the model.",
+    "Model selection penalises every extra parameter, as in model selection.",
+    "Gradient descent finds the parameters of the model.",
+]
+
+
+def extract(corpus, **params):
+    extractor = TermExtractor(method="topicmodeling", n=3, num_topics=3, **params)
+    return extractor.extractor, extractor.extract(corpus)
+
+
+def scores(results):
+    by_term = {}
+    for doc in results.terms:
+        for term in doc["terms"]:
+            by_term.setdefault(term["term"], set()).add(term["score"])
+    assert all(len(values) == 1 for values in by_term.values())
+    return {term: next(iter(values)) for term, values in by_term.items()}
+
+
+def test_topic_model_vocabulary_is_single_content_words():
+    extractor, _ = extract(CORPUS)
+    vocabulary = set(extractor.vectorizer.get_feature_names_out())
+    assert {"degree", "freedom", "model", "parameter"} <= vocabulary
+    assert not vocabulary & {"the", "of", "a", "."}
+    assert all(" " not in word for word in vocabulary)
+
+
+def test_score_is_log_frequency_times_word_probabilities():
+    extractor, results = extract(CORPUS)
+    probabilities = extractor.word_probabilities
+    by_term = scores(results)
+    # "degree of freedom" occurs twice; "of" is a stopword, so it adds nothing
+    assert by_term["degree of freedom"] == pytest.approx(
+        math.log(2) * (probabilities["degree"] + probabilities["freedom"])
+    )
+    assert by_term["model"] == pytest.approx(math.log(5) * probabilities["model"])
+
+
+def test_only_typical_words_count():
+    extractor, results = extract(CORPUS, top_words=1)
+    assert len(extractor.word_probabilities) <= 3
+    by_term = scores(results)
+    assert all(
+        any(word in extractor.word_probabilities for word in term.split())
+        for term in by_term
+    )
+
+
+def test_same_scores_for_both_input_types():
+    corpus = Corpus()
+    corpus.add_layer_meta("text")
+    corpus.add_layer_meta("words", layer_type="span", base="text")
+    for text in CORPUS:
+        doc = corpus.add_doc(text.lower())
+        doc.words = [(m.start(), m.end()) for m in re.finditer(r"\w+", text)]
+    assert scores(extract(corpus)[1]) == pytest.approx(scores(extract(CORPUS)[1]))
 
 
 if __name__ == "__main__":

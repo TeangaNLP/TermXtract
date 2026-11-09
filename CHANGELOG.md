@@ -100,6 +100,14 @@ that was previously only available from GitHub.
   gave them all 0. Basic and ComboBasic use log f(t) instead of log(f(t) + 1), and
   single words no longer gain from being nested in longer candidates. Domain coherence,
   which starts from Basic's top 200 terms, lists each of them once.
+- *Breaking:* the topic-modelling method follows the Novel Topic Model as implemented
+  in ATR4S (#65), so its scores change. Its LDA model is trained on single words without
+  stopwords, instead of on every n-gram with them, and only the `top_words` (new
+  parameter, default 200) most probable words of each topic count towards a
+  candidate's score, so long candidates full of common words no longer come first. A
+  candidate scores log f(t) times the sum of its words' largest topic probabilities,
+  where f(t) is its frequency in the corpus, not in each document, so a term has the
+  same score in every document.
 - WordNet features in the AdaBoost extractor use [`wn`](https://github.com/goodmami/wn)
   and Open English WordNet (`oewn:2025+`, downloaded on first use) instead of NLTK.
 - Teanga is installed from PyPI instead of GitHub.
