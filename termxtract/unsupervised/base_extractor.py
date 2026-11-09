@@ -137,33 +137,25 @@ class BaseTermExtractor(ABC):
             Dict[str, List[Tuple[str, Tuple[int, int]]]]: For each document ID, every
             occurrence of a candidate, with its start and end character offsets.
         """
-        ngrams_by_doc = {}
-        for doc_id in corpus.doc_ids:
-            doc = corpus.doc_by_id(doc_id)
-            words = self.teanga_words(doc)
-            tags = (
-                None
-                if self.pos_pattern is None
-                else pos_tags(doc, self.pos_layer, self.words_layer)
-            )
-            texts = [text for _, _, text in words]
-            ngrams_by_doc[doc_id] = [
-                (" ".join(texts[i:j]), (words[i][0], words[j - 1][1]))
-                for i, j in candidate_spans(
-                    texts,
-                    self.n,
-                    self.stopwords,
-                    self.word_pattern,
-                    tags,
-                    self.pos_pattern,
-                )
+        words_by_doc = [self.teanga_words(corpus.doc_by_id(d)) for d in corpus.doc_ids]
+        tags = (
+            None
+            if self.pos_pattern is None
+            else [
+                pos_tags(corpus.doc_by_id(d), self.pos_layer, self.words_layer)
+                for d in corpus.doc_ids
             ]
-        frequent = self.frequent_candidates(
-            ngram for ngrams in ngrams_by_doc.values() for ngram, _ in ngrams
+        )
+        occurrences_by_doc = self.candidate_occurrences(
+            [[text for _, _, text in words] for words in words_by_doc], tags
         )
         return {
-            doc_id: [(ngram, offset) for ngram, offset in ngrams if ngram in frequent]
-            for doc_id, ngrams in ngrams_by_doc.items()
+            doc_id: [
+                (ngram, (words[i][0], words[j - 1][1])) for ngram, i, j in occurrences
+            ]
+            for doc_id, words, occurrences in zip(
+                corpus.doc_ids, words_by_doc, occurrences_by_doc
+            )
         }
 
     def candidate_ngrams_strings(self, docs: list[list[str]]) -> list[list[str]]:
@@ -179,25 +171,54 @@ class BaseTermExtractor(ABC):
         Raises:
             ValueError: If `pos_pattern` is set, since plain text has no tags.
         """
-        if self.pos_pattern is not None:
+        return [
+            [ngram for ngram, _, _ in occurrences]
+            for occurrences in self.candidate_occurrences(docs)
+        ]
+
+    def candidate_occurrences(
+        self, docs: list[list[str]], tags: list[list[str]] | None = None
+    ) -> list[list[tuple[str, int, int]]]:
+        """
+        Find the occurrences of the candidates in documents split into words.
+
+        Args:
+            docs (List[List[str]]): The words of each document.
+            tags (Optional[List[List[str]]]): The part-of-speech tag of each word of each
+                document, needed if `pos_pattern` is set.
+
+        Returns:
+            List[List[Tuple[str, int, int]]]: Every occurrence of a candidate in each
+            document, with its start and end (exclusive) word index.
+
+        Raises:
+            ValueError: If `pos_pattern` is set and there are no tags.
+        """
+        if self.pos_pattern is not None and tags is None:
             raise ValueError(
                 "pos_pattern needs part-of-speech tags, so it only works with a "
                 "Teanga corpus with a part-of-speech layer."
             )
-        ngrams_by_doc = [
+        occurrences = [
             [
-                " ".join(words[i:j])
+                (" ".join(words[i:j]), i, j)
                 for i, j in candidate_spans(
-                    words, self.n, self.stopwords, self.word_pattern
+                    words,
+                    self.n,
+                    self.stopwords,
+                    self.word_pattern,
+                    None if tags is None else tags[k],
+                    self.pos_pattern,
                 )
             ]
-            for words in docs
+            for k, words in enumerate(docs)
         ]
         frequent = self.frequent_candidates(
-            ngram for ngrams in ngrams_by_doc for ngram in ngrams
+            ngram for doc in occurrences for ngram, _, _ in doc
         )
         return [
-            [ngram for ngram in ngrams if ngram in frequent] for ngrams in ngrams_by_doc
+            [occurrence for occurrence in doc if occurrence[0] in frequent]
+            for doc in occurrences
         ]
 
     def frequent_candidates(self, ngrams: Iterable[str]) -> set[str]:
