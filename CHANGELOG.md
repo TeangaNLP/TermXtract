@@ -83,6 +83,13 @@ that was previously only available from GitHub.
   defaults to 20. Roger raises a `ValueError` unless at least one candidate is
   labelled `1` and one `0`; a training sample without positive labels used to get an
   undefined (NaN) fitness, which the search treated as the best (#27).
+- *Breaking:* Residual IDF uses the formula of Church & Gale (1999), as in ATR4S and
+  JATE 2.0 (#63): log2(D / df) + log2(1 - e^(-cf / D)), computed once over the corpus,
+  so a term has the same score in every document. It used to compute
+  log(df / (1 + D (1 - e^(-cf)))), the inverse of the residual with the wrong Poisson
+  rate, which favoured common n-grams, and multiplied it by each document's term
+  frequency. It is also much faster: it counted each n-gram in each document
+  separately, taking hours on 2,000 abstracts, and now takes seconds.
 - *Breaking:* C-value, Basic and ComboBasic follow their published definitions, as
   implemented in ATR4S (#62), so their scores change. Frequencies and nesting are
   counted over the whole corpus rather than in each document, so a term has the same

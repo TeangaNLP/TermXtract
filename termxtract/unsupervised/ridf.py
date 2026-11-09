@@ -1,5 +1,6 @@
 import math
 import re
+from collections import Counter
 
 from teanga import Corpus
 
@@ -8,7 +9,18 @@ from .base_extractor import BaseTermExtractor
 
 
 class RIDFTermExtractor(BaseTermExtractor):
-    """RIDF-based term extraction with n-gram support."""
+    r"""
+    Residual IDF term extraction (Church & Gale, 1999), as in ATR4S (Astrakhantsev,
+    2018) and JATE 2.0.
+
+    Residual IDF is the amount by which a candidate's IDF exceeds the IDF that a Poisson
+    distribution of its occurrences over the documents would predict:
+    \( \log_2 \frac{D}{df(t)} + \log_2 (1 - e^{-cf(t) / D}) \), where \( D \) is the
+    number of documents, \( df(t) \) the number of documents containing \( t \) and
+    \( cf(t) \) its number of occurrences. Terms concentrated in a few documents score
+    highest. Scores are computed over the whole corpus, so a term has the same score in
+    every document it occurs in.
+    """
 
     def compute_ridf(self, corpus_ngrams: list[list[str]]) -> dict[str, float]:
         """
@@ -21,32 +33,14 @@ class RIDFTermExtractor(BaseTermExtractor):
             Dict[str, float]: RIDF values for each n-gram.
         """
         num_docs = len(corpus_ngrams)
-        all_ngrams = {ngram for doc in corpus_ngrams for ngram in doc}
-
-        # Expected document frequency under a random model
-        expected_doc_freq = {
-            ngram: num_docs
-            * (1 - math.exp(-sum(doc.count(ngram) for doc in corpus_ngrams)))
-            for ngram in all_ngrams
+        collection_freq = Counter(ngram for doc in corpus_ngrams for ngram in doc)
+        doc_freq = Counter(ngram for doc in corpus_ngrams for ngram in set(doc))
+        return {
+            ngram: math.log2(num_docs / doc_freq[ngram])
+            # log2(1 - e^-x), with expm1 for precision when x is small
+            + math.log2(-math.expm1(-cf / num_docs))
+            for ngram, cf in collection_freq.items()
         }
-
-        # Observed document frequency
-        observed_doc_freq = {
-            ngram: sum(1 for doc in corpus_ngrams if ngram in doc)
-            for ngram in all_ngrams
-        }
-
-        # RIDF calculation
-        ridf = {}
-        for ngram in all_ngrams:
-            observed = observed_doc_freq[ngram]
-            expected = expected_doc_freq[ngram]
-            if observed > 0:
-                ridf[ngram] = math.log(observed / (1 + expected))
-            else:
-                ridf[ngram] = 0.0
-
-        return ridf
 
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
@@ -58,23 +52,21 @@ class RIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores, and term offsets.
         """
-        ngrams_by_doc = {}
-        for doc_id in corpus.doc_ids:
-            doc = corpus.doc_by_id(doc_id)
-            ngrams_by_doc[doc_id] = self.generate_ngrams_teanga(self.teanga_words(doc))
-
-        corpus_ngrams = [
-            [ngram for ngram, _ in ngrams_with_offsets]
-            for ngrams_with_offsets in ngrams_by_doc.values()
-        ]
-        ridf_scores = self.compute_ridf(corpus_ngrams)
+        ngrams_by_doc = {
+            doc_id: self.generate_ngrams_teanga(
+                self.teanga_words(corpus.doc_by_id(doc_id))
+            )
+            for doc_id in corpus.doc_ids
+        }
+        ridf_scores = self.compute_ridf(
+            [[ngram for ngram, _ in ngrams] for ngrams in ngrams_by_doc.values()]
+        )
 
         terms_by_doc = []
         offsets_by_doc = []
         for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
-            tf = self.compute_tf([ngram for ngram, _ in ngrams_with_offsets])
             doc_terms = self.doc_terms(
-                doc_id, {ngram: tf[ngram] * ridf_scores.get(ngram, 0) for ngram in tf}
+                doc_id, {ngram: ridf_scores[ngram] for ngram, _ in ngrams_with_offsets}
             )
             terms_by_doc.append(doc_terms)
             offsets_by_doc.append(
@@ -93,22 +85,19 @@ class RIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores.
         """
-        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
-        corpus_ngrams = [self.generate_ngrams_strings(doc) for doc in tokenized_corpus]
+        corpus_ngrams = [
+            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
+            for doc in corpus
+        ]
         ridf_scores = self.compute_ridf(corpus_ngrams)
 
-        terms_by_doc = []
-        processed_corpus = []
-        for idx, doc_text in enumerate(corpus):
-            doc_id = f"doc_{idx}"
-            processed_corpus.append({"doc_id": doc_id, "text": doc_text})
-
-            tf = self.compute_tf(corpus_ngrams[idx])
-            terms_by_doc.append(
-                self.doc_terms(
-                    doc_id,
-                    {ngram: tf[ngram] * ridf_scores.get(ngram, 0) for ngram in tf},
-                )
+        terms_by_doc = [
+            self.doc_terms(
+                f"doc_{idx}", {ngram: ridf_scores[ngram] for ngram in ngrams}
             )
-
+            for idx, ngrams in enumerate(corpus_ngrams)
+        ]
+        processed_corpus = [
+            {"doc_id": f"doc_{idx}", "text": doc} for idx, doc in enumerate(corpus)
+        ]
         return ATEResults(corpus=processed_corpus, terms=terms_by_doc)
