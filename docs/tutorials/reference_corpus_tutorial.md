@@ -134,21 +134,21 @@ The words in the middle show the main limitation of a small reference corpus. Fu
 
 `domain_pertinence(t) = p_target(t) / max(p_target(t), p_ref(t))`
 
-The score is between 0 and 1. It is **1** for every n-gram that is at least as common in your corpus as in the reference corpus, and falls towards 0 for n-grams that are more typical of the reference corpus. It does not rank domain terms against each other; it is a **filter** that removes words belonging to general language. Use it with `threshold=1`:
+The score is between 0 and 1. It is **1** for every n-gram that is at least as common in your corpus as in the reference corpus, and falls towards 0 for n-grams that are more typical of the reference corpus. On its own, it is a **filter** that removes words belonging to general language, rather than a ranking. Use it with `threshold=1`:
 
 ```python
 extractor = TermExtractor(
     method="domainpertinence", reference_corpus=reference, threshold=1, stopwords=None
 )
 results = extractor.extract(corpus)
-print(results.terms[0])
+print([term["term"] for term in results.terms[0]["terms"]])
 ```
 
 ```text
-{'doc_id': 'doc_0', 'terms': [{'term': 'photosynthesis', 'score': 1.0}, {'term': 'takes', 'score': 1.0}, {'term': 'place', 'score': 1.0}, {'term': 'chloroplast', 'score': 1.0}, {'term': 'of', 'score': 1.0}, {'term': 'plant', 'score': 1.0}, {'term': 'cell', 'score': 1.0}]}
+['plant', 'photosynthesis', 'chloroplast', 'place', 'cell', 'takes', 'of']
 ```
 
-The general-language words `in`, `the` and `a` are gone from the first document, and everything else is kept with a score of 1. Without a threshold, you can see how strongly the filtered words belong to the reference corpus:
+The general-language words `in`, `the` and `a` are gone from the first document, and everything else is kept. Since most terms tie at 1, TermXtract orders them by adding a number between 0 and 1 to their score, set by `tie_break`. The default, `"ratio"`, uses Weirdness's ratio, so with one reference corpus the terms are ranked as Weirdness ranks them:
 
 ```python
 extractor = TermExtractor(
@@ -159,39 +159,78 @@ show_terms(results, limit=None)
 ```
 
 ```text
-1.000  photosynthesis
-1.000  takes
-1.000  place
-1.000  chloroplast
-1.000  of
-1.000  plant
-1.000  cell
-1.000  contains
-1.000  chlorophyll
-1.000  which
-1.000  absorbs
-1.000  light
-1.000  energy
-1.000  during
-1.000  is
-1.000  converted
-1.000  into
-1.000  chemical
-1.000  cells
-1.000  store
-1.000  as
-1.000  glucose
-1.000  gives
-1.000  leaf
-1.000  its
-1.000  green
-1.000  colour
+1.865  plant
+1.810  photosynthesis
+1.810  chloroplast
+1.810  chlorophyll
+1.810  energy
+1.810  chemical
+1.681  place
+1.681  cell
+1.681  contains
+1.681  absorbs
+1.681  light
+1.681  cells
+1.681  store
+1.681  as
+1.681  glucose
+1.681  gives
+1.681  leaf
+1.681  colour
+1.516  takes
+1.516  of
+1.516  which
+1.516  during
+1.516  is
+1.516  converted
+1.516  into
+1.516  its
+1.516  green
 0.853  a
 0.569  the
 0.427  in
 ```
 
-Like Weirdness, Domain Pertinence needs a large reference corpus to filter well. Here, `of`, `which` and `is` pass the filter for the same reason as before.
+`tie_break="frequency"` orders the tied terms by their frequency in your corpus instead, and `tie_break=None` leaves them tied at 1. On the English benchmark, `"ratio"` ranks terms best.
+
+Like Weirdness, Domain Pertinence needs a large reference corpus to filter well. Here, `of`, `which` and `is` pass the filter because eight reference sentences are too few to show how common they are.
+
+### Several reference corpora
+
+Navigli & Velardi compare the target corpus with **one corpus per contrasting domain**, and take the maximum over all of them. Pass a list of reference corpora to do the same: an n-gram scores 1 only if it is at least as common in your corpus as in every reference corpus. Here a second reference corpus, about cooking, shows that `place`, `store`, `leaf` and `green` are not specific to biology:
+
+```python
+cooking = [
+    "Bake the bread until the crust turns brown.",
+    "Store the energy bars in a cool, dry place.",
+    "Chop the green leaf of the plant and add it to the soup.",
+]
+extractor = TermExtractor(
+    method="domainpertinence",
+    reference_corpus=[reference, cooking],
+    tie_break=None,
+    stopwords=None,
+)
+results = extractor.extract(corpus)
+show_terms(results, limit=None)
+```
+
+```text
+1.000  photosynthesis
+1.000  takes
+1.000  chloroplast
+...
+1.000  colour
+0.853  a
+0.667  place
+0.667  store
+0.667  leaf
+0.667  green
+0.444  the
+0.427  in
+```
+
+Weirdness and Relevance accept a list of reference corpora too, and read them as one corpus.
 
 ## Relevance
 
@@ -227,7 +266,7 @@ show_terms(results, limit=10)
 | Method | Score | Good for |
 |---|---|---|
 | Weirdness | Ratio of frequencies, from 0 upwards | Ranking candidates by how domain-specific they are |
-| Domain Pertinence | 0 to 1, and 1 for most domain terms | Filtering out general-language words with `threshold=1` |
+| Domain Pertinence | 0 to 1, plus a tie-break of up to 1 for the terms at 1 | Filtering out general-language words with `threshold=1`, against one or several reference corpora |
 | Relevance | 0 to 1 | Ranking terms that are both domain-specific and widespread in your corpus |
 
 ## Multi-word terms

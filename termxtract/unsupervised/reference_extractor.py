@@ -8,6 +8,9 @@ from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
+ReferenceCorpus = Corpus | list[str]
+"""A reference corpus: a Teanga corpus, or a list of strings."""
+
 
 class ReferenceCorpusTermExtractor(BaseTermExtractor):
     """
@@ -19,12 +22,14 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
 
     The reference corpus must have the same type as the corpus passed to `extract`: a
     list of strings for plain-text input, or a Teanga `Corpus` with a `words` layer for
-    Teanga input.
+    Teanga input. Several reference corpora can be given as a list of them; Domain
+    Pertinence compares the target corpus with each, and the other methods read them as
+    one corpus.
     """
 
     def __init__(
         self,
-        reference_corpus: Corpus | list[str] | None,
+        reference_corpus: ReferenceCorpus | list[ReferenceCorpus] | None,
         threshold: float | None = None,
         n: int = 1,
         stopwords: Stopwords = "english",
@@ -39,8 +44,9 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         Initialize the extractor.
 
         Args:
-            reference_corpus (Union[Corpus, List[str]]): General-language reference corpus,
-                of the same type as the corpus the terms are extracted from.
+            reference_corpus (Union[Corpus, List[str], List[Union[Corpus, List[str]]]]):
+                General-language reference corpus, of the same type as the corpus the
+                terms are extracted from, or a list of reference corpora.
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
@@ -70,9 +76,28 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             pos_pattern=pos_pattern,
             pos_layer=pos_layer,
         )
-        if reference_corpus is None:
+        if reference_corpus is None or (
+            isinstance(reference_corpus, list) and not reference_corpus
+        ):
             raise ValueError(f"{type(self).__name__} requires a reference corpus.")
         self.reference_corpus = reference_corpus
+        if isinstance(reference_corpus, Corpus) or all(
+            isinstance(doc, str) for doc in reference_corpus
+        ):
+            self.reference_corpora = [reference_corpus]
+        else:
+            self.reference_corpora = list(reference_corpus)
+        if not (
+            all(isinstance(ref, Corpus) for ref in self.reference_corpora)
+            or all(
+                isinstance(ref, list) and all(isinstance(doc, str) for doc in ref)
+                for ref in self.reference_corpora
+            )
+        ):
+            raise TypeError(
+                "The reference corpus must be a Teanga Corpus, a list of strings, or a "
+                "list of reference corpora of one of these types."
+            )
 
     @abstractmethod
     def score_terms(
@@ -88,6 +113,27 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         Returns:
             Dict[str, float]: The score of every n-gram in the target corpus.
         """
+
+    def score_corpora(
+        self, target_ngrams: list[list[str]], ref_ngrams: list[list[list[str]]]
+    ) -> dict[str, float]:
+        """
+        Score the n-grams of the target corpus against one or more reference corpora.
+
+        By default, the reference corpora are read as one corpus and passed to
+        `score_terms`.
+
+        Args:
+            target_ngrams (List[List[str]]): The n-grams of each target document.
+            ref_ngrams (List[List[List[str]]]): The n-grams of each document of each
+                reference corpus.
+
+        Returns:
+            Dict[str, float]: The score of every n-gram in the target corpus.
+        """
+        return self.score_terms(
+            target_ngrams, [doc for corpus in ref_ngrams for doc in corpus]
+        )
 
     @staticmethod
     def count_ngrams(corpus_ngrams: list[list[str]]) -> tuple[Counter, int]:
@@ -117,7 +163,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         Raises:
             TypeError: If the reference corpus is a Teanga corpus.
         """
-        if isinstance(self.reference_corpus, Corpus):
+        if isinstance(self.reference_corpora[0], Corpus):
             raise TypeError(
                 "The reference corpus is a Teanga Corpus, so the corpus to extract "
                 "terms from must also be a Teanga Corpus, not a list of strings."
@@ -126,12 +172,14 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         )
         ref_ngrams = [
-            self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
-            for doc in self.reference_corpus
+            [
+                self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
+                for doc in reference
+            ]
+            for reference in self.reference_corpora
         ]
-        if not any(ref_ngrams):
-            raise ValueError("The reference corpus contains no words.")
-        scores = self.score_terms(target_ngrams, ref_ngrams)
+        self._check_words(ref_ngrams)
+        scores = self.score_corpora(target_ngrams, ref_ngrams)
 
         terms_by_doc = [
             self.doc_terms(f"doc_{idx}", {ngram: scores[ngram] for ngram in ngrams})
@@ -153,7 +201,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         Raises:
             TypeError: If the reference corpus is a list of strings.
         """
-        if not isinstance(self.reference_corpus, Corpus):
+        if not isinstance(self.reference_corpora[0], Corpus):
             raise TypeError(
                 "The reference corpus is a list of strings, so the corpus to extract "
                 "terms from must also be a list of strings, not a Teanga Corpus."
@@ -165,16 +213,18 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         ]
         ref_ngrams = [
             [
-                ngram
-                for ngram, _ in self.generate_ngrams_teanga(
-                    self.teanga_words(self.reference_corpus.doc_by_id(doc_id))
-                )
+                [
+                    ngram
+                    for ngram, _ in self.generate_ngrams_teanga(
+                        self.teanga_words(reference.doc_by_id(doc_id))
+                    )
+                ]
+                for doc_id in reference.doc_ids
             ]
-            for doc_id in self.reference_corpus.doc_ids
+            for reference in self.reference_corpora
         ]
-        if not any(ref_ngrams):
-            raise ValueError("The reference corpus contains no words.")
-        scores = self.score_terms(target_ngrams, ref_ngrams)
+        self._check_words(ref_ngrams)
+        scores = self.score_corpora(target_ngrams, ref_ngrams)
 
         terms_by_doc = []
         offsets_by_doc = []
@@ -188,3 +238,10 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             )
 
         return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
+
+    @staticmethod
+    def _check_words(ref_ngrams: list[list[list[str]]]) -> None:
+        """Check that every reference corpus has some words."""
+        for corpus in ref_ngrams:
+            if not any(corpus):
+                raise ValueError("The reference corpus contains no words.")

@@ -65,7 +65,7 @@ If a Teanga corpus has part-of-speech tags, `pos_pattern="noun_phrase"` keeps on
 
 ### Methods that need a reference corpus
 
-`weirdness`, `domainpertinence` and `relevance` compare the target corpus against a general-language reference corpus:
+`weirdness`, `domainpertinence` and `relevance` compare the target corpus against a general-language reference corpus, or a list of reference corpora:
 
 ```python
 reference = [
@@ -131,7 +131,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `combobasic`       | ComboBasic                                          | `alpha`, `beta`                       |
 | `rake`             | Rapid Automatic Keyword Extraction                  | `stoplist`, `phrase_delimiters` (required) |
 | `domaincoherence`  | Domain coherence                                    | `window_size`, `seed_terms`, `context_words` |
-| `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required)         |
+| `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required), `tie_break` |
 | `weirdness`        | Weirdness                                           | `reference_corpus` (required)         |
 | `relevance`        | Relevance                                           | `reference_corpus` (required)         |
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
