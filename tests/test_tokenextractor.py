@@ -236,6 +236,49 @@ class TestTokenClassificationExtraction(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_fit_on_gold_terms_with_validation_and_save(self):
+        """Training on gold spans with a validation set and a seed, then saving."""
+        import tempfile
+
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
+        corpus.add_layer_meta("terms", layer_type="span", base="text")
+        for doc, terms in zip(self.corpus.docs, [[(0, 16)], [(0, 15), (33, 46)]]):
+            new = corpus.add_doc(doc.text)
+            new.words = [(s[0], s[1]) for s in doc.words]
+            new.terms = terms
+
+        def train():
+            return SupervisedTermExtractor(
+                method="token-classification",
+                model_name="distilbert-base-uncased",
+                batch_size=4,
+                epochs=3,
+                random_state=0,
+                patience=1,
+            ).fit(corpus, validation=corpus)
+
+        extractor = train()
+        results = extractor.predict(corpus)
+        self.assertEqual(results.terms, train().predict(corpus).terms)
+        with tempfile.TemporaryDirectory() as directory:
+            extractor.save(directory)
+            loaded = SupervisedTermExtractor(
+                method="token-classification", model_name=directory
+            )
+            self.assertTrue(loaded.extractor.is_trained)
+            self.assertEqual(loaded.predict(corpus).terms, results.terms)
+
+    def test_patience_needs_a_validation_set(self):
+        extractor = SupervisedTermExtractor(
+            method="token-classification",
+            model_name="distilbert-base-uncased",
+            patience=1,
+        )
+        with self.assertRaisesRegex(ValueError, "validation set"):
+            extractor.fit(self.text_corpus, self.labels)
+
     def test_token_classification_with_different_models(self):
         """Test term extraction with different transformer models."""
         # Test with another model type (smaller for faster tests)
@@ -282,7 +325,105 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
 
         [(_, tags)] = extractor.create_training_data([(tokens, "")], labels)
 
-        self.assertEqual(tags, ["B-T", "T", "n", "n", "n", "n", "B-T", "T"])
+        self.assertEqual(tags, ["B", "I", "O", "O", "O", "O", "B", "I"])
+
+    def test_longest_labelled_term_is_tagged(self):
+        from sacremoses import MosesDetokenizer
+
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.n = 3
+        extractor.moses_detokenizer = MosesDetokenizer(lang="en")
+        tokens = ["acute", "heart", "failure", "and", "heart", "rate"]
+        labels = {"heart": 1, "heart failure": 1, "acute heart failure": 1}
+
+        [(_, tags)] = extractor.create_training_data([(tokens, "")], labels)
+
+        self.assertEqual(tags, ["B", "I", "I", "O", "B", "O"])
+
+    def test_gold_spans_are_tagged_longest_first(self):
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        # "Acute heart failure. Heart rate rises."
+        sentences = [
+            (["Acute", "heart", "failure", "."], [(0, 5), (6, 11), (12, 19), (19, 20)]),
+            (["Heart", "rate", "rises", "."], [(21, 26), (27, 31), (32, 37), (37, 38)]),
+        ]
+        # The longest term runs across the sentences, so the second part starts with
+        # B. The terms it overlaps are not tagged, but "heart" is, and (22, 24)
+        # covers no whole word.
+        terms = [(6, 11), (0, 19), (6, 19), (12, 31), (22, 24)]
+
+        data = extractor.create_span_training_data(sentences, terms)
+
+        self.assertEqual(
+            [tags for _, tags in data],
+            [["O", "B", "B", "I"], ["B", "I", "O", "O"]],
+        )
+        terms = [(6, 11), (0, 19), (6, 19), (21, 31)]
+        data = extractor.create_span_training_data(sentences, terms)
+        self.assertEqual(
+            [tags for _, tags in data],
+            [["B", "I", "I", "O"], ["B", "I", "O", "O"]],
+        )
+
+    def test_sentences_layer(self):
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
+        corpus.add_layer_meta("sentences", layer_type="span", base="text")
+        doc = corpus.add_doc("Dr. Smith treats heart failure. It is common")
+        doc.words = [(0, 3), (4, 9), (10, 16), (17, 22), (23, 30), (30, 31)] + [
+            (32, 34),
+            (35, 37),
+            (38, 44),
+        ]
+        doc.sentences = [(0, 31), (32, 44)]
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.words_layer = None
+        extractor.sentences_layer = None
+
+        [sentences] = extractor._teanga_sentences(corpus)
+
+        # The layer gives the sentences, so "Dr." does not end one
+        self.assertEqual(
+            [tokens for tokens, _ in sentences],
+            [
+                ["Dr.", "Smith", "treats", "heart", "failure", "."],
+                ["It", "is", "common"],
+            ],
+        )
+        self.assertEqual(sentences[1][1], [(32, 34), (35, 37), (38, 44)])
+
+    def test_validation_f1(self):
+        import numpy as np
+        from transformers import EvalPrediction
+
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.id_to_label = {0: "O", 1: "B", 2: "I"}
+        # Gold terms (0, 2) and (3, 4); the model tags (0, 2) and (2, 3). The first
+        # and last model tokens are ignored (-100), as are padding tokens.
+        labels = np.array([[-100, 1, 2, 0, 1, -100, -100]])
+        tags = [0, 1, 2, 1, 0, 1, 1]
+        predictions = np.eye(3)[tags][np.newaxis]
+
+        f1 = extractor._f1(EvalPrediction(predictions=predictions, label_ids=labels))
+
+        self.assertEqual(f1, {"f1": 0.5})
 
     def test_each_document_lists_the_terms_tagged_in_it(self):
         from unittest import mock
@@ -307,7 +448,7 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
             [[(0, 1), (2, 6), (7, 11), (11, 12)]],
         ]
         # The model tags "plant cells" and "cells" in document 0, "cell wall" in 1
-        tags = [["B-T", "T", "n", "n"], ["B-T", "n", "n"], ["n", "B-T", "T", "n"]]
+        tags = [["B", "I", "O", "O"], ["B", "O", "O"], ["O", "B", "I", "O"]]
         with (
             mock.patch.object(extractor, "tokenize_and_align_labels"),
             mock.patch.object(extractor, "create_torch_dataset"),

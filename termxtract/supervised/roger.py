@@ -1,4 +1,5 @@
 import math
+from bisect import bisect_left
 from collections import Counter
 from collections.abc import Iterator
 from typing import Any
@@ -7,7 +8,8 @@ import numpy as np
 from joblib import Parallel, delayed
 from scipy.stats import rankdata
 
-from ..layers import words_with_offsets
+from ..datasets.base import GOLD_LAYER
+from ..layers import find_layer, words_with_offsets
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 from .words import tokenize_strings, tokenize_teanga
@@ -161,6 +163,7 @@ class RogerTermExtractor:
         n_jobs: int | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        terms_layer: str = GOLD_LAYER,
     ):
         """
         Initialize the Roger extractor.
@@ -192,6 +195,8 @@ class RogerTermExtractor:
                 end with a stopword: "english", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            terms_layer (str): For Teanga input without labels, the span layer of gold
+                terms to train on.
 
         Raises:
             ValueError: If `n` is less than 2.
@@ -209,6 +214,7 @@ class RogerTermExtractor:
         self.n_jobs = n_jobs
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
+        self.terms_layer = terms_layer
         self.models: list[tuple[np.ndarray, np.ndarray]] = []
         self.feature_min = np.zeros(len(MEASURES))
         self.feature_range = np.ones(len(MEASURES))
@@ -426,9 +432,31 @@ class RogerTermExtractor:
         """Learn the ranking functions from a list of strings."""
         self.train(tokenize_strings(corpus), labels)
 
-    def fit_teanga(self, corpus, labels: dict[str, int]) -> None:
-        """Learn the ranking functions from a Teanga corpus."""
+    def fit_teanga(self, corpus, labels: dict[str, int] | None = None) -> None:
+        """Learn the ranking functions from a Teanga corpus, with the gold terms of
+        `terms_layer` as the terms if `labels` is None."""
+        if labels is None:
+            labels = dict.fromkeys(self.gold_terms(corpus), 1)
         self.train(tokenize_teanga(corpus, self.words_layer), labels)
+
+    def gold_terms(self, corpus) -> set[str]:
+        """The gold terms of `terms_layer`, each as the lower-cased words within its
+        span, as candidates are written."""
+        layer = find_layer(corpus.meta, self.terms_layer, (), "terms_layer")
+        terms = set()
+        for doc_id in corpus.doc_ids:
+            doc = corpus.doc_by_id(doc_id)
+            words = words_with_offsets(doc, self.words_layer)
+            starts = [start for start, _, _ in words]
+            for span in doc[layer]:
+                last = bisect_left(starts, span[0])
+                term = []
+                while last < len(words) and words[last][1] <= span[1]:
+                    term.append(words[last][2].lower())
+                    last += 1
+                if term:
+                    terms.add(" ".join(term))
+        return terms
 
     def predict_strings(self, corpus: list[str]) -> ATEResults:
         """Rank the candidates of a list of strings with the learned functions."""

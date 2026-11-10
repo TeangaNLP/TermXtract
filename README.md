@@ -96,7 +96,7 @@ extractor = SupervisedTermExtractor(method="roger", n=3)
 results = extractor.extract(corpus, labels)
 ```
 
-`extract` trains on a corpus and extracts terms from the same corpus. To train on one corpus and extract terms from another, use `extractor.fit(train_corpus, labels).predict(test_corpus)`.
+`extract` trains on a corpus and extracts terms from the same corpus. To train on one corpus and extract terms from another, use `extractor.fit(train_corpus, labels).predict(test_corpus)`. For a Teanga corpus with gold terms in a `terms` layer, such as those of `termxtract.datasets`, leave out `labels` to train on them.
 
 ### Using a Teanga corpus
 
@@ -144,7 +144,7 @@ All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `st
 | `method`               | Description                                              | Extra parameters                                         |
 |------------------------|----------------------------------------------------------|----------------------------------------------------------|
 | `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state`, `max_negatives`, `patience`, `n_jobs` |
-| `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
+| `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language`, `random_state`, `patience`, `sentences_layer` |
 
 All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger` and 6 for `token-classification`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates, and `words_layer` and `pos_layer` for Teanga input.
 

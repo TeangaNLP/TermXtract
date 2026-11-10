@@ -50,11 +50,26 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   followed by `predict` on the same corpus. Roger and token classification have
   matching `fit_strings`, `fit_teanga`, `predict_strings` and `predict_teanga` methods.
 - Term offsets for Roger and token classification on Teanga input.
+- Supervised training from the gold terms of a Teanga corpus (#43): `fit(corpus)`
+  without labels reads them from the `terms` layer, or `terms_layer`. Token
+  classification tags each gold occurrence in its context, and Roger takes the gold
+  terms as its terms.
+- Token classification can be validated, seeded and saved (#43). `fit(...,
+  validation=corpus)` computes the F1 of the tagged terms on a validation corpus after
+  each epoch and keeps the model of the best epoch, and `patience` stops training when
+  it has not improved for that many epochs. `random_state` seeds the model's new
+  classification layer and the order of the training examples. `save(directory)` saves
+  the trained model, which can be loaded by passing the directory as `model_name`.
+- Token classification reads the sentences of a Teanga corpus from its `sentences`
+  layer, or `sentences_layer`, when there is one (#43).
 - Roger can learn from a list of terms alone: if no candidate is labelled 0, every
   unlabelled candidate counts as a non-term (#43).
 
 ### Changed
 
+- *Breaking:* Token classification tags words with `B`, `I` and `O`, instead of `B-T`,
+  `T` and `n` (#43). Where labelled terms overlap, the longest is tagged, as in ACTER's
+  sequential annotations, instead of the last one matched.
 - *Breaking:* Residual IDF uses the formula of Church & Gale (1999), as in ATR4S and
   JATE 2.0 (#63): log2(D / df) + log2(1 - e^(-cf / D)), computed once over the corpus,
   so a term has the same score in every document. It used to compute

@@ -1,5 +1,8 @@
+import math
 import re
 import tempfile
+from bisect import bisect_left
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -7,15 +10,45 @@ import torch
 from sacremoses import MosesDetokenizer, MosesTokenizer
 from teanga import Corpus
 from transformers import (
+    AutoConfig,
     AutoModelForTokenClassification,
     AutoTokenizer,
+    EarlyStoppingCallback,
+    EvalPrediction,
     Trainer,
     TrainingArguments,
+    set_seed,
 )
 
-from ..layers import word_spans
+from ..datasets.base import GOLD_LAYER, SENTENCES_LAYER
+from ..layers import find_layer, word_spans
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
+
+
+def tag_spans(tags: list[str]) -> list[tuple[int, int]]:
+    """
+    Find the terms in a sequence of tags: each `B` with the `I` tags after it.
+
+    Args:
+        tags (List[str]): `B`, `I` or `O` for each word.
+
+    Returns:
+        List[Tuple[int, int]]: The index of the first word of each term and of the word
+        after its last.
+    """
+    spans = []
+    j = 0
+    while j < len(tags):
+        if tags[j] == "B":
+            k = j + 1
+            while k < len(tags) and tags[k] == "I":
+                k += 1
+            spans.append((j, k))
+            j = k
+        else:
+            j += 1
+    return spans
 
 
 class TokenClassificationTermExtractor:
@@ -32,12 +65,17 @@ class TokenClassificationTermExtractor:
         language: str = "en",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        random_state: int | None = None,
+        patience: int | None = None,
+        terms_layer: str = GOLD_LAYER,
+        sentences_layer: str | None = None,
     ):
         """
         Initialize the Token Classification Term Extractor.
 
         Args:
-            model_name (str): Hugging Face model to use for token classification.
+            model_name (str): Hugging Face model to use for token classification, or
+                the directory of a model saved with `save`, which is already trained.
             n (int): Maximum n-gram size to consider.
             batch_size (int): Batch size for training and evaluation.
             epochs (int): Number of training epochs.
@@ -48,6 +86,16 @@ class TokenClassificationTermExtractor:
                 end with a stopword: "english", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            random_state (Optional[int]): Seed for the new classification layer of the
+                model and the order of the training examples, for reproducible
+                training, or None for an unseeded classification layer.
+            patience (Optional[int]): With a validation set, stop training when the F1
+                on it has not improved for this many epochs. None trains for `epochs`.
+            terms_layer (str): For Teanga input without labels, the span layer of gold
+                terms to train on.
+            sentences_layer (Optional[str]): For Teanga input, the span layer of the
+                sentences, or None for `sentences` or, if the corpus has no such layer,
+                splitting after each word that is ".", "!" or "?".
         """
         self.model_name = model_name
         self.n = n
@@ -58,29 +106,34 @@ class TokenClassificationTermExtractor:
         self.language = language
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
+        self.random_state = random_state
+        self.patience = patience
+        self.terms_layer = terms_layer
+        self.sentences_layer = sentences_layer
 
         # Initialize tokenizers (for preprocessing)
         self.moses_tokenizer = MosesTokenizer(lang=language)
         self.moses_detokenizer = MosesDetokenizer(lang=language)
 
-        # Label mapping for token classification
-        self.label_list = [
-            "n",
-            "B-T",
-            "T",
-        ]  # non-term, term beginning, term continuation
+        # Outside a term, beginning of a term, inside a term
+        self.label_list = ["O", "B", "I"]
         self.label_to_id = {label: i for i, label in enumerate(self.label_list)}
         self.id_to_label = dict(enumerate(self.label_list))
 
-        # Initialize transformer model and tokenizer
+        if random_state is not None:
+            set_seed(random_state)
+        # A model saved by `save` has these labels, and is already trained
+        self.is_trained = (
+            AutoConfig.from_pretrained(model_name).label2id == self.label_to_id
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForTokenClassification.from_pretrained(
-            model_name, num_labels=len(self.label_list)
+            model_name,
+            num_labels=len(self.label_list),
+            id2label=self.id_to_label,
+            label2id=self.label_to_id,
         )
-
-        # Initialize trainer
         self.trainer: Trainer | None = None
-        self.is_trained = False
 
     def preprocess_text(self, text: str) -> list[tuple[list[str], str]]:
         """
@@ -134,6 +187,9 @@ class TokenClassificationTermExtractor:
         """
         Create training data with token-level annotations.
 
+        Where labelled terms overlap, the longest is tagged, and of two of the same
+        length the first.
+
         Args:
             sentence_list (List[Tuple[List[str], str]]): List of (tokens, original sentence) tuples.
             terms (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
@@ -149,27 +205,66 @@ class TokenClassificationTermExtractor:
             if not sentence_tokens:
                 continue
 
-            # Initialize all tokens as non-terms
-            tags = ["n"] * len(sentence_tokens)
-
-            # Iterate through n-grams from 1 to n
-            for i in range(1, min(self.n + 1, len(sentence_tokens) + 1)):
-                # Create n-grams
-                for start_idx in range(len(sentence_tokens) - i + 1):
-                    n_gram_tokens = sentence_tokens[start_idx : start_idx + i]
-                    n_gram_text = self.moses_detokenizer.detokenize(n_gram_tokens)
-
-                    # Check if n-gram is in the term list
-                    if n_gram_text.lower() in positive_terms:
-                        # Mark the beginning token as B-T
-                        tags[start_idx] = "B-T"
-
-                        # Mark continuation tokens as T
-                        for j in range(start_idx + 1, start_idx + i):
-                            tags[j] = "T"
+            tags = ["O"] * len(sentence_tokens)
+            for length in range(min(self.n, len(sentence_tokens)), 0, -1):
+                for start in range(len(sentence_tokens) - length + 1):
+                    end = start + length
+                    if any(tag != "O" for tag in tags[start:end]):
+                        continue
+                    n_gram = self.moses_detokenizer.detokenize(
+                        sentence_tokens[start:end]
+                    )
+                    if n_gram.lower() in positive_terms:
+                        tags[start:end] = ["B"] + ["I"] * (length - 1)
 
             training_data.append((sentence_tokens, tags))
 
+        return training_data
+
+    def create_span_training_data(
+        self,
+        sentences: list[tuple[list[str], list[tuple[int, int]]]],
+        terms: list[tuple[int, int]],
+    ) -> list[tuple[list[str], list[str]]]:
+        """
+        Create training data from the gold term spans of a document.
+
+        Each term is tagged on the words within its span. Where terms are nested or
+        overlap, the longest is tagged, as in ACTER's sequential annotations, and of two
+        of the same length the first.
+
+        Args:
+            sentences (List[Tuple[List[str], List[Tuple[int, int]]]]): The words of
+                each sentence of the document, and their character offsets.
+            terms (List[Tuple[int, int]]): The character offsets of the gold terms.
+
+        Returns:
+            List[Tuple[List[str], List[str]]]: List of (tokens, tags) tuples, one per
+            sentence.
+        """
+        spans = [span for _, sentence_spans in sentences for span in sentence_spans]
+        starts = [start for start, _ in spans]
+        covered = []
+        for start, end in terms:
+            first = last = bisect_left(starts, start)
+            while last < len(spans) and spans[last][1] <= end:
+                last += 1
+            if last > first:
+                covered.append((first, last))
+        tags = ["O"] * len(spans)
+        for first, last in sorted(covered, key=lambda span: (span[0] - span[1], span)):
+            if all(tag == "O" for tag in tags[first:last]):
+                tags[first:last] = ["B"] + ["I"] * (last - first - 1)
+
+        training_data = []
+        offset = 0
+        for tokens, _ in sentences:
+            sentence_tags = tags[offset : offset + len(tokens)]
+            offset += len(tokens)
+            # A term that runs over the end of a sentence starts again in the next
+            if sentence_tags and sentence_tags[0] == "I":
+                sentence_tags[0] = "B"
+            training_data.append((tokens, sentence_tags))
         return training_data
 
     def tokenize_and_align_labels(
@@ -267,7 +362,7 @@ class TokenClassificationTermExtractor:
         self, tags: list[str], tokens: list[str]
     ) -> list[tuple[str, int, int]]:
         """
-        Find the terms tagged in a sentence: each `B-T` with the `T` tags after it.
+        Find the terms tagged in a sentence: each `B` with the `I` tags after it.
 
         Args:
             tags (List[str]): The tag of each token.
@@ -277,29 +372,31 @@ class TokenClassificationTermExtractor:
             List[Tuple[str, int, int]]: Each term in lower case, with the index of its
             first token and of the token after its last.
         """
-        terms = []
-        j = 0
-        while j < len(tags):
-            if tags[j] == "B-T":
-                k = j + 1
-                while k < len(tags) and tags[k] == "T":
-                    k += 1
-                term = self.moses_detokenizer.detokenize(tokens[j:k])
-                terms.append((term.lower(), j, k))
-                j = k
-            else:
-                j += 1
-        return terms
+        return [
+            (self.moses_detokenizer.detokenize(tokens[j:k]).lower(), j, k)
+            for j, k in tag_spans(tags)
+        ]
 
-    def train_model(self, tokenized_dataset: torch.utils.data.Dataset):
+    def train_model(
+        self,
+        tokenized_dataset: torch.utils.data.Dataset,
+        validation_dataset: torch.utils.data.Dataset | None = None,
+    ):
         """
         Train the token classification model.
 
         Args:
             tokenized_dataset: Training dataset.
+            validation_dataset: Dataset to compute the F1 of the tagged terms on after
+                each epoch, keeping the model of the best epoch, or None to keep the
+                model of the last.
         """
-        # The trained model is kept in memory, so save no checkpoints or logs, and give
-        # the Trainer a temporary directory rather than one in the working directory
+        validate = validation_dataset is not None
+        if self.patience is not None and not validate:
+            raise ValueError("patience needs a validation set to stop training early.")
+        # The trained model is kept in memory, so save no logs, and give the Trainer a
+        # temporary directory rather than one in the working directory. The best model
+        # on the validation set is saved there until training ends.
         with tempfile.TemporaryDirectory() as output_dir:
             training_args = TrainingArguments(
                 output_dir=output_dir,
@@ -310,15 +407,60 @@ class TokenClassificationTermExtractor:
                 weight_decay=0.01,
                 learning_rate=self.learning_rate,
                 logging_steps=100,
-                save_strategy="no",
-                eval_strategy="no",
+                seed=42 if self.random_state is None else self.random_state,
+                save_strategy="epoch" if validate else "no",
+                eval_strategy="epoch" if validate else "no",
+                save_only_model=True,
+                save_total_limit=1,
+                load_best_model_at_end=validate,
+                metric_for_best_model="f1" if validate else None,
                 report_to="none",
             )
             self.trainer = Trainer(
-                model=self.model, args=training_args, train_dataset=tokenized_dataset
+                model=self.model,
+                args=training_args,
+                train_dataset=tokenized_dataset,
+                eval_dataset=validation_dataset,
+                compute_metrics=self._f1 if validate else None,
+                callbacks=(
+                    [EarlyStoppingCallback(self.patience)]
+                    if self.patience is not None
+                    else None
+                ),
             )
             self.trainer.train()
         self.is_trained = True
+
+    def _f1(self, prediction: EvalPrediction) -> dict[str, float]:
+        """The F1 of the tagged terms of a validation set, by exact match of their
+        words."""
+        found = expected = correct = 0
+        for scores, labels in zip(prediction.predictions, prediction.label_ids):
+            words = labels != -100
+            predicted = tag_spans(
+                [self.id_to_label[i] for i in np.argmax(scores, axis=-1)[words]]
+            )
+            gold = tag_spans([self.id_to_label[i] for i in labels[words]])
+            found += len(predicted)
+            expected += len(gold)
+            correct += len(set(predicted) & set(gold))
+        return {"f1": 2 * correct / (found + expected) if found + expected else 0.0}
+
+    def save(self, directory: str | Path) -> None:
+        """
+        Save the trained model and its tokenizer, to pass the directory as `model_name`
+        to extract terms without training again.
+
+        Args:
+            directory (Union[str, Path]): The directory to save to.
+
+        Raises:
+            RuntimeError: If the model has not been trained.
+        """
+        if not self.is_trained:
+            raise RuntimeError("Model must be trained before it is saved.")
+        self.model.save_pretrained(directory)
+        self.tokenizer.save_pretrained(directory)
 
     def predict_sentences(
         self, tokenized_dataset: torch.utils.data.Dataset, texts
@@ -420,28 +562,64 @@ class TokenClassificationTermExtractor:
         self, corpus: Corpus
     ) -> list[list[tuple[list[str], list[tuple[int, int]]]]]:
         """
-        Split each document of a Teanga corpus into sentences, after each word that is
-        ".", "!" or "?".
+        Split each document of a Teanga corpus into sentences, by the sentences layer
+        or, if there is none, after each word that is ".", "!" or "?".
 
         Returns:
             For each document, the words and the word spans of each sentence.
         """
+        layer = self.sentences_layer
+        if layer is not None or SENTENCES_LAYER in corpus.meta:
+            layer = find_layer(
+                corpus.meta, layer, (SENTENCES_LAYER,), "sentences_layer"
+            )
         documents = []
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
+            ends = iter(sorted(end for _, end in doc[layer])) if layer else iter(())
+            sentence_end = next(ends, math.inf)
             sentences = []
             tokens: list[str] = []
             spans: list[tuple[int, int]] = []
             for start, end in word_spans(doc, self.words_layer):
+                # A word that starts after the end of the sentence starts a new one
+                while start >= sentence_end:
+                    sentence_end = next(ends, math.inf)
+                    if tokens:
+                        sentences.append((tokens, spans))
+                        tokens, spans = [], []
                 tokens.append(doc.text[start:end])
                 spans.append((start, end))
-                if tokens[-1] in (".", "!", "?"):
+                if layer is None and tokens[-1] in (".", "!", "?"):
                     sentences.append((tokens, spans))
                     tokens, spans = [], []
             if tokens:
                 sentences.append((tokens, spans))
             documents.append(sentences)
         return documents
+
+    def _teanga_training_data(
+        self, corpus: Corpus, labels: dict[str, int] | None
+    ) -> list[tuple[list[str], list[str]]]:
+        """
+        Tag the words of a Teanga corpus with the terms labelled 1 or, if `labels` is
+        None, with the gold terms of `terms_layer`.
+        """
+        documents = self._teanga_sentences(corpus)
+        if labels is not None:
+            return self.create_training_data(
+                [(tokens, " ".join(tokens)) for doc in documents for tokens, _ in doc],
+                labels,
+            )
+        layer = find_layer(corpus.meta, self.terms_layer, (), "terms_layer")
+        return [
+            sentence
+            for doc_id, sentences in zip(corpus.doc_ids, documents)
+            for sentence in self.create_span_training_data(
+                sentences,
+                [(span[0], span[1]) for span in corpus.doc_by_id(doc_id)[layer]],
+            )
+        ]
 
     def prepare_teanga_corpus(self, corpus: Corpus) -> list[tuple[list[str], str]]:
         """
@@ -487,9 +665,9 @@ class TokenClassificationTermExtractor:
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
 
-        # Tag every sentence, with dummy labels (all "n") for the tokenizer
+        # Tag every sentence, with dummy labels (all "O") for the tokenizer
         texts = [tokens for sentences in documents for tokens, _ in sentences]
-        tags = [["n"] * len(tokens) for tokens in texts]
+        tags = [["O"] * len(tokens) for tokens in texts]
         tokenized_inputs = self.tokenize_and_align_labels(texts, tags)
         tokenized_dataset = self.create_torch_dataset(tokenized_inputs)
         sentence_tags = iter(self.predict_tags(tokenized_dataset))
@@ -536,37 +714,71 @@ class TokenClassificationTermExtractor:
             offsets=offsets_by_doc if spans is not None else None,
         )
 
-    def fit_strings(self, corpus: list[str], labels: dict[str, int]) -> None:
+    def fit_strings(
+        self,
+        corpus: list[str],
+        labels: dict[str, int],
+        validation: list[str] | None = None,
+    ) -> None:
         """
         Fine-tune the model on a list of strings, tagging the terms labelled 1.
 
         Args:
             corpus (List[str]): List of text documents.
             labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
+            validation (Optional[List[str]]): Documents tagged with the same labels, to
+                keep the model of the epoch with the best F1 on them, or None.
         """
+
+        def training_data(documents: list[str]) -> list[tuple[list[str], list[str]]]:
+            return self.create_training_data(
+                [s for doc in documents for s in self.preprocess_text(doc)], labels
+            )
+
         self._fit(
-            [sentence for doc in corpus for sentence in self.preprocess_text(doc)],
-            labels,
+            training_data(corpus),
+            None if validation is None else training_data(validation),
         )
 
-    def fit_teanga(self, corpus: Corpus, labels: dict[str, int]) -> None:
+    def fit_teanga(
+        self,
+        corpus: Corpus,
+        labels: dict[str, int] | None = None,
+        validation: Corpus | None = None,
+    ) -> None:
         """
-        Fine-tune the model on a Teanga corpus, tagging the terms labelled 1.
+        Fine-tune the model on a Teanga corpus, tagging its gold terms or the terms
+        labelled 1.
 
         Args:
             corpus: Teanga corpus object.
-            labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
+            labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
+                labels as values, or None to tag the gold terms of `terms_layer`.
+            validation (Optional[Corpus]): A corpus tagged in the same way, to keep the
+                model of the epoch with the best F1 on it, or None.
         """
-        self._fit(self.prepare_teanga_corpus(corpus), labels)
+        self._fit(
+            self._teanga_training_data(corpus, labels),
+            None
+            if validation is None
+            else self._teanga_training_data(validation, labels),
+        )
 
     def _fit(
-        self, sentence_list: list[tuple[list[str], str]], labels: dict[str, int]
+        self,
+        training_data: list[tuple[list[str], list[str]]],
+        validation_data: list[tuple[list[str], list[str]]] | None = None,
     ) -> None:
-        training_data = self.create_training_data(sentence_list, labels)
-        train_texts = [tokens for tokens, _ in training_data]
-        train_tags = [tags for _, tags in training_data]
-        train_tokenized = self.tokenize_and_align_labels(train_texts, train_tags)
-        self.train_model(self.create_torch_dataset(train_tokenized))
+        def dataset(data: list[tuple[list[str], list[str]]]):
+            tokenized = self.tokenize_and_align_labels(
+                [tokens for tokens, _ in data], [tags for _, tags in data]
+            )
+            return self.create_torch_dataset(tokenized)
+
+        self.train_model(
+            dataset(training_data),
+            None if validation_data is None else dataset(validation_data),
+        )
 
     def predict_strings(self, corpus: list[str]) -> ATEResults:
         """
