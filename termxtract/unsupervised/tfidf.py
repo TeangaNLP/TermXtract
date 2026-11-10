@@ -1,7 +1,6 @@
-import re
-
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -61,7 +60,7 @@ class TFIDFTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores.
         """
-        tokenized_corpus = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        tokenized_corpus = [split_words(doc) for doc in corpus]
         corpus_ngrams = self.candidate_ngrams_strings(tokenized_corpus)
         idf = self.compute_idf(corpus_ngrams)
 

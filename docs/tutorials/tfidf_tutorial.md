@@ -144,6 +144,8 @@ print([term["term"] for term in results.terms[0]["terms"]])
 
 A custom list **replaces** the built-in one, which is why `into` has to be included. To extend the built-in list, use `termxtract.stopwords.ENGLISH_STOPWORDS | {"energy", "converts"}`.
 
+For Hindi, pass `stopwords="hindi"` for the 225 words of the [stopwords-iso](https://github.com/stopwords-iso/stopwords-hi) list, such as `के`, `लिए` and `है`. Words are split so that vowel signs and viramas stay inside them, as in `शिक्षा`.
+
 ## Using a Teanga corpus
 
 The extractor also accepts a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` that has a `words` span layer (or a `tokens` layer, or another span layer named with `words_layer`). This lets you use your own tokenization, and the results then include the **character offsets** of every occurrence of each term.

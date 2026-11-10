@@ -1,9 +1,9 @@
 import math
-import re
 from collections import Counter
 
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
@@ -81,7 +81,7 @@ class RIDFTermExtractor(BaseTermExtractor):
             ATEResults: Results with ranked terms and scores.
         """
         corpus_ngrams = self.candidate_ngrams_strings(
-            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+            [split_words(doc) for doc in corpus]
         )
         ridf_scores = self.compute_ridf(corpus_ngrams)
 

@@ -4,7 +4,12 @@ import pytest
 from teanga import Corpus
 
 from termxtract import SupervisedTermExtractor, TermExtractor
-from termxtract.stopwords import ENGLISH_STOPWORDS, is_candidate, load_stopwords
+from termxtract.stopwords import (
+    ENGLISH_STOPWORDS,
+    HINDI_STOPWORDS,
+    is_candidate,
+    load_stopwords,
+)
 
 CORPUS = [
     "The number of degrees of freedom of a system is small.",
@@ -23,6 +28,27 @@ def test_load_stopwords():
     assert load_stopwords(["The", "OF"]) == {"the", "of"}
     with pytest.raises(ValueError, match="Unknown stopword list"):
         load_stopwords("klingon")
+
+
+def test_hindi_stopwords():
+    assert load_stopwords("hindi") == HINDI_STOPWORDS
+    assert len(HINDI_STOPWORDS) == 225
+    assert {"के", "लिए", "है", "और"} <= HINDI_STOPWORDS
+    with pytest.raises(ValueError, match="'english', 'hindi'"):
+        load_stopwords("klingon")
+
+
+def test_hindi_text():
+    # Words keep their vowel signs, and stopwords are dropped from the edges
+    corpus = [
+        "प्राथमिक शिक्षा अनिवार्य है।",
+        "सभी बच्चों के लिए प्राथमिक शिक्षा।",
+    ]
+    terms = all_terms(
+        TermExtractor(method="tfidf", n=2, stopwords="hindi").extract(corpus)
+    )
+    assert "प्राथमिक शिक्षा" in terms
+    assert not any(term.split()[-1] in {"है", "के", "लिए"} for term in terms)
 
 
 def test_english_stopwords_are_function_words():
