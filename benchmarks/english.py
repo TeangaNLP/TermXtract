@@ -238,8 +238,9 @@ def atr4s_average_precision(ranked: list[str], gold: set[str]) -> float:
     return total / hits if hits else 0.0
 
 
-def scores(results: ATEResults, gold: set[str]) -> dict:
-    """The scores of a single-document corpus ranking against the gold terms."""
+def scores(results: ATEResults, gold: set[str], ks: Iterable[int] = KS) -> dict:
+    """The scores of a single-document corpus ranking against the gold terms, at each
+    of `ks` and over all of it."""
     ranked = [term["term"] for term in results.terms[0]["terms"]]
     out: dict = {
         "candidates": len(ranked),
@@ -248,7 +249,7 @@ def scores(results: ATEResults, gold: set[str]) -> dict:
         "atr4s_average_precision": atr4s_average_precision(ranked, gold),
         "average_precision": evaluate(results, gold).average_precision,
     }
-    for k in (*KS, None):
+    for k in (*ks, None):
         e = evaluate(results, gold, top_k=k)
         out["all" if k is None else str(k)] = {
             "precision": e.precision,

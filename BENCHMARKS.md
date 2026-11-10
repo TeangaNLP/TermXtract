@@ -5,13 +5,13 @@ published results of the same methods where there are any. The point is both to 
 baselines for new methods and to check that the implementations behave like the
 methods they implement.
 
-This is a first version, covering the English datasets. The multilingual benchmark
-(HTEC, RSDO5 and the Irish Wikipedia gold standard) will follow once those datasets
-are added.
+It covers the English datasets and, of the multilingual ones, HTEC (Hindi). RSDO5 and
+the Irish Wikipedia gold standard will follow once those datasets are added.
 
-To reproduce the results, install spaCy and its `en_core_web_sm` model, and run
-`python benchmarks/english.py` (see the script for the options). The scores below are
-from `benchmarks/english.json`.
+To reproduce the English results, install spaCy and its `en_core_web_sm` model, and
+run `python benchmarks/english.py`; for the multilingual results, run
+`python benchmarks/multilingual.py` (see the scripts for the options). The scores below
+are from `benchmarks/english.json` and `benchmarks/multilingual.json`.
 
 ## English
 
@@ -214,7 +214,100 @@ classification from gold spans with a validation set (#43).
 AdaBoost was removed (#59): it was the weakest and slowest method, a loose
 simplification of Vivaldi et al. (2001) with no published results to compare with.
 
-### References
+## Multilingual
+
+### Setup
+
+[HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) is the only multilingual dataset so
+far: 97 segments of 65 Hindi Wikipedia articles on education. The annotations that start
+inside a word are left out, as `datasets.load("htec")` does by default.
+
+- **Split.** HTEC has no published split, so the benchmark splits it by article, so that
+  the segments of an article are all in one part, with a fixed seed. Banerjee (2025)
+  used 70% of the documents for training, 10% for validation and 20% for testing, and
+  the split here comes close:
+
+  | Part | Documents | Articles | Annotated occurrences | Gold terms |
+  |---|---:|---:|---:|---:|
+  | Training | 68 | 20 | 3,997 | 552 |
+  | Validation | 10 | 4 | 356 | 108 |
+  | Test | 19 | 9 | 764 | 207 |
+
+  Every method is scored on the test documents.
+- **Candidates.** There is no Hindi tagger or lemmatiser in the benchmark, so words are
+  read as written and there is no part-of-speech pattern. Candidates are sequences of up
+  to four words. They must not start or end with a word of the Hindi stopword list
+  (`stopwords="hindi"`, from stopwords-iso), each word must have a letter or digit, and
+  they must occur at least twice in the test documents.
+- **The reference corpus** is a sample of Hindi Wikipedia from the Leipzig Corpora
+  Collection: 100,000 sentences, or 1.8 million words. The one sentence it shares with
+  HTEC is left out.
+- **The supervised methods** train on the training documents. Roger learns from the
+  list of their gold terms. Token classification learns from their annotated
+  occurrences and keeps the best epoch on the validation documents, as for ACTER.
+- **Cut-offs.** The test documents have only 207 gold terms, so precision, recall and F1
+  are reported for the top 100 and 500 terms, and over all candidates.
+
+### Comparison with published results
+
+Banerjee (2025, Table 6.5) reports precision, recall and F1 on HTEC 2.0 with a split of
+its own:
+
+| Method | Thesis P | R | F1 | TermXtract P | R | F1 | |
+|---|---:|---:|---:|---:|---:|---:|---|
+| basic | 15 | 6 | 9 | 12.0 | 5.8 | 7.8 | similar |
+| combobasic | 12 | 4 | 6 | 5.0 | 2.4 | 3.3 | worse |
+| cvalue | 14 | 5 | 7 | 8.0 | 3.9 | 5.2 | worse |
+| nmf | 8 | 2 | 3 | 18.0 | 8.7 | 11.7 | better |
+| token-classification | 72.1 | 67.8 | 69.8 | 74.9\* | 74.6\* | 74.8\* | **better** |
+
+TermXtract's unsupervised scores here are for the top 100 terms. The thesis doesn't say
+how many terms it scores, but Basic's scores match it best near 100.
+
+\* Token classification is scored here per occurrence: an occurrence it tags counts
+only if its offsets match a gold occurrence exactly. The gold occurrences are those it
+learns to tag: the annotations covering whole words, with the longest kept where they
+overlap. Scored over the distinct terms it tags, as for ACTER, it gets precision 61.4,
+recall 56.0 and F1 58.6. The thesis's metric is not stated, so the comparison is
+approximate. Its split is not published either and may be by document. Splitting by
+article, as here, keeps the segments of a test article out of training, which makes
+the task harder.
+
+### Results
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 1,414 | 7% | 0.504 | 16.0 | 10.4 | 7.8 | 11.0 | 6.5 | 44.4 | 11.4 | 0 |
+| ridf | 1,414 | 7% | 0.436 | 13.0 | 8.5 | 7.2 | 10.2 | 6.5 | 44.4 | 11.4 | 0 |
+| cvalue | 1,414 | 7% | 0.459 | 8.0 | 5.2 | 7.8 | 11.0 | 6.5 | 44.4 | 11.4 | 0 |
+| basic | 1,414 | 7% | 0.382 | 12.0 | 7.8 | 6.2 | 8.8 | 6.5 | 44.4 | 11.4 | 0 |
+| combobasic | 1,414 | 7% | 0.252 | 5.0 | 3.3 | 5.6 | 7.9 | 6.5 | 44.4 | 11.4 | 0 |
+| domaincoherence | 1,414 | 7% | 0.220 | 13.0 | 8.5 | 8.4 | 11.9 | 6.5 | 44.4 | 11.4 | 0 |
+| relevance | 1,414 | 7% | 0.276 | 14.0 | 9.1 | 6.4 | 9.1 | 6.5 | 44.4 | 11.4 | 4 |
+| domainpertinence | 1,414 | 7% | 0.500 | 11.0 | 7.2 | 5.8 | 8.2 | 6.5 | 44.4 | 11.4 | 3 |
+| weirdness | 1,414 | 7% | 0.500 | 11.0 | 7.2 | 5.8 | 8.2 | 6.5 | 44.4 | 11.4 | 4 |
+| topicmodeling | 1,257 | 6% | 0.343 | 9.0 | 5.9 | 8.2 | 11.6 | 6.4 | 38.6 | 10.9 | 0 |
+| nmf | 1,414 | 7% | 0.541 | 18.0 | 11.7 | 9.0 | 12.7 | 6.5 | 44.4 | 11.4 | 0 |
+| rake | 63 | 29% | 0.403 | 28.6 | 13.3 | 28.6 | 13.3 | 28.6 | 8.7 | 13.3 | 0 |
+| roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
+| token-classification | 189 | 61% | 0.718 | 63.0 | 41.0 | 61.4 | 58.6 | 61.4 | 56.0 | 58.6 | 121 |
+
+### Observations
+
+- **Few gold terms are candidates.** Only 45% of the test gold terms are candidates
+  of the unsupervised methods:
+  - 86 of the 207 occur only once in the test documents;
+  - 28 are not sequences of whole words. Most of these are stems of inflected words,
+    such as `शिक्षण संस्थान` in `शिक्षण संस्थानों`, and a few are split differently
+    by the tokens, as in `बेटी पढ़ाओ-बेटी बचाओ`.
+- **The reference corpus doesn't help.** Weirdness, relevance and domain pertinence do
+  no better than TF-IDF. With a single reference corpus, domain pertinence ranks as
+  weirdness does.
+- **Roger** does worst of all, with 552 training terms and candidates that only cover
+  12% of the test gold terms.
+- **RAKE** keeps only 63 candidates, since its phrases are long and must occur twice.
+
+## References
 
 - Astrakhantsev, N. (2018). ATR4S: toolkit with state-of-the-art automatic terms
   recognition methods in Scala. *Language Resources and Evaluation*, 52, 853–872.
@@ -223,6 +316,14 @@ simplification of Vivaldi et al. (2001) with no published results to compare wit
   extraction: transformer-based approaches to multilingual term extraction across
   domains. In *Findings of ACL-IJCNLP 2021*, 3607–3620.
   https://aclanthology.org/2021.findings-acl.316
+- Banerjee, S. (2025). *Deep learning for automatic term extraction* [Doctoral thesis,
+  University of Galway].
+- Banerjee, S., Chakravarthi, B. R., & McCrae, J. P. (2025). Benchmarking Hindi term
+  extraction in education: a dataset and analysis. In *Proceedings of Language, Data
+  and Knowledge (LDK 2025)*.
+- Goldhahn, D., Eckart, T., & Quasthoff, U. (2012). Building large monolingual
+  dictionaries at the Leipzig Corpora Collection: from 100 to 200 languages. In
+  *Proceedings of LREC 2012*, 759–765.
 - Rigouts Terryn, A., Hoste, V., Drouin, P., & Lefever, E. (2020). TermEval 2020:
   shared task on automatic term extraction using the Annotated Corpora for Term
   Extraction Research (ACTER) dataset. In *Proceedings of CompuTerm 2020*, 85–94.
