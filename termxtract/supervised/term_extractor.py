@@ -1,8 +1,10 @@
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from teanga import Corpus
 
+from ..datasets.base import GOLD_LAYER
 from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
 from ..utils import ATEResults
@@ -48,6 +50,7 @@ class SupervisedTermExtractor:
                 "n_jobs",
                 "stopwords",
                 "words_layer",
+                "terms_layer",
             ),
         ),
         # Loaded on use because torch/transformers are an optional extra
@@ -63,6 +66,10 @@ class SupervisedTermExtractor:
                 "language",
                 "stopwords",
                 "words_layer",
+                "random_state",
+                "patience",
+                "terms_layer",
+                "sentences_layer",
             ),
         ),
     }
@@ -94,6 +101,8 @@ class SupervisedTermExtractor:
         language: str = "en",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        terms_layer: str = GOLD_LAYER,
+        sentences_layer: str | None = None,
         pos_pattern: str | None = None,
         pos_layer: str | None = None,
     ):
@@ -103,18 +112,22 @@ class SupervisedTermExtractor:
         Args:
             method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
                 ('roger', 'token-classification').
-            model_name (str): Hugging Face model name for token classification.
+            model_name (str): Hugging Face model name for token classification, or the
+                directory of a model saved with `save`.
             n (Optional[int]): Maximum length of n-grams to consider, or None for the
                 method's default: 2 for 'roger' and 6 for 'token-classification'.
             population_size (int): Number of parents in each generation (only for 'roger').
             offspring_size (int): Number of offspring in each generation (only for 'roger').
             generations (int): Number of generations in each run (only for 'roger').
             runs (int): Number of independent runs to combine (only for 'roger').
-            random_state (Optional[int]): Seed for reproducible scores (only for 'roger').
+            random_state (Optional[int]): Seed for reproducible scores, or for
+                'token-classification' for reproducible training.
             max_negatives (Optional[int]): Train on at most this many candidates
                 labelled 0, sampled for each run (only for 'roger').
-            patience (Optional[int]): Stop a run when it has not improved for this many
-                generations (only for 'roger').
+            patience (Optional[int]): For 'roger', stop a run when it has not improved
+                for this many generations; for 'token-classification', stop training
+                when the F1 on the validation set has not improved for this many
+                epochs.
             n_jobs (Optional[int]): Number of runs trained in parallel, -1 for one per
                 CPU (only for 'roger').
             batch_size (int): Training batch size (only for 'token-classification').
@@ -128,6 +141,13 @@ class SupervisedTermExtractor:
             words_layer (Optional[str]): For Teanga input, the span layer holding the words:
                 None (the default) for `words` or, if the corpus has no `words` layer,
                 `tokens`.
+            terms_layer (str): For Teanga input, the span layer of gold terms that
+                `fit` trains on when it is given no labels: `terms` by default, as in
+                the corpora of `termxtract.datasets`.
+            sentences_layer (Optional[str]): For Teanga input, the span layer of the
+                sentences: None (the default) for `sentences` or, if the corpus has no
+                such layer, splitting after each word that is ".", "!" or "?" (only for
+                'token-classification').
             pos_pattern (Optional[str]): For Teanga input, keep only the terms whose
                 part-of-speech tags match this pattern in at least one occurrence. Tags are
                 written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
@@ -166,7 +186,10 @@ class SupervisedTermExtractor:
             "language": language,
             "stopwords": stopwords,
             "words_layer": words_layer,
+            "terms_layer": terms_layer,
+            "sentences_layer": sentences_layer,
         }
+        self.method = method
         self.words_layer = words_layer
         self.pos_pattern = (
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
@@ -182,16 +205,25 @@ class SupervisedTermExtractor:
         )
 
     def fit(
-        self, corpus: Corpus | list[str], labels: dict[str, int]
+        self,
+        corpus: Corpus | list[str],
+        labels: dict[str, int] | None = None,
+        validation: Corpus | list[str] | None = None,
     ) -> "SupervisedTermExtractor":
         """
         Train the method on a corpus.
 
         Args:
             corpus (Union[Corpus, List[str]]): Teanga Corpus object or list of strings.
-            labels (Dict[str, int]): Dictionary with terms as keys and binary labels {0, 1}.
-                Roger needs examples of both; given only terms, it counts every other
-                candidate of the corpus as a non-term.
+            labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
+                labels {0, 1}. Roger needs examples of both; given only terms, it counts
+                every other candidate of the corpus as a non-term. None, for a Teanga
+                corpus, trains on the gold terms of `terms_layer`: token classification
+                tags each occurrence of them, and Roger takes them as the terms.
+            validation (Optional[Union[Corpus, List[str]]]): For 'token-classification',
+                a corpus of the same kind, labelled in the same way, to compute the F1
+                of the tagged terms on after each epoch. The model of the best epoch is
+                kept, and `patience` can stop training early.
 
         Returns:
             SupervisedTermExtractor: This extractor, trained, so that `fit(...).predict(...)`
@@ -199,12 +231,25 @@ class SupervisedTermExtractor:
 
         Raises:
             ValueError: If the corpus is neither a Teanga Corpus nor a list of strings,
-                or `pos_pattern` is set and the corpus is a list of strings.
+                `pos_pattern` is set and the corpus is a list of strings, a list of
+                strings is given no labels, or `validation` is given for Roger.
         """
-        if self._is_teanga(corpus):
-            self.extractor.fit_teanga(corpus, labels)
+        teanga = self._is_teanga(corpus)
+        if labels is None and not teanga:
+            raise ValueError(
+                "A list of strings has no gold terms, so fit needs labels for it."
+            )
+        if validation is None:
+            options = {}
+        elif self.method == "token-classification":
+            options = {"validation": validation}
         else:
-            self.extractor.fit_strings(corpus, labels)
+            raise ValueError(f"The {self.method!r} method takes no validation set.")
+        if teanga:
+            self.extractor.fit_teanga(corpus, labels, **options)
+        else:
+            assert labels is not None
+            self.extractor.fit_strings(corpus, labels, **options)
         return self
 
     def predict(self, corpus: Corpus | list[str]) -> ATEResults:
@@ -234,7 +279,9 @@ class SupervisedTermExtractor:
             results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
         )
 
-    def extract(self, corpus: Corpus | list[str], labels: dict[str, int]) -> ATEResults:
+    def extract(
+        self, corpus: Corpus | list[str], labels: dict[str, int] | None = None
+    ) -> ATEResults:
         """
         Train the method on a corpus and extract the terms of that same corpus.
 
@@ -242,12 +289,30 @@ class SupervisedTermExtractor:
 
         Args:
             corpus (Union[Corpus, List[str]]): Teanga Corpus object or list of strings.
-            labels (Dict[str, int]): Dictionary with terms as keys and binary labels {0, 1}.
+            labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
+                labels {0, 1}, or None to train on the gold terms of `terms_layer`, as
+                for `fit`.
 
         Returns:
             ATEResults: Object containing extracted terms with scores.
         """
         return self.fit(corpus, labels).predict(corpus)
+
+    def save(self, directory: str | Path) -> None:
+        """
+        Save a trained token-classification model, to pass the directory as
+        `model_name` to extract terms without training again.
+
+        Args:
+            directory (Union[str, Path]): The directory to save to.
+
+        Raises:
+            ValueError: If the method is not 'token-classification'.
+            RuntimeError: If the model has not been trained.
+        """
+        if self.method != "token-classification":
+            raise ValueError(f"The {self.method!r} method cannot be saved.")
+        self.extractor.save(directory)  # type: ignore[union-attr]
 
     def _is_teanga(self, corpus: Corpus | list[str]) -> bool:
         """
