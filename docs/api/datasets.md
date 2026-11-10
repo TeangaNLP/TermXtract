@@ -60,7 +60,7 @@ Terms nest deeply in GENIA (`IL-2 gene expression` contains `IL-2 gene`, which c
 
 ## HTEC 2.0
 
-HTEC 2.0, the Hindi Term Extraction Corpus, annotates education terms in 97 documents, segments of 65 Hindi Wikipedia articles, in seven categories such as *Educationists, Learners and Researchers* and *Ambiguous* (Banerjee, Chakravarthi & McCrae, 2025). It is downloaded from Zenodo, as a Teanga file converted from the annotations by `scripts/htec_to_teanga.py`, under CC BY-SA 4.0 like the Wikipedia texts. `source` gives the document ID, such as `99_a`; documents with the same number come from the same article.
+HTEC 2.0, the Hindi Term Extraction Corpus, annotates education terms in 97 documents, segments of 65 Hindi Wikipedia articles, in seven categories such as *Educationists, Learners and Researchers* and *Ambiguous* (Banerjee, Chakravarthi & McCrae, 2025). It is downloaded from Zenodo, as a Teanga file converted from the annotation tool's files, under CC BY-SA 4.0 like the Wikipedia texts. `source` gives the document ID, such as `99_a`; documents with the same number come from the same article.
 
 The corpus is not tokenised, so the loader splits the text into words, keeping Devanagari vowel signs and viramas inside them, and into sentences at line breaks and after `।`, `?`, `!` and `.`. The annotations include nested and overlapping terms, all kept. Some start inside a word, such as `शोध` in `संशोधित`, and are left out unless `partial_words=True`; those that end inside a word, mostly stems of inflected words such as `कक्षा` in `कक्षाओं`, are kept.
 
