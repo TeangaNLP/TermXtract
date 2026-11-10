@@ -43,6 +43,9 @@ class SupervisedTermExtractor:
                 "runs",
                 "n",
                 "random_state",
+                "max_negatives",
+                "patience",
+                "n_jobs",
                 "stopwords",
                 "words_layer",
             ),
@@ -73,13 +76,16 @@ class SupervisedTermExtractor:
         self,
         method: str,
         model_name: str = "xlm-roberta-base",
-        n: int = 6,
+        n: int | None = None,
         # Roger parameters
         population_size: int = 20,
         offspring_size: int = 100,
         generations: int = 100,
         runs: int = 21,
         random_state: int | None = None,
+        max_negatives: int | None = 10_000,
+        patience: int | None = None,
+        n_jobs: int | None = None,
         # Token classification parameters
         batch_size: int = 8,
         epochs: int = 3,
@@ -98,12 +104,19 @@ class SupervisedTermExtractor:
             method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
                 ('roger', 'token-classification').
             model_name (str): Hugging Face model name for token classification.
-            n (int): Maximum length of n-grams to consider.
+            n (Optional[int]): Maximum length of n-grams to consider, or None for the
+                method's default: 2 for 'roger' and 6 for 'token-classification'.
             population_size (int): Number of parents in each generation (only for 'roger').
             offspring_size (int): Number of offspring in each generation (only for 'roger').
             generations (int): Number of generations in each run (only for 'roger').
             runs (int): Number of independent runs to combine (only for 'roger').
             random_state (Optional[int]): Seed for reproducible scores (only for 'roger').
+            max_negatives (Optional[int]): Train on at most this many candidates
+                labelled 0, sampled for each run (only for 'roger').
+            patience (Optional[int]): Stop a run when it has not improved for this many
+                generations (only for 'roger').
+            n_jobs (Optional[int]): Number of runs trained in parallel, -1 for one per
+                CPU (only for 'roger').
             batch_size (int): Training batch size (only for 'token-classification').
             epochs (int): Number of training epochs (only for 'token-classification').
             learning_rate (float): Learning rate (only for 'token-classification').
@@ -143,6 +156,9 @@ class SupervisedTermExtractor:
             "generations": generations,
             "runs": runs,
             "random_state": random_state,
+            "max_negatives": max_negatives,
+            "patience": patience,
+            "n_jobs": n_jobs,
             "batch_size": batch_size,
             "epochs": epochs,
             "learning_rate": learning_rate,
@@ -156,8 +172,13 @@ class SupervisedTermExtractor:
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
         self.pos_layer = pos_layer
+        # Leave out n when it is None, so the extractor uses its own default
         self.extractor = load_extractor_class()(
-            **{name: params[name] for name in param_names}
+            **{
+                name: params[name]
+                for name in param_names
+                if name != "n" or n is not None
+            }
         )
 
     def extract(self, corpus: Corpus | list[str], labels: dict[str, int]) -> ATEResults:

@@ -87,19 +87,23 @@ for term, score in corpus_ranking(results)[:8]:
 ```
 
 ```text
--0.012  light energy
--0.012  chemical energy
--0.051  chloroplast contains
--0.051  plant cells
--0.051  mitochondria release
--0.058  takes place
--0.058  cellular respiration
--0.064  photosynthesis takes
+0.067  light energy
+0.067  chemical energy
+0.011  chloroplast contains
+0.011  plant cells
+0.011  mitochondria release
+0.009  takes place
+0.009  cellular respiration
+-0.010  photosynthesis takes
 ```
 
 The labelled terms `light energy` and `chemical energy` come first, and the labelled non-terms `photosynthesis takes`, `absorbs light` and `energy stored` rank lower. But `takes place` ties with the term `cellular respiration`: each occurs twice, and its words never occur apart, so every association measure has the same value for both. On a corpus this small many candidates have the same counts, so Roger needs a larger corpus to rank well.
 
-`generations` (default 100) is the number of rounds of the evolutionary search in each run, `population_size` (default 20) the number of ranking functions kept from one round to the next, and `offspring_size` (default 100) the number of new functions tried in each round. Fewer generations or runs train faster.
+`generations` (default 100) is the number of rounds of the evolutionary search in each run, `population_size` (default 20) the number of ranking functions kept from one round to the next, and `offspring_size` (default 100) the number of new functions tried in each round. Fewer generations or runs train faster, and so do these options:
+
+- `n_jobs` trains the runs in parallel: `n_jobs=-1` uses every CPU.
+- `max_negatives` (default 10,000) trains each run on at most this many candidates labelled `0`, sampled at random, and on every candidate labelled `1`. It only matters for large sets of labels, such as when every candidate of a corpus is labelled. The area under the ROC curve does not depend on the share of positives, so the sample changes the learned functions little.
+- `patience` stops a run early when its best function has not improved for that many generations.
 
 Roger's scores are only meaningful for **ranking**: their scale depends on the learned functions.
 
@@ -119,9 +123,9 @@ for term, score in ranked[:3]:
 ```
 
 ```text
--0.141  algae use
--0.141  use chlorophyll
--0.141  chlorophyll for
+-0.034  algae use
+-0.034  use chlorophyll
+-0.034  chlorophyll for
 ```
 
 Here every candidate ties, `cellular respiration` included. In two short sentences each pair of words occurs once, and so does each of its words, so all the association measures are the same. Like training, scoring needs documents large enough for the counts to differ.

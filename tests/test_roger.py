@@ -170,3 +170,43 @@ def test_each_document_lists_its_own_candidates():
             assert corpus_scores.setdefault(term, score) == score
     assert "genetic algorithms" not in {t["term"] for t in results.terms[1]["terms"]}
     assert "genetic algorithms" in {t["term"] for t in results.terms[2]["terms"]}
+
+
+def test_parallel_runs_match_sequential_runs():
+    # Each run has its own seed, so the order the runs finish in makes no difference
+    assert scores(roger(n_jobs=3).extract(CORPUS, LABELS)) == scores(
+        roger().extract(CORPUS, LABELS)
+    )
+
+
+def test_max_negatives_samples_the_negatives(monkeypatch):
+    sizes = []
+    original = RogerTermExtractor.optimize_rank_function
+
+    def optimize(self, X, y, rng):
+        sizes.append((int(y.sum()), int((y == 0).sum())))
+        return original(self, X, y, rng)
+
+    monkeypatch.setattr(RogerTermExtractor, "optimize_rank_function", optimize)
+    roger(max_negatives=2).extract(CORPUS, LABELS)
+    # Every positive, and two of the three negatives, in each of the three runs
+    assert sizes == [(3, 2)] * 3
+
+
+def test_patience_stops_runs_early(monkeypatch):
+    generations = []
+    original = RogerTermExtractor.auc
+
+    def auc(scores, y):
+        generations.append(len(scores))
+        return original(scores, y)
+
+    monkeypatch.setattr(RogerTermExtractor, "auc", staticmethod(auc))
+    roger(runs=1, generations=50, patience=2).extract(CORPUS, LABELS)
+    # The initial population, then at least 2 and fewer than 50 generations of offspring
+    assert 3 <= len(generations) < 51
+
+
+def test_wrapper_uses_rogers_default_n():
+    assert SupervisedTermExtractor(method="roger").extractor.n == 2
+    assert SupervisedTermExtractor(method="roger", n=3).extractor.n == 3
