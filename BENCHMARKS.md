@@ -89,7 +89,7 @@ with ACTER's term list including named entities.
 | weirdness | Weirdness | 69.0 | 31.0 | 37.4 | 27.6 | better |
 | topicmodeling | NovelTopicModel | 44.0 | 49.0 | 31.2 | 26.1 | worse at the top, better overall |
 | domainpertinence | DomainPertinence | 41.0 | 58.0 | 30.7 | 30.3 | **worse** at the top (#64) |
-| domaincoherence | PostRankDC | 53.0 | 31.0 | 7.1 | 26.4 | **broken** (#52) |
+| domaincoherence | PostRankDC | 35.0 | 31.0 | 31.2 | 26.4 | better |
 | token-classification | (token classifier) | 71.0 | | 51.4\* | 58.3\* | **worse**: more precise, with lower recall |
 
 \* F1 of all the terms tagged: precision 62.1 and recall 43.8, against precision 54.9 and recall 62.2.
@@ -112,16 +112,16 @@ al., 2020). AdaBoost, Roger, NMF and RAKE have no published results on these dat
 | weirdness | Weirdness | 0.736 | 0.767 | 0.731 | 0.758 |
 | relevance | Relevance | 0.685 | 0.741 | 0.721 | 0.753 |
 | topicmodeling | NovelTopicModel | 0.659 | 0.714 | 0.736 | 0.796 |
-| domaincoherence | PostRankDC | 0.816\* | 0.666 | 0.756\* | 0.647 |
-
-\* Of only Basic's top 200 candidates, in arbitrary order: domain coherence scores them
-all 0 (#52).
+| domaincoherence | PostRankDC | 0.631 | 0.666 | 0.587 | 0.647 |
 
 Basic, ComboBasic and Residual IDF are within 0.02 of ATR4S, C-value and weirdness
-within 0.04, and relevance and topic modelling 0.03 to 0.06 below it. The candidates are
-close to ATR4S's (52–53% gold terms, against 56%) but not the same, since the tagger
-differs. The reference corpus differs too, for relevance and weirdness, and the topic
-model is LDA without the Novel Topic Model's background topics (#65).
+within 0.04, and relevance, topic modelling and domain coherence 0.03 to 0.06 below
+it. The candidates are close to ATR4S's (52–53% gold terms, against 56%) but not the
+same, since the tagger differs. The reference corpus differs too, for relevance and
+weirdness, and the topic model is LDA without the Novel Topic Model's background topics
+(#65). ATR4S's PostRankDC is the mean of Basic and domain coherence, where TermXtract's
+`domaincoherence` is domain coherence alone; ATR4S also chooses its seed terms and
+context words from the bottom of their rankings rather than the top (#52).
 
 Counting only the occurrences that pass the filters, as ATR4S does, matters most for
 C-value. Counting every occurrence and filtering the results instead gives C-value an
@@ -143,7 +143,7 @@ tagging, which is done once and cached.
 | cvalue | 2,687 | 34% | 0.504 | 59.0 | 4.7 | 42.6 | 14.5 | 37.0 | 21.5 | 38.4 | 34.6 | 0 |
 | basic | 2,687 | 34% | 0.446 | 53.0 | 4.2 | 38.4 | 13.1 | 34.7 | 20.2 | 33.4 | 30.1 | 0 |
 | combobasic | 2,687 | 34% | 0.437 | 52.0 | 4.1 | 38.0 | 12.9 | 32.5 | 18.9 | 33.2 | 30.0 | 0 |
-| domaincoherence | 199 | 47% | 0.625 | 53.0 | 4.2 | 46.7 | 7.1 | 46.7 | 7.1 | 46.7 | 7.1 | 0 |
+| domaincoherence | 2,687 | 34% | 0.394 | 35.0 | 2.8 | 39.8 | 13.6 | 37.5 | 21.8 | 34.5 | 31.2 | 0 |
 | relevance | 2,687 | 34% | 0.572 | 58.0 | 4.6 | 57.0 | 19.4 | 50.2 | 29.2 | 40.6 | 36.7 | 2 |
 | domainpertinence | 2,687 | 34% | 0.373 | 41.0 | 3.2 | 37.2 | 12.7 | 35.2 | 20.5 | 34.1 | 30.7 | 2 |
 | weirdness | 2,687 | 34% | 0.636 | 69.0 | 5.4 | 61.6 | 21.0 | 52.8 | 30.7 | 41.4 | 37.4 | 3 |
@@ -163,7 +163,7 @@ tagging, which is done once and cached.
 | cvalue | 1,492 | 52% | 0.752 | 76.0 | 5.1 | 74.0 | 22.0 | 64.8 | 33.6 | 52.5 | 36.0 | 0 |
 | basic | 1,492 | 52% | 0.680 | 72.0 | 4.9 | 64.6 | 19.2 | 58.0 | 30.1 | 52.5 | 36.0 | 0 |
 | combobasic | 1,492 | 52% | 0.699 | 73.0 | 4.9 | 65.0 | 19.4 | 61.8 | 32.0 | 52.5 | 36.0 | 0 |
-| domaincoherence | 200 | 72% | 0.756 | 72.0 | 4.9 | 71.5 | 9.4 | 71.5 | 9.4 | 71.5 | 9.4 | 0 |
+| domaincoherence | 1,492 | 52% | 0.587 | 66.0 | 4.5 | 56.2 | 16.7 | 53.1 | 27.5 | 52.5 | 36.0 | 0 |
 | relevance | 1,492 | 52% | 0.721 | 78.0 | 5.3 | 69.2 | 20.6 | 64.0 | 33.2 | 52.5 | 36.0 | 2 |
 | domainpertinence | 1,492 | 52% | 0.571 | 66.0 | 4.5 | 53.8 | 16.0 | 52.4 | 27.2 | 52.5 | 36.0 | 2 |
 | weirdness | 1,492 | 52% | 0.731 | 80.0 | 5.4 | 69.2 | 20.6 | 62.7 | 32.5 | 52.5 | 36.0 | 2 |
@@ -180,7 +180,7 @@ tagging, which is done once and cached.
 | cvalue | 15,740 | 53% | 0.714 | 77.0 | 0.5 | 76.2 | 2.5 | 76.1 | 4.8 | 74.8 | 9.2 | 1 |
 | basic | 15,740 | 53% | 0.640 | 75.0 | 0.5 | 75.4 | 2.4 | 70.7 | 4.5 | 67.6 | 8.3 | 1 |
 | combobasic | 15,740 | 53% | 0.641 | 71.0 | 0.5 | 74.2 | 2.4 | 72.2 | 4.6 | 66.9 | 8.2 | 1 |
-| domaincoherence | 199 | 75% | 0.816 | 75.0 | 0.5 | 74.9 | 1.0 | 74.9 | 1.0 | 74.9 | 1.0 | 2 |
+| domaincoherence | 15,740 | 53% | 0.631 | 70.0 | 0.5 | 71.2 | 2.3 | 68.6 | 4.3 | 66.1 | 8.1 | 1 |
 | relevance | 15,740 | 53% | 0.685 | 89.0 | 0.6 | 78.8 | 2.5 | 75.8 | 4.8 | 71.7 | 8.8 | 3 |
 | domainpertinence | 15,740 | 53% | 0.561 | 62.0 | 0.4 | 55.0 | 1.8 | 58.5 | 3.7 | 57.1 | 7.0 | 3 |
 | weirdness | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 84.8 | 2.7 | 81.1 | 5.1 | 77.4 | 9.5 | 3 |
@@ -197,11 +197,9 @@ results above are of the code as it is.
   of the target and reference frequencies, so every candidate that is rarer in the
   reference corpus scores 1, and most candidates tie. In ATR4S it is the ratio of the
   two frequencies, which ranks candidates exactly as weirdness does (#64).
-- **Domain coherence** (`domaincoherence`) scores every term 0, so its ranking of
-  Basic's top 200 terms is arbitrary (#52).
-- **NMF** (`nmf`) and domain coherence list every term of the corpus in every
-  document's results. On GENIA, NMF needs 8.5 GB of memory, and without the candidate
-  filters it runs out of memory (#66).
+- **NMF** (`nmf`) lists every term of the corpus in every document's results. On
+  GENIA it needs 8.5 GB of memory, and without the candidate filters it runs out of
+  memory (#66).
 - **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
   (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
   training candidate for every offspring: it takes hours to train on ACTER (#60).
