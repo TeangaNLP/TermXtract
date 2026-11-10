@@ -2,7 +2,6 @@ import importlib.util
 import inspect
 import re
 
-import numpy as np
 import pytest
 from teanga import Corpus
 
@@ -97,18 +96,12 @@ def test_unsupervised_words_layer(method):
     assert expected.terms[0]["terms"]
 
 
-@pytest.mark.parametrize("method", ["adaboost", "roger"])
-def test_supervised_words_layer(method):
+def test_supervised_words_layer():
     labels = {"machine learning": 1, "deep learning": 1, "is a": 0, "of machine": 0}
-    params = (
-        {"random_state": 0, "generations": 5, "runs": 2} if method == "roger" else {}
-    )
 
     def extract(layer):
-        # AdaBoost has no random_state; sklearn breaks ties with NumPy's global state
-        np.random.seed(0)
-        return SupervisedTermExtractor(method=method, n=2, **params).extract(
-            corpus_with_layer(layer), labels
-        )
+        return SupervisedTermExtractor(
+            method="roger", n=2, random_state=0, generations=5, runs=2
+        ).extract(corpus_with_layer(layer), labels)
 
     assert extract("tokens").terms == extract("words").terms

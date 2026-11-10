@@ -28,7 +28,6 @@ classifiers = [
 dependencies = [
     "teanga>=0.1.0,<0.2.0",
     "scikit-learn>=1.3.0,<2.0.0",
-    "wn>=1.1,<2.0",
     "numpy>=1.24.0,<2.0.0",
 ]
 
