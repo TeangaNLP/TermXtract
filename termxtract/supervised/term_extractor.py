@@ -6,7 +6,6 @@ from teanga import Corpus
 from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
 from ..utils import ATEResults
-from .adaboost import DEFAULT_WORDNET_LEXICON, AdaBoostTermExtractor
 from .roger import RogerTermExtractor
 
 if TYPE_CHECKING:
@@ -35,19 +34,6 @@ class SupervisedTermExtractor:
     """
 
     METHODS: ClassVar[dict[str, tuple[Callable[[], type], tuple[str, ...]]]] = {
-        "adaboost": (
-            lambda: AdaBoostTermExtractor,
-            (
-                "threshold",
-                "n",
-                "max_depth",
-                "n_estimators",
-                "estimator",
-                "wordnet_lexicon",
-                "stopwords",
-                "words_layer",
-            ),
-        ),
         "roger": (
             lambda: RogerTermExtractor,
             (
@@ -78,18 +64,15 @@ class SupervisedTermExtractor:
         ),
     }
 
-    extractor: (
-        "AdaBoostTermExtractor | RogerTermExtractor | TokenClassificationTermExtractor"
-    )
+    extractor: "RogerTermExtractor | TokenClassificationTermExtractor"
 
     FILTER_PARAMS: ClassVar[tuple[str, ...]] = ("pos_pattern", "pos_layer")
     """Parameters applied to the results by the wrapper, not passed to the extractor."""
 
     def __init__(
         self,
-        method: str = "adaboost",
+        method: str,
         model_name: str = "xlm-roberta-base",
-        threshold: float | None = None,
         n: int = 6,
         # Roger parameters
         population_size: int = 20,
@@ -97,11 +80,6 @@ class SupervisedTermExtractor:
         generations: int = 100,
         runs: int = 21,
         random_state: int | None = None,
-        # AdaBoost parameters
-        max_depth: int = 1,
-        n_estimators: int = 50,
-        estimator: str = "decision_tree",
-        wordnet_lexicon: str = DEFAULT_WORDNET_LEXICON,
         # Token classification parameters
         batch_size: int = 8,
         epochs: int = 3,
@@ -118,19 +96,14 @@ class SupervisedTermExtractor:
 
         Args:
             method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
-                ('adaboost', 'roger', 'token-classification').
+                ('roger', 'token-classification').
             model_name (str): Hugging Face model name for token classification.
-            threshold (Optional[float]): Minimum score threshold for term inclusion (only for 'adaboost').
             n (int): Maximum length of n-grams to consider.
             population_size (int): Number of parents in each generation (only for 'roger').
             offspring_size (int): Number of offspring in each generation (only for 'roger').
             generations (int): Number of generations in each run (only for 'roger').
             runs (int): Number of independent runs to combine (only for 'roger').
             random_state (Optional[int]): Seed for reproducible scores (only for 'roger').
-            max_depth (int): Maximum depth of the decision tree (only for 'adaboost').
-            n_estimators (int): Number of boosting iterations (only for 'adaboost').
-            estimator (str): Type of base estimator (only for 'adaboost').
-            wordnet_lexicon (str): `wn` lexicon for the semantic feature, downloaded on first use if missing (only for 'adaboost').
             batch_size (int): Training batch size (only for 'token-classification').
             epochs (int): Number of training epochs (only for 'token-classification').
             learning_rate (float): Learning rate (only for 'token-classification').
@@ -164,17 +137,12 @@ class SupervisedTermExtractor:
         load_extractor_class, param_names = self.METHODS[method]
         params: dict[str, Any] = {
             "model_name": model_name,
-            "threshold": threshold,
             "n": n,
             "population_size": population_size,
             "offspring_size": offspring_size,
             "generations": generations,
             "runs": runs,
             "random_state": random_state,
-            "max_depth": max_depth,
-            "n_estimators": n_estimators,
-            "estimator": estimator,
-            "wordnet_lexicon": wordnet_lexicon,
             "batch_size": batch_size,
             "epochs": epochs,
             "learning_rate": learning_rate,

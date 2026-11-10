@@ -88,6 +88,17 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   `tie_break="frequency"` orders them by their frequency in the target corpus, and
   `tie_break=None` keeps the previous scores.
 
+### Removed
+
+- *Breaking:* the AdaBoost supervised method (`method="adaboost"`,
+  `termxtract.supervised.adaboost`), with its `threshold`, `max_depth`, `n_estimators`,
+  `estimator` and `wordnet_lexicon` parameters, and the dependency on `wn` and Open
+  English WordNet (#59). It was a loose, undocumented simplification of Vivaldi,
+  Màrquez & Rodríguez (2001), with three features, one of them misnamed, and it was
+  the weakest and slowest method of the English benchmark (F1@2000 of 17.7 on ACTER).
+  #45 proposes a feature-based classifier in its place. `SupervisedTermExtractor`'s
+  `method`, whose default was `"adaboost"`, must now be given.
+
 ### Fixed
 
 - Domain coherence, which scored every candidate 0, follows Bordea, Buitelaar &

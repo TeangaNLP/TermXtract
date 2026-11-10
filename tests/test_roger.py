@@ -152,13 +152,9 @@ def test_predict_new_documents():
     }
 
 
-@pytest.mark.parametrize("method", ["roger", "adaboost"])
-def test_each_document_lists_its_own_candidates(method):
-    params = (
-        {"generations": 5, "runs": 2, "random_state": 0} if method == "roger" else {}
-    )
+def test_each_document_lists_its_own_candidates():
     results = SupervisedTermExtractor(
-        method=method, n=2, stopwords=None, **params
+        method="roger", n=2, stopwords=None, generations=5, runs=2, random_state=0
     ).extract(CORPUS, LABELS)
     corpus_scores = {}
     for doc, words in zip(results.terms, tokenize_strings(CORPUS)):

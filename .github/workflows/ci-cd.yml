@@ -80,16 +80,6 @@ jobs:
           pip install "poetry>=2,<3"
           poetry install --with dev ${{ matrix.full && '--extras transformers' || '' }}
 
-      # The WordNet lexicon used by the AdaBoost extractor
-      - name: Cache WordNet data
-        uses: actions/cache@v4
-        with:
-          path: ~/.wn_data
-          key: wn-oewn-2025plus
-
-      - name: Download WordNet lexicon
-        run: poetry run python -m wn download oewn:2025+
-
       - name: Run tests with coverage
         run: poetry run pytest --cov
 
@@ -128,15 +118,6 @@ jobs:
           uv venv
           uv pip install --resolution lowest-direct -e . "pytest>=9.2,<10"
           uv pip list
-
-      - name: Cache WordNet data
-        uses: actions/cache@v4
-        with:
-          path: ~/.wn_data
-          key: wn-oewn-2025plus
-
-      - name: Download WordNet lexicon
-        run: .venv/bin/python -m wn download oewn:2025+
 
       - name: Run tests
         run: .venv/bin/python -m pytest
