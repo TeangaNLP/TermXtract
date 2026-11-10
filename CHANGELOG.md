@@ -39,6 +39,9 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   regular expression, or a named pattern of `termxtract.candidates.WORD_PATTERNS`:
   `"alphanumeric"` (the default) for words with a letter or digit, or `"atr4s"` for
   ATR4S's noise filter.
+- Several reference corpora, as a list passed as `reference_corpus` (#64). Domain
+  Pertinence compares the target corpus with each, as Navigli & Velardi do with one
+  corpus per contrasting domain; Weirdness and Relevance read them as one corpus.
 
 ### Changed
 
@@ -77,6 +80,13 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   default; pass `word_pattern=None` to keep them. TF-IDF's term frequencies are still
   relative to every n-gram of the document, so its scores only change for terms with
   occurrences that are filtered out.
+- *Breaking:* Domain Pertinence orders the candidates that tie at a score of 1, which
+  are most of them with a single reference corpus, so their order is no longer
+  arbitrary (#64). By default (`tie_break="ratio"`) their scores are raised by between 0
+  and 1 according to the ratio of their frequencies in the target and reference
+  corpora, so with one reference corpus candidates are ranked as Weirdness ranks them.
+  `tie_break="frequency"` orders them by their frequency in the target corpus, and
+  `tie_break=None` keeps the previous scores.
 
 ### Fixed
 

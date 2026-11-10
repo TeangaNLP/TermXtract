@@ -14,6 +14,7 @@ from .domainpertinence import DomainPertinenceTermExtractor
 from .ldaextractor import TopicModelingTermExtractor
 from .nmfextractor import NMFTermExtractor
 from .rake import RAKETermExtractor
+from .reference_extractor import ReferenceCorpus
 from .relevance import RelevanceTermExtractor
 from .ridf import RIDFTermExtractor
 from .tfidf import TFIDFTermExtractor
@@ -60,7 +61,7 @@ class TermExtractor:
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
-            ("reference_corpus", *CANDIDATE_PARAMS),
+            ("reference_corpus", "tie_break", *CANDIDATE_PARAMS),
         ),
         "weirdness": (WeirdnessTermExtractor, ("reference_corpus", *CANDIDATE_PARAMS)),
     }
@@ -79,7 +80,8 @@ class TermExtractor:
         context_words: int = 50,
         stoplist: list[str] | None = None,
         phrase_delimiters: list[str] | None = None,
-        reference_corpus: Corpus | list[str] | None = None,
+        reference_corpus: ReferenceCorpus | list[ReferenceCorpus] | None = None,
+        tie_break: str | None = "ratio",
         n_topics: int = 10,
         max_features: int | None = None,
         stopwords: Stopwords = "english",
@@ -113,7 +115,13 @@ class TermExtractor:
                 against ('domaincoherence').
             stoplist (Optional[List[str]]): List of stop words (required by 'rake').
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (required by 'rake').
-            reference_corpus (Optional[Union[Corpus, List[str]]]): General-language reference corpus, required by 'domainpertinence', 'weirdness' and 'relevance'. It must have the same type as the corpus passed to `extract`.
+            reference_corpus (Optional[Union[Corpus, List[str], List[Union[Corpus, List[str]]]]]):
+                General-language reference corpus, required by 'domainpertinence',
+                'weirdness' and 'relevance'. It must have the same type as the corpus
+                passed to `extract`. A list of reference corpora is compared one by one
+                by 'domainpertinence', and read as one corpus by the others.
+            tie_break (Optional[str]): How to order the candidates that tie at 1
+                ('domainpertinence'): "ratio", "frequency" or None.
             n_topics (int): Number of NMF topics ('nmf').
             max_features (Optional[int]): Maximum vocabulary size ('nmf').
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
@@ -170,6 +178,7 @@ class TermExtractor:
             "stoplist": stoplist,
             "phrase_delimiters": phrase_delimiters,
             "reference_corpus": reference_corpus,
+            "tie_break": tie_break,
             "n_topics": n_topics,
             "max_features": max_features,
             "stopwords": stopwords,

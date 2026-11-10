@@ -29,10 +29,10 @@ def teanga_corpus(texts):
     return corpus
 
 
-def scores(method, corpus, reference):
+def scores(method, corpus, reference, **params):
     # No stopword filtering, so the scores of function words can be checked too
     results = TermExtractor(
-        method=method, reference_corpus=reference, stopwords=None
+        method=method, reference_corpus=reference, stopwords=None, **params
     ).extract(corpus)
     return {t["term"]: t["score"] for doc in results.terms for t in doc["terms"]}
 
@@ -45,10 +45,53 @@ def test_weirdness_scores():
 
 
 def test_domain_pertinence_scores():
-    s = scores("domainpertinence", TARGET, REFERENCE)
+    s = scores("domainpertinence", TARGET, REFERENCE, tie_break=None)
     assert s["photosynthesis"] == 1.0
     assert s["light"] == 1.0
     assert s["the"] == pytest.approx((1 / 7) / (3 / 10))
+
+
+def test_domain_pertinence_tie_breaks():
+    # The ties at 1 are ordered by the smoothed ratio, as in weirdness, or by frequency
+    ratio = scores("domainpertinence", TARGET, REFERENCE, tie_break="ratio")
+    r = (2 / 7) / (1 / 10)
+    assert ratio["photosynthesis"] == pytest.approx(1 + r / (1 + r))
+    r = (1 / 7) / (2 / 10)
+    assert ratio["light"] == pytest.approx(1 + r / (1 + r))
+    assert ratio["the"] == pytest.approx((1 / 7) / (3 / 10))
+    frequency = scores("domainpertinence", TARGET, REFERENCE, tie_break="frequency")
+    assert frequency["photosynthesis"] == pytest.approx(1 + 2 / 3)
+    assert frequency["light"] == pytest.approx(1 + 1 / 2)
+    with pytest.raises(ValueError, match="tie_break"):
+        TermExtractor(
+            method="domainpertinence", reference_corpus=REFERENCE, tie_break="x"
+        )
+
+
+def test_several_reference_corpora():
+    biology = ["photosynthesis photosynthesis leaf"]
+    # Domain Pertinence compares the target with the reference where a term is most
+    # frequent: "photosynthesis" is 2/7 of the target and 2/3 of the second reference
+    s = scores("domainpertinence", TARGET, [REFERENCE, biology], tie_break=None)
+    assert s["photosynthesis"] == pytest.approx((2 / 7) / (2 / 3))
+    assert s["light"] == 1.0
+    # The other methods read the reference corpora as one
+    for method in ("weirdness", "relevance"):
+        assert scores(method, TARGET, [REFERENCE, biology]) == scores(
+            method, TARGET, REFERENCE + biology
+        )
+    teanga = scores(
+        "domainpertinence",
+        teanga_corpus(TARGET),
+        [teanga_corpus(REFERENCE), teanga_corpus(biology)],
+        tie_break=None,
+    )
+    assert teanga == s
+    with pytest.raises(TypeError, match="reference corpus"):
+        TermExtractor(
+            method="domainpertinence",
+            reference_corpus=[teanga_corpus(REFERENCE), biology],
+        )
 
 
 def test_relevance_scores():
