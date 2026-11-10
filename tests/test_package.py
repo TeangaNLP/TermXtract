@@ -43,7 +43,7 @@ class TestPackage(unittest.TestCase):
         code = (
             "import sys, termxtract; "
             "from termxtract import TermExtractor; "
-            "heavy = [m for m in ('torch', 'transformers', 'wn') if m in sys.modules]; "
+            "heavy = [m for m in ('torch', 'transformers') if m in sys.modules]; "
             "print(','.join(heavy))"
         )
         # Run in a fresh interpreter, since other tests have already imported these modules.
@@ -57,7 +57,6 @@ class TestPackage(unittest.TestCase):
         code = (
             "import sys; "
             "from termxtract import SupervisedTermExtractor; "
-            "SupervisedTermExtractor(method='adaboost'); "
             "SupervisedTermExtractor(method='roger'); "
             "heavy = [m for m in ('torch', 'transformers', 'sacremoses') if m in sys.modules]; "
             "print(','.join(heavy))"

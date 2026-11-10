@@ -51,6 +51,5 @@ nav:
     - Topic Modeling (LDA): api/unsupervised/topicmodeling.md
     - NMF: api/unsupervised/nmf.md
   - Supervised Extractors:
-    - AdaBoost: api/supervised/adaboost.md
     - Roger: api/supervised/roger.md
     - Token Classification: api/supervised/token_classification.md

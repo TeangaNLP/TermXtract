@@ -4,7 +4,7 @@
 [![Docs](https://img.shields.io/badge/docs-teanga.io%2FTermXtract-blue)](https://teanga.io/TermXtract/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**TermXtract** is a Python library for **automatic term extraction (ATE)**: finding the domain-specific terms in a collection of documents. It offers a range of classic **unsupervised** scoring methods (TF-IDF, C-Value, Weirdness, RAKE, topic models, …) and **supervised** methods that learn from labelled examples (AdaBoost, Roger, and transformer-based token classification).
+**TermXtract** is a Python library for **automatic term extraction (ATE)**: finding the domain-specific terms in a collection of documents. It offers a range of classic **unsupervised** scoring methods (TF-IDF, C-Value, Weirdness, RAKE, topic models, …) and **supervised** methods that learn from labelled examples (Roger, and transformer-based token classification).
 
 Every method takes either a plain list of strings or a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus`, and returns the same `ATEResults` object.
 
@@ -79,7 +79,7 @@ results = extractor.extract(corpus)
 
 ### Supervised extraction
 
-Supervised methods are trained from a dictionary of candidate terms labelled `1` (term) or `0` (not a term):
+Supervised methods are trained from a dictionary of candidate terms labelled `1` (term) or `0` (not a term). Roger ranks multi-word candidates, so it needs multi-word examples of both:
 
 ```python
 from termxtract import SupervisedTermExtractor
@@ -88,15 +88,13 @@ labels = {
     "machine learning": 1,
     "deep learning": 1,
     "natural language processing": 1,
-    "field": 0,
-    "text": 0,
+    "is a": 0,
+    "applies machine": 0,
 }
 
-extractor = SupervisedTermExtractor(method="adaboost", n=3)
+extractor = SupervisedTermExtractor(method="roger", n=3)
 results = extractor.extract(corpus, labels)
 ```
-
-The AdaBoost extractor uses [Open English WordNet](https://en-word.net/) through the [`wn`](https://pypi.org/project/wn/) package. The first time it needs WordNet it downloads the `oewn:2025+` lexicon into `~/.wn_data` (set `WN_DATA_DIR` to change this). To install it ahead of time, e.g. for offline use, run `python -m wn download oewn:2025+`. Pass `wordnet_lexicon=...` to use a different lexicon.
 
 ### Using a Teanga corpus
 
@@ -143,7 +141,6 @@ All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `st
 
 | `method`               | Description                                              | Extra parameters                                         |
 |------------------------|----------------------------------------------------------|----------------------------------------------------------|
-| `adaboost`             | AdaBoost over linguistic and statistical features        | `threshold`, `max_depth`, `n_estimators`, `estimator`, `wordnet_lexicon` |
 | `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state` |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language` |
 
