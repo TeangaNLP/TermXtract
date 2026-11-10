@@ -196,6 +196,25 @@ class TestTokenClassificationExtraction(unittest.TestCase):
             len(extract_results.terms), 1, "Should have results for one document"
         )
 
+    def test_fit_on_one_corpus_and_predict_on_another(self):
+        """A model trained on one corpus tags another, with offsets for Teanga."""
+        extractor = SupervisedTermExtractor(
+            method="token-classification", n=2, batch_size=4, epochs=1
+        ).fit(self.text_corpus[:1], self.labels)
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
+        doc = corpus.add_doc("Neural networks need machine learning.")
+        doc.words = [(0, 6), (7, 15), (16, 20), (21, 28), (29, 37), (37, 38)]
+        results = extractor.predict(corpus)
+        self.assertEqual(len(results.terms), 1)
+        self.assertEqual(len(results.offsets), 1)
+        terms = {term["term"] for term in results.terms[0]["terms"]}
+        for occurrence in results.offsets[0]["offsets"]:
+            start, end = occurrence["offset"]
+            self.assertEqual(doc.text[start:end].lower(), occurrence["term"])
+            self.assertIn(occurrence["term"], terms)
+
     def test_training_writes_nothing_to_the_working_directory(self):
         """Checkpoints and logs are not saved in the working directory (#68)."""
         import os
@@ -268,6 +287,8 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
     def test_each_document_lists_the_terms_tagged_in_it(self):
         from unittest import mock
 
+        from sacremoses import MosesDetokenizer
+
         from termxtract.stopwords import load_stopwords
         from termxtract.supervised.tokenextractor import (
             TokenClassificationTermExtractor,
@@ -276,23 +297,33 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
         extractor = object.__new__(TokenClassificationTermExtractor)
         extractor.is_trained = True
         extractor.stopwords = load_stopwords("english")
+        extractor.moses_detokenizer = MosesDetokenizer(lang="en")
         documents = [
             [(["Plant", "cells", "grow", "."], ""), (["Cells", "divide", "."], "")],
             [(["A", "cell", "wall", "."], "")],
         ]
+        spans = [
+            [[(0, 5), (6, 11), (12, 16), (16, 17)], [(18, 23), (24, 30), (30, 31)]],
+            [[(0, 1), (2, 6), (7, 11), (11, 12)]],
+        ]
         # The model tags "plant cells" and "cells" in document 0, "cell wall" in 1
-        sentence_terms = [{"plant cells": 1.0}, {"cells": 1.0}, {"cell wall": 1.0}]
+        tags = [["B-T", "T", "n", "n"], ["B-T", "n", "n"], ["n", "B-T", "T", "n"]]
         with (
             mock.patch.object(extractor, "tokenize_and_align_labels"),
             mock.patch.object(extractor, "create_torch_dataset"),
-            mock.patch.object(
-                extractor, "predict_sentences", return_value=sentence_terms
-            ),
+            mock.patch.object(extractor, "predict_tags", return_value=tags),
         ):
-            results = extractor.extract_documents(None, ["d0", "d1"], documents)
+            results = extractor.extract_documents(None, ["d0", "d1"], documents, spans)
 
         terms = {
             doc["doc_id"]: {t["term"] for t in doc["terms"]} for doc in results.terms
         }
         # "cell" is not listed for document 0, although "cells" contains it
         self.assertEqual(terms, {"d0": {"plant cells", "cells"}, "d1": {"cell wall"}})
+        self.assertEqual(
+            results.offsets[0]["offsets"],
+            [
+                {"term": "plant cells", "offset": (0, 11)},
+                {"term": "cells", "offset": (18, 23)},
+            ],
+        )

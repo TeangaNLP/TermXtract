@@ -181,9 +181,64 @@ class SupervisedTermExtractor:
             }
         )
 
+    def fit(
+        self, corpus: Corpus | list[str], labels: dict[str, int]
+    ) -> "SupervisedTermExtractor":
+        """
+        Train the method on a corpus.
+
+        Args:
+            corpus (Union[Corpus, List[str]]): Teanga Corpus object or list of strings.
+            labels (Dict[str, int]): Dictionary with terms as keys and binary labels {0, 1}.
+                Roger needs examples of both; given only terms, it counts every other
+                candidate of the corpus as a non-term.
+
+        Returns:
+            SupervisedTermExtractor: This extractor, trained, so that `fit(...).predict(...)`
+            can be chained.
+
+        Raises:
+            ValueError: If the corpus is neither a Teanga Corpus nor a list of strings,
+                or `pos_pattern` is set and the corpus is a list of strings.
+        """
+        if self._is_teanga(corpus):
+            self.extractor.fit_teanga(corpus, labels)
+        else:
+            self.extractor.fit_strings(corpus, labels)
+        return self
+
+    def predict(self, corpus: Corpus | list[str]) -> ATEResults:
+        """
+        Extract terms from a corpus with the trained method.
+
+        The corpus can differ from the one the method was trained on, for example
+        another domain or another split of a dataset.
+
+        Args:
+            corpus (Union[Corpus, List[str]]): Teanga Corpus object or list of strings.
+
+        Returns:
+            ATEResults: The terms of each document with their scores, and their offsets
+            for a Teanga corpus.
+
+        Raises:
+            ValueError: If the corpus is neither a Teanga Corpus nor a list of strings,
+                or `pos_pattern` is set and the corpus is a list of strings.
+        """
+        if not self._is_teanga(corpus):
+            return self.extractor.predict_strings(corpus)
+        results = self.extractor.predict_teanga(corpus)
+        if self.pos_pattern is None:
+            return results
+        return filter_by_pos(
+            results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
+        )
+
     def extract(self, corpus: Corpus | list[str], labels: dict[str, int]) -> ATEResults:
         """
-        Extract terms from a given corpus using supervised learning.
+        Train the method on a corpus and extract the terms of that same corpus.
+
+        To extract terms from another corpus, use `fit` and then `predict`.
 
         Args:
             corpus (Union[Corpus, List[str]]): Teanga Corpus object or list of strings.
@@ -192,19 +247,28 @@ class SupervisedTermExtractor:
         Returns:
             ATEResults: Object containing extracted terms with scores.
         """
+        return self.fit(corpus, labels).predict(corpus)
+
+    def _is_teanga(self, corpus: Corpus | list[str]) -> bool:
+        """
+        Check the type of a corpus.
+
+        Returns:
+            bool: True for a Teanga Corpus, False for a list of strings.
+
+        Raises:
+            ValueError: If the corpus is neither, or `pos_pattern` is set and the corpus
+                is a list of strings.
+        """
         if isinstance(corpus, Corpus):
-            results = self.extractor.extract_terms_teanga(corpus, labels)
-            if self.pos_pattern is None:
-                return results
-            return filter_by_pos(
-                results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
-            )
-        elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
-            if self.pos_pattern is not None:
-                raise ValueError(
-                    "pos_pattern needs part-of-speech tags, so it only works with a "
-                    "Teanga corpus with a part-of-speech layer."
-                )
-            return self.extractor.extract_terms_strings(corpus, labels)
-        else:
+            return True
+        if not (
+            isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus)
+        ):
             raise ValueError("Corpus must be a Teanga Corpus or a list of strings.")
+        if self.pos_pattern is not None:
+            raise ValueError(
+                "pos_pattern needs part-of-speech tags, so it only works with a "
+                "Teanga corpus with a part-of-speech layer."
+            )
+        return False

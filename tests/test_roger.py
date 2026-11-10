@@ -131,11 +131,35 @@ def test_rare_positives_give_finite_scores():
 
 @pytest.mark.parametrize(
     "labels",
-    [{}, {"machine learning": 0}, {"machine learning": 1}, {"machine": 1, "and": 0}],
+    [{}, {"machine learning": 0}, {"machine": 1, "and": 0}],
 )
 def test_requires_positive_and_negative_labels(labels):
     with pytest.raises(ValueError, match="labelled 1 and one labelled 0"):
         roger().extract(CORPUS, labels)
+
+
+def test_only_terms_labelled():
+    # Without non-terms, every other candidate counts as one
+    terms = {term: 1 for term, label in LABELS.items() if label == 1}
+    found = scores(roger().extract(CORPUS, terms))
+    assert found["genetic algorithms"] > found["ranking functions"]
+
+
+def test_fit_on_one_corpus_and_predict_on_another():
+    extractor = roger().fit(CORPUS, LABELS)
+    results = extractor.predict(["Genetic algorithms learn ranking functions."])
+    assert results.terms[0]["terms"][0]["term"] == "genetic algorithms"
+    assert results.offsets is None
+    teanga = Corpus()
+    teanga.add_layer_meta("text")
+    teanga.add_layer_meta("words", layer_type="span", base="text")
+    doc = teanga.add_doc("Genetic algorithms learn.")
+    doc.words = [m.span() for m in re.finditer(r"\w+", doc.text)]
+    results = extractor.predict(teanga)
+    assert results.offsets[0]["offsets"] == [
+        {"term": "genetic algorithms", "offset": (0, 18)},
+        {"term": "algorithms learn", "offset": (8, 24)},
+    ]
 
 
 def test_predict_new_documents():

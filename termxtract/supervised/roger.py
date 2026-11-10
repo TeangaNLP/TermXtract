@@ -1,11 +1,13 @@
 import math
 from collections import Counter
 from collections.abc import Iterator
+from typing import Any
 
 import numpy as np
 from joblib import Parallel, delayed
 from scipy.stats import rankdata
 
+from ..layers import words_with_offsets
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 from .words import tokenize_strings, tokenize_teanga
@@ -349,10 +351,12 @@ class RogerTermExtractor:
         Learn `runs` ranking functions from the labelled candidates in `docs`.
 
         As in Azé et al. (2005), only the labelled candidates are training examples.
-        The measures are normalised to the range of all the candidates in `docs`.
+        If none of them is labelled 0, as with a list of gold terms, every unlabelled
+        candidate is a negative example instead. The measures are normalised to the
+        range of all the candidates in `docs`.
 
         Raises:
-            ValueError: If no candidate in `docs` is labelled 1, or none is labelled 0.
+            ValueError: If no candidate in `docs` is labelled 1, or every one is.
         """
         X, terms = self.extract_features(docs)
         if terms:
@@ -361,7 +365,10 @@ class RogerTermExtractor:
                 X.max(axis=0) > self.feature_min, X.max(axis=0) - self.feature_min, 1.0
             )
         labelled = [i for i, term in enumerate(terms) if term in labels]
-        y = np.array([labels[terms[i]] == 1 for i in labelled], dtype=int)
+        if all(labels[terms[i]] == 1 for i in labelled):
+            # Only terms are labelled, so the other candidates are the non-terms
+            labelled = list(range(len(terms)))
+        y = np.array([labels.get(terms[i]) == 1 for i in labelled], dtype=int)
         if y.all() or not y.any():
             raise ValueError(
                 "Roger needs at least one candidate in the corpus labelled 1 "
@@ -415,45 +422,95 @@ class RogerTermExtractor:
         """Score the candidates in a Teanga corpus."""
         return self.predict(tokenize_teanga(corpus, self.words_layer))
 
-    def _results(self, corpus, doc_ids: list[str], docs, labels) -> ATEResults:
-        self.train(docs, labels)
-        term_scores = self.predict(docs)
-        # Each document lists the corpus-level scores of its own candidates
-        return ATEResults(
-            corpus=corpus,
-            terms=[
-                {
-                    "doc_id": doc_id,
-                    "terms": rank_terms(
-                        {
-                            term: term_scores[term]
-                            for term in dict.fromkeys(
-                                " ".join(ngram) for ngram in self._ngrams([words])
-                            )
-                        },
-                        stopwords=self.stopwords,
-                    ),
-                }
-                for doc_id, words in zip(doc_ids, docs)
-            ],
+    def fit_strings(self, corpus: list[str], labels: dict[str, int]) -> None:
+        """Learn the ranking functions from a list of strings."""
+        self.train(tokenize_strings(corpus), labels)
+
+    def fit_teanga(self, corpus, labels: dict[str, int]) -> None:
+        """Learn the ranking functions from a Teanga corpus."""
+        self.train(tokenize_teanga(corpus, self.words_layer), labels)
+
+    def predict_strings(self, corpus: list[str]) -> ATEResults:
+        """Rank the candidates of a list of strings with the learned functions."""
+        return self._results(
+            corpus, [f"doc_{i}" for i in range(len(corpus))], tokenize_strings(corpus)
         )
 
-    def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
-        """Extract terms from a Teanga corpus using Roger."""
+    def predict_teanga(self, corpus) -> ATEResults:
+        """Rank the candidates of a Teanga corpus, with their offsets."""
+        words = [
+            words_with_offsets(corpus.doc_by_id(doc_id), self.words_layer)
+            for doc_id in corpus.doc_ids
+        ]
         return self._results(
             corpus,
             list(corpus.doc_ids),
-            tokenize_teanga(corpus, self.words_layer),
-            labels,
+            [[word.lower() for _, _, word in doc] for doc in words],
+            [[(start, end) for start, end, _ in doc] for doc in words],
         )
+
+    def _results(
+        self,
+        corpus,
+        doc_ids: list[str],
+        docs: list[list[str]],
+        spans: list[list[tuple[int, int]]] | None = None,
+    ) -> ATEResults:
+        """
+        Score the candidates of `docs`, listing each document's own candidates with
+        their corpus-level scores, and their offsets if the word `spans` are given.
+        """
+        term_scores = self.predict(docs)
+        terms_by_doc = []
+        offsets_by_doc = []
+        for k, (doc_id, words) in enumerate(zip(doc_ids, docs)):
+            occurrences = [
+                (" ".join(words[i : i + length]), i, i + length)
+                for length in range(2, self.n + 1)
+                for i in range(len(words) - length + 1)
+            ]
+            doc_terms: dict[str, Any] = {
+                "doc_id": doc_id,
+                "terms": rank_terms(
+                    {
+                        term: term_scores[term]
+                        for term in dict.fromkeys(term for term, _, _ in occurrences)
+                    },
+                    stopwords=self.stopwords,
+                ),
+            }
+            terms_by_doc.append(doc_terms)
+            if spans is not None:
+                kept = {term["term"] for term in doc_terms["terms"]}
+                offsets_by_doc.append(
+                    {
+                        "doc_id": doc_id,
+                        "offsets": [
+                            {
+                                "term": term,
+                                "offset": (spans[k][start][0], spans[k][end - 1][1]),
+                            }
+                            for term, start, end in sorted(
+                                occurrences, key=lambda o: (o[1], o[2])
+                            )
+                            if term in kept
+                        ],
+                    }
+                )
+        return ATEResults(
+            corpus=corpus,
+            terms=terms_by_doc,
+            offsets=offsets_by_doc if spans is not None else None,
+        )
+
+    def extract_terms_teanga(self, corpus, labels: dict[str, int]) -> ATEResults:
+        """Learn from a Teanga corpus with Roger and rank its candidates."""
+        self.fit_teanga(corpus, labels)
+        return self.predict_teanga(corpus)
 
     def extract_terms_strings(
         self, corpus: list[str], labels: dict[str, int]
     ) -> ATEResults:
-        """Extract terms from a list of strings using Roger."""
-        return self._results(
-            corpus,
-            [f"doc_{i}" for i in range(len(corpus))],
-            tokenize_strings(corpus),
-            labels,
-        )
+        """Learn from a list of strings with Roger and rank its candidates."""
+        self.fit_strings(corpus, labels)
+        return self.predict_strings(corpus)

@@ -45,6 +45,16 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   Pertinence compares the target corpus with each, as Navigli & Velardi do with one
   corpus per contrasting domain; Weirdness and Relevance read them as one corpus.
 
+- `SupervisedTermExtractor.fit(corpus, labels)` and `predict(corpus)`, to train on one
+  corpus and extract terms from another, such as another split of a dataset, another
+  domain or another language (#43). `predict` returns `ATEResults` with the terms of
+  each document, as `extract` does, and applies `pos_pattern`; `extract` is now `fit`
+  followed by `predict` on the same corpus. Roger and token classification have
+  matching `fit_strings`, `fit_teanga`, `predict_strings` and `predict_teanga` methods.
+- Term offsets for Roger and token classification on Teanga input.
+- Roger can learn from a list of terms alone: if no candidate is labelled 0, every
+  unlabelled candidate counts as a non-term (#43).
+
 ### Changed
 
 - *Breaking:* Residual IDF uses the formula of Church & Gale (1999), as in ATR4S and
