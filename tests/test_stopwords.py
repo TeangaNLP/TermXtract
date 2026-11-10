@@ -7,6 +7,7 @@ from termxtract import SupervisedTermExtractor, TermExtractor
 from termxtract.stopwords import (
     ENGLISH_STOPWORDS,
     HINDI_STOPWORDS,
+    SLOVENIAN_STOPWORDS,
     is_candidate,
     load_stopwords,
 )
@@ -34,8 +35,23 @@ def test_hindi_stopwords():
     assert load_stopwords("hindi") == HINDI_STOPWORDS
     assert len(HINDI_STOPWORDS) == 225
     assert {"के", "लिए", "है", "और"} <= HINDI_STOPWORDS
-    with pytest.raises(ValueError, match="'english', 'hindi'"):
+    with pytest.raises(ValueError, match="'english', 'hindi', 'slovenian'"):
         load_stopwords("klingon")
+
+
+def test_slovenian_stopwords():
+    assert load_stopwords("slovenian") == SLOVENIAN_STOPWORDS
+    assert len(SLOVENIAN_STOPWORDS) == 446
+    assert {"in", "na", "je", "za"} <= SLOVENIAN_STOPWORDS
+    corpus = [
+        "Analiza vzorca je pokazala sestavo vzorca.",
+        "Analiza vzorca in sinteza.",
+    ]
+    terms = all_terms(
+        TermExtractor(method="tfidf", n=2, stopwords="slovenian").extract(corpus)
+    )
+    assert "analiza vzorca" in terms
+    assert not any(term.split()[-1] in {"je", "in"} for term in terms)
 
 
 def test_hindi_text():

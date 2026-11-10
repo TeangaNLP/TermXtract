@@ -125,9 +125,10 @@ class TermExtractor:
             n_topics (int): Number of NMF topics ('nmf').
             max_features (Optional[int]): Maximum vocabulary size ('nmf').
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
-                stopword (all methods except 'rake', which uses `stoplist`): "english" (the
-                default) or "hindi" for a built-in list, a list of words, or None to keep
-                every candidate. Stopwords inside a multi-word term, as in "degree of freedom", are kept.
+                stopword (all methods except 'rake', which uses `stoplist`): the name of a
+                built-in list in `termxtract.stopwords.STOPWORD_LISTS` ("english", the
+                default, "hindi" or "slovenian"), a list of words, or None to keep every
+                candidate. Stopwords inside a multi-word term, as in "degree of freedom", are kept.
             words_layer (Optional[str]): For Teanga input, the span layer holding the words:
                 None (the default) for `words` or, if the corpus has no `words` layer,
                 `tokens`.

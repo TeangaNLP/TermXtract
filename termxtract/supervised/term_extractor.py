@@ -136,8 +136,9 @@ class SupervisedTermExtractor:
             max_length (int): Maximum sequence length (only for 'token-classification').
             language (str): Language code for tokenization (only for 'token-classification').
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or end
-                with a stopword: "english" (the default) or "hindi" for a built-in list, a
-                list of words, or None to keep every term.
+                with a stopword: the name of a built-in list in
+                `termxtract.stopwords.STOPWORD_LISTS` ("english", the default, "hindi" or
+                "slovenian"), a list of words, or None to keep every term.
             words_layer (Optional[str]): For Teanga input, the span layer holding the words:
                 None (the default) for `words` or, if the corpus has no `words` layer,
                 `tokens`.

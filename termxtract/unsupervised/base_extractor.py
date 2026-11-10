@@ -46,8 +46,9 @@ class BaseTermExtractor(ABC):
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Candidates that start or end with
-                one of these words are dropped: "english" (the default) or "hindi" for a
-                built-in list, a list of words, or None to keep every candidate.
+                one of these words are dropped: a name in `STOPWORD_LISTS` ("english", the
+                default, "hindi" or "slovenian"), a list of words, or None to keep every
+                candidate.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on the
