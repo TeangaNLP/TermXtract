@@ -1,6 +1,7 @@
 import re
 from abc import abstractmethod
 from collections import Counter
+from typing import TypeAlias
 
 from teanga import Corpus
 
@@ -8,7 +9,7 @@ from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
 
-ReferenceCorpus = Corpus | list[str]
+ReferenceCorpus: TypeAlias = Corpus | list[str]
 """A reference corpus: a Teanga corpus, or a list of strings."""
 
 
@@ -84,7 +85,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         if isinstance(reference_corpus, Corpus) or all(
             isinstance(doc, str) for doc in reference_corpus
         ):
-            self.reference_corpora = [reference_corpus]
+            self.reference_corpora: list[ReferenceCorpus] = [reference_corpus]
         else:
             self.reference_corpora = list(reference_corpus)
         if not (
@@ -201,7 +202,9 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
         Raises:
             TypeError: If the reference corpus is a list of strings.
         """
-        if not isinstance(self.reference_corpora[0], Corpus):
+        # The corpora are all of one type, checked in __init__
+        references = [ref for ref in self.reference_corpora if isinstance(ref, Corpus)]
+        if not references:
             raise TypeError(
                 "The reference corpus is a list of strings, so the corpus to extract "
                 "terms from must also be a list of strings, not a Teanga Corpus."
@@ -221,7 +224,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 ]
                 for doc_id in reference.doc_ids
             ]
-            for reference in self.reference_corpora
+            for reference in references
         ]
         self._check_words(ref_ngrams)
         scores = self.score_corpora(target_ngrams, ref_ngrams)
