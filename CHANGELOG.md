@@ -89,6 +89,9 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   parameters. On a Teanga corpus with a part-of-speech layer, only nouns, adjectives and
   verbs can be context words. Each document lists only its own candidates, with their
   offsets, instead of every term of the corpus (#66).
+- NMF lists only each document's own candidates, with their offsets for Teanga input,
+  instead of every term of the corpus in every document, so its results no longer grow
+  with documents times terms (#66). The scores are unchanged.
 
 ## [0.1.0] - 2026-11-02
 

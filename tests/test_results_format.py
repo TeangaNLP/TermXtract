@@ -38,8 +38,6 @@ METHODS = {
     "weirdness": {"n": 2, "reference_corpus": "REF"},
     "relevance": {"n": 2, "reference_corpus": "REF"},
 }
-# Methods that score terms over the whole corpus rather than the n-grams of each document.
-NO_OFFSETS = {"nmf"}
 
 
 def make_teanga(texts):
@@ -109,10 +107,6 @@ class TestResultsFormat(unittest.TestCase):
                 self.assertTrue(
                     any(doc["terms"] for doc in results.terms), "Expected some terms."
                 )
-
-                if method in NO_OFFSETS:
-                    self.assertIsNone(results.offsets)
-                    continue
 
                 self.assertEqual([doc["doc_id"] for doc in results.offsets], doc_ids)
                 for doc_terms, doc_offsets in zip(results.terms, results.offsets):
