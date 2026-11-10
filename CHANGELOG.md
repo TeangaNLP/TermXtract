@@ -94,6 +94,10 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 - NMF lists only each document's own candidates, with their offsets for Teanga input,
   instead of every term of the corpus in every document, so its results no longer grow
   with documents times terms (#66). The scores are unchanged.
+- Token classification no longer writes to `./results` and `./logs`: it saved a
+  checkpoint of the model and its optimizer state every 500 training steps, several
+  gigabytes in all, which were never used (#68). The Trainer now works in a temporary
+  directory, saves no checkpoints and reports to no logging integrations.
 
 ## [0.1.0] - 2026-11-02
 
