@@ -34,6 +34,10 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   categories (#37). It was converted to Teanga, with the spellings of the categories
   normalised, and published on Zenodo under CC BY-SA 4.0. The loader tokenises the text and splits it into sentences, and by default
   leaves out the 335 annotations that start inside a word.
+- RSDO5 1.1, as `datasets.load("rsdo5")`: 12 Slovenian texts in four domains, with
+  37,985 terms marked in- or out-domain, and lemmas and part-of-speech tags (#40).
+  `domains` loads some of the domains, and `labels="in-domain"` only the terms of the
+  text's own domain.
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
 - `BENCHMARKS.md`, with the results of every method on ACTER, the ACL RD-TEC and GENIA

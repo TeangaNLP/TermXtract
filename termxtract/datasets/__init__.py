@@ -15,7 +15,7 @@ extractor and, as the gold standard, to `termxtract.evaluate`.
 """
 
 # Importing a dataset module registers the dataset
-from . import acl_rd_tec, acter, genia, htec
+from . import acl_rd_tec, acter, genia, htec, rsdo5
 from .base import (
     CATEGORY_LAYER,
     GOLD_LAYER,
@@ -50,4 +50,5 @@ __all__ = [
     "list_datasets",
     "load",
     "register",
+    "rsdo5",
 ]
