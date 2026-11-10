@@ -1,4 +1,6 @@
+import json
 from collections.abc import Iterable
+from importlib.resources import files
 
 # NLTK's English stopword list (nltk_data, corpora/stopwords/english), which is based on
 # the Snowball project's list (BSD licence): https://github.com/nltk/nltk_data
@@ -205,243 +207,40 @@ ENGLISH_STOPWORDS: frozenset[str] = frozenset(
     }
 )
 
-# The Hindi stopword list of stopwords-iso (MIT licence), as published:
-# https://github.com/stopwords-iso/stopwords-hi/blob/fae0a092c0fb8058f9c2470005467ee697b4763b/stopwords-hi.txt
-HINDI_STOPWORDS: frozenset[str] = frozenset(
-    {
-        "अंदर",
-        "अत",
-        "अदि",
-        "अप",
-        "अपना",
-        "अपनि",
-        "अपनी",
-        "अपने",
-        "अभि",
-        "अभी",
-        "आदि",
-        "आप",
-        "इंहिं",
-        "इंहें",
-        "इंहों",
-        "इतयादि",
-        "इत्यादि",
-        "इन",
-        "इनका",
-        "इन्हीं",
-        "इन्हें",
-        "इन्हों",
-        "इस",
-        "इसका",
-        "इसकि",
-        "इसकी",
-        "इसके",
-        "इसमें",
-        "इसि",
-        "इसी",
-        "इसे",
-        "उंहिं",
-        "उंहें",
-        "उंहों",
-        "उन",
-        "उनका",
-        "उनकि",
-        "उनकी",
-        "उनके",
-        "उनको",
-        "उन्हीं",
-        "उन्हें",
-        "उन्हों",
-        "उस",
-        "उसके",
-        "उसि",
-        "उसी",
-        "उसे",
-        "एक",
-        "एवं",
-        "एस",
-        "एसे",
-        "ऐसे",
-        "ओर",
-        "और",
-        "कइ",
-        "कई",
-        "कर",
-        "करता",
-        "करते",
-        "करना",
-        "करने",
-        "करें",
-        "कहते",
-        "कहा",
-        "का",
-        "काफि",
-        "काफ़ी",
-        "कि",
-        "किंहें",
-        "किंहों",
-        "कितना",
-        "किन्हें",
-        "किन्हों",
-        "किया",
-        "किर",
-        "किस",
-        "किसि",
-        "किसी",
-        "किसे",
-        "की",
-        "कुछ",
-        "कुल",
-        "के",
-        "को",
-        "कोइ",
-        "कोई",
-        "कोन",
-        "कोनसा",
-        "कौन",
-        "कौनसा",
-        "गया",
-        "घर",
-        "जब",
-        "जहाँ",
-        "जहां",
-        "जा",
-        "जिंहें",
-        "जिंहों",
-        "जितना",
-        "जिधर",
-        "जिन",
-        "जिन्हें",
-        "जिन्हों",
-        "जिस",
-        "जिसे",
-        "जीधर",
-        "जेसा",
-        "जेसे",
-        "जैसा",
-        "जैसे",
-        "जो",
-        "तक",
-        "तब",
-        "तरह",
-        "तिंहें",
-        "तिंहों",
-        "तिन",
-        "तिन्हें",
-        "तिन्हों",
-        "तिस",
-        "तिसे",
-        "तो",
-        "था",
-        "थि",
-        "थी",
-        "थे",
-        "दबारा",
-        "दवारा",
-        "दिया",
-        "दुसरा",
-        "दुसरे",
-        "दूसरे",
-        "दो",
-        "द्वारा",
-        "न",
-        "नहिं",
-        "नहीं",
-        "ना",
-        "निचे",
-        "निहायत",
-        "नीचे",
-        "ने",
-        "पर",
-        "पहले",
-        "पुरा",
-        "पूरा",
-        "पे",
-        "फिर",
-        "बनि",
-        "बनी",
-        "बहि",
-        "बही",
-        "बहुत",
-        "बाद",
-        "बाला",
-        "बिलकुल",
-        "भि",
-        "भितर",
-        "भी",
-        "भीतर",
-        "मगर",
-        "मानो",
-        "मे",
-        "में",
-        "यदि",
-        "यह",
-        "यहाँ",
-        "यहां",
-        "यहि",
-        "यही",
-        "या",
-        "यिह",
-        "ये",
-        "रखें",
-        "रवासा",
-        "रहा",
-        "रहे",
-        "ऱ्वासा",
-        "लिए",
-        "लिये",
-        "लेकिन",
-        "व",
-        "वगेरह",
-        "वरग",
-        "वर्ग",
-        "वह",
-        "वहाँ",
-        "वहां",
-        "वहिं",
-        "वहीं",
-        "वाले",
-        "वुह",
-        "वे",
-        "वग़ैरह",
-        "संग",
-        "सकता",
-        "सकते",
-        "सबसे",
-        "सभि",
-        "सभी",
-        "साथ",
-        "साबुत",
-        "साभ",
-        "सारा",
-        "से",
-        "सो",
-        "हि",
-        "ही",
-        "हुअ",
-        "हुआ",
-        "हुइ",
-        "हुई",
-        "हुए",
-        "हे",
-        "हें",
-        "है",
-        "हैं",
-        "हो",
-        "होता",
-        "होति",
-        "होती",
-        "होते",
-        "होना",
-        "होने",
-    }
-)
+
+def _stopwords_iso() -> dict[str, frozenset[str]]:
+    """The lists of stopwords-iso, by ISO 639-1 code."""
+    path = files("termxtract").joinpath("data").joinpath("stopwords-iso.json")
+    data = path.read_text(encoding="utf-8")
+    return {code: frozenset(words) for code, words in json.loads(data).items()}
+
+
+STOPWORDS_ISO = _stopwords_iso()
+"""
+The stopword lists of 58 languages from stopwords-iso (MIT licence), by ISO 639-1 code,
+pinned to commit 6e8e9a2: https://github.com/stopwords-iso/stopwords-iso
+
+The lists are bundled in `termxtract/data/stopwords-iso.json`, with their licence.
+"""
 
 STOPWORD_LISTS: dict[str, frozenset[str]] = {
+    **STOPWORDS_ISO,
+    "en": ENGLISH_STOPWORDS,
     "english": ENGLISH_STOPWORDS,
-    "hindi": HINDI_STOPWORDS,
+    "hindi": STOPWORDS_ISO["hi"],
+    "slovenian": STOPWORDS_ISO["sl"],
 }
-"""The built-in stopword lists, by the name passed as `stopwords`."""
+"""
+The built-in stopword lists, by the name passed as `stopwords`: the ISO 639-1 code of a
+language in `STOPWORDS_ISO`, such as `"fr"`, `"ga"` or `"sl"`, or `"english"`,
+`"hindi"` or `"slovenian"`.
+
+English, as `"en"` or `"english"`, is NLTK's list of 198 function words, not
+stopwords-iso's list of 1,298 words, which includes many content words. The lists of
+languages written without spaces between words, such as Chinese (`"zh"`), Japanese
+(`"ja"`) and Thai (`"th"`), only match words in a Teanga corpus whose words layer is
+already segmented: plain text in these languages is not split into words.
+"""
 
 Stopwords = str | Iterable[str] | None
 
@@ -452,8 +251,8 @@ def load_stopwords(stopwords: Stopwords) -> frozenset[str]:
 
     Args:
         stopwords (Union[str, Iterable[str], None]): The name of a built-in list in
-            `STOPWORD_LISTS` ("english" or "hindi"), any iterable of words for a custom
-            list, or None for no stopwords.
+            `STOPWORD_LISTS`, such as "english" or an ISO 639-1 code such as "fr", any
+            iterable of words for a custom list, or None for no stopwords.
 
     Returns:
         FrozenSet[str]: The stopwords, in lower case.
@@ -467,9 +266,9 @@ def load_stopwords(stopwords: Stopwords) -> frozenset[str]:
         if stopwords in STOPWORD_LISTS:
             return STOPWORD_LISTS[stopwords]
         raise ValueError(
-            f"Unknown stopword list: {stopwords!r}. Use "
-            f"{', '.join(map(repr, STOPWORD_LISTS))}, a list of words, or None for no "
-            "stopword filtering."
+            f"Unknown stopword list: {stopwords!r}. Use the name of a list in "
+            "termxtract.stopwords.STOPWORD_LISTS, such as 'english' or an ISO 639-1 "
+            "code such as 'fr', a list of words, or None for no stopword filtering."
         )
     return frozenset(word.lower() for word in stopwords)
 

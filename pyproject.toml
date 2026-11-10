@@ -10,7 +10,7 @@ maintainers = [
 ]
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "termxtract/data/stopwords-iso.LICENSE"]
 requires-python = ">=3.10,<4.0"
 keywords = ["terminology extraction", "automatic term extraction", "ATE", "NLP", "Teanga"]
 classifiers = [

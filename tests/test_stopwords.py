@@ -6,7 +6,8 @@ from teanga import Corpus
 from termxtract import SupervisedTermExtractor, TermExtractor
 from termxtract.stopwords import (
     ENGLISH_STOPWORDS,
-    HINDI_STOPWORDS,
+    STOPWORD_LISTS,
+    STOPWORDS_ISO,
     is_candidate,
     load_stopwords,
 )
@@ -31,11 +32,40 @@ def test_load_stopwords():
 
 
 def test_hindi_stopwords():
-    assert load_stopwords("hindi") == HINDI_STOPWORDS
-    assert len(HINDI_STOPWORDS) == 225
-    assert {"के", "लिए", "है", "और"} <= HINDI_STOPWORDS
-    with pytest.raises(ValueError, match="'english', 'hindi'"):
+    assert load_stopwords("hindi") == load_stopwords("hi")
+    assert len(load_stopwords("hindi")) == 225
+    assert {"के", "लिए", "है", "और"} <= load_stopwords("hindi")
+    with pytest.raises(ValueError, match="STOPWORD_LISTS"):
         load_stopwords("klingon")
+
+
+def test_slovenian_stopwords():
+    assert load_stopwords("slovenian") == load_stopwords("sl")
+    assert len(load_stopwords("slovenian")) == 446
+    assert {"in", "na", "je", "za"} <= load_stopwords("slovenian")
+    corpus = [
+        "Analiza vzorca je pokazala sestavo vzorca.",
+        "Analiza vzorca in sinteza.",
+    ]
+    terms = all_terms(
+        TermExtractor(method="tfidf", n=2, stopwords="slovenian").extract(corpus)
+    )
+    assert "analiza vzorca" in terms
+    assert not any(term.split()[-1] in {"je", "in"} for term in terms)
+
+
+def test_stopwords_iso():
+    # 58 languages by ISO 639-1 code, such as Irish, French and Dutch
+    assert len(STOPWORDS_ISO) == 58
+    assert {"ga", "fr", "nl", "zh"} <= set(STOPWORDS_ISO)
+    assert {"agus", "an", "na"} <= load_stopwords("ga")
+    assert load_stopwords("fr") == STOPWORD_LISTS["fr"]
+    assert all(
+        word == word.lower() for words in STOPWORDS_ISO.values() for word in words
+    )
+    # English is NLTK's list, not stopwords-iso's much longer one
+    assert load_stopwords("en") == ENGLISH_STOPWORDS
+    assert len(STOPWORDS_ISO["en"]) == 1298
 
 
 def test_hindi_text():

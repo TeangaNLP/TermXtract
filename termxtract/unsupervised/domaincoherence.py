@@ -67,7 +67,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             context_words (int): The number of context words that candidates are
                 scored against.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", "hindi", a list of words, or None.
+                with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
