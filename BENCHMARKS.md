@@ -5,8 +5,8 @@ published results of the same methods where there are any. The point is both to 
 baselines for new methods and to check that the implementations behave like the
 methods they implement.
 
-It covers the English datasets and, of the multilingual ones, HTEC (Hindi). RSDO5 and
-the Irish Wikipedia gold standard will follow once those datasets are added.
+It covers the English datasets and, of the multilingual ones, HTEC (Hindi) and RSDO5
+(Slovenian). The Irish Wikipedia gold standard will follow once that dataset is added.
 
 To reproduce the English results, install spaCy and its `en_core_web_sm` model, and
 run `python benchmarks/english.py`; for the multilingual results, run
@@ -216,7 +216,9 @@ simplification of Vivaldi et al. (2001) with no published results to compare wit
 
 ## Multilingual
 
-### Setup
+### HTEC 2.0 (Hindi)
+
+#### Setup
 
 [HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) is the only multilingual dataset so
 far: 97 segments of 65 Hindi Wikipedia articles on education. The annotations that start
@@ -248,7 +250,7 @@ inside a word are left out, as `datasets.load("htec")` does by default.
 - **Cut-offs.** The test documents have only 207 gold terms, so precision, recall and F1
   are reported for the top 100 and 500 terms, and over all candidates.
 
-### Comparison with published results
+#### Comparison with published results
 
 Banerjee (2025, Table 6.5) reports precision, recall and F1 on HTEC 2.0 with a split of
 its own:
@@ -273,7 +275,7 @@ approximate. Its split is not published either and may be by document. Splitting
 article, as here, keeps the segments of a test article out of training, which makes
 the task harder.
 
-### Results
+#### Results
 
 | Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P | R | F1 | Time (s) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -292,7 +294,7 @@ the task harder.
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
 | token-classification | 189 | 61% | 0.718 | 63.0 | 41.0 | 61.4 | 58.6 | 61.4 | 56.0 | 58.6 | 121 |
 
-### Observations
+#### Observations
 
 - **Few gold terms are candidates.** Only 45% of the test gold terms are candidates
   of the unsupervised methods:
@@ -306,6 +308,152 @@ the task harder.
 - **Roger** does worst of all, with 552 training terms and candidates that only cover
   12% of the test gold terms.
 - **RAKE** keeps only 63 candidates, since its phrases are long and must occur twice.
+
+### RSDO5 1.1 (Slovenian)
+
+#### Setup
+
+[RSDO5 1.1](http://hdl.handle.net/11356/1470) has 12 Slovenian texts, three per domain,
+with every term annotated. Both in-domain and out-domain terms count, as in Tran et al.
+(2022).
+
+- **Cross-domain folds.** Each domain is the test domain in turn. For each, the
+  benchmark uses the first combination of training and validation domains in Table 3
+  of Tran et al. (2022):
+
+  | Test domain | Training domains | Validation domain | Gold terms (lemmas) | Gold terms (as written) |
+  |---|---|---|---:|---:|
+  | Linguistics | biomechanics, chemistry | veterinary science | 3,102 | 4,601 |
+  | Veterinary science | biomechanics, chemistry | linguistics | 3,380 | 4,748 |
+  | Chemistry | biomechanics, veterinary science | linguistics | 1,580 | 2,409 |
+  | Biomechanics | chemistry, veterinary science | linguistics | 1,596 | 2,319 |
+
+  The gold terms as written match Tran et al.'s Table 1 exactly.
+- **Candidates.** RSDO5 comes with lemmas and Universal Dependencies tags, so the
+  unsupervised methods use the candidates of the English benchmark: sequences of up to
+  four lemmas that match the `noun_phrase` pattern over `upos`, pass ATR4S's noise
+  filter and occur at least twice. They are scored against the lemmatised gold terms;
+  RAKE and the supervised methods, which find words as written, against the gold terms
+  as written.
+- **Stopwords.** Candidates and extracted terms must not start or end with a word of
+  stopwords-iso's Slovenian list (`stopwords="slovenian"`), which is also RAKE's
+  stoplist.
+- **The reference corpus** of relevance, weirdness and domain pertinence is the other
+  three domains. Domain pertinence compares the test domain with each of them, as
+  Navigli & Velardi (2004) do with contrasting domains; weirdness and relevance read
+  them as one corpus.
+- **The supervised methods** train on the two training domains. Token classification
+  learns from their annotated occurrences and keeps the best epoch on the validation
+  domain, with the settings used for ACTER.
+
+#### Comparison with published results
+
+Tran et al. (2022, Table 3) report XLM-R token classification on the same folds, with
+precision, recall and F1 over the distinct terms of the test domain, lowercased, as
+TermXtract's token classification is scored here and on ACTER:
+
+| Test domain | Tran et al. P | R | F1 | TermXtract P | R | F1 | |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Linguistics | 69.6 | 64.1 | 66.7 | 69.0 | 66.5 | 67.7 | same |
+| Veterinary science | 71.1 | 66.7 | 68.8 | 72.0 | 64.8 | 68.2 | same |
+| Chemistry | 68.7 | 55.1 | 61.2 | 65.8 | 60.9 | 63.2 | better |
+| Biomechanics | 63.5 | 66.8 | 65.1 | 66.7 | 57.0 | 61.5 | worse |
+
+They train for up to 20 epochs with a batch size of 32, where TermXtract trains for up
+to 10 with a batch size of 8. Tran et al. also report the earlier Slovenian system of
+Ljubešić et al. (2019) at 30–38 F1 on these domains; over all their candidates, the
+unsupervised methods here reach 36–43 (TF-IDF, for example: 36.2 on linguistics, 43.4
+on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
+
+#### Results
+
+##### Linguistics
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P@1000 | F1@1000 | P@2000 | F1@2000 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 4,045 | 32% | 0.427 | 54.0 | 3.4 | 40.8 | 11.3 | 36.4 | 17.7 | 33.5 | 26.3 | 32.0 | 41.7 | 36.2 | 1 |
+| ridf | 4,045 | 32% | 0.530 | 69.0 | 4.3 | 51.4 | 14.3 | 42.6 | 20.8 | 36.5 | 28.6 | 32.0 | 41.7 | 36.2 | 1 |
+| cvalue | 4,045 | 32% | 0.524 | 67.0 | 4.2 | 47.4 | 13.2 | 38.2 | 18.6 | 37.9 | 29.7 | 32.0 | 41.7 | 36.2 | 1 |
+| basic | 4,045 | 32% | 0.473 | 57.0 | 3.6 | 45.2 | 12.5 | 41.3 | 20.1 | 35.0 | 27.5 | 32.0 | 41.7 | 36.2 | 1 |
+| combobasic | 4,045 | 32% | 0.374 | 42.0 | 2.6 | 36.0 | 10.0 | 35.3 | 17.2 | 33.4 | 26.1 | 32.0 | 41.7 | 36.2 | 1 |
+| domaincoherence | 4,045 | 32% | 0.482 | 58.0 | 3.6 | 46.8 | 13.0 | 40.4 | 19.7 | 32.9 | 25.8 | 32.0 | 41.7 | 36.2 | 1 |
+| relevance | 4,045 | 32% | 0.567 | 69.0 | 4.3 | 55.2 | 15.3 | 47.7 | 23.3 | 39.2 | 30.7 | 32.0 | 41.7 | 36.2 | 1 |
+| domainpertinence | 4,045 | 32% | 0.596 | 72.0 | 4.5 | 58.2 | 16.2 | 47.2 | 23.0 | 38.6 | 30.3 | 32.0 | 41.7 | 36.2 | 1 |
+| weirdness | 4,045 | 32% | 0.591 | 73.0 | 4.6 | 57.4 | 15.9 | 47.6 | 23.2 | 38.6 | 30.3 | 32.0 | 41.7 | 36.2 | 1 |
+| topicmodeling | 2,019 | 32% | 0.438 | 47.0 | 2.9 | 33.2 | 9.2 | 31.1 | 15.2 | 32.0 | 25.1 | 32.2 | 21.0 | 25.4 | 1 |
+| nmf | 4,045 | 32% | 0.505 | 64.0 | 4.0 | 47.0 | 13.0 | 38.5 | 18.8 | 34.4 | 26.9 | 32.0 | 41.7 | 36.2 | 1 |
+| rake | 1,876 | 24% | 0.285 | 33.0 | 1.4 | 23.6 | 4.6 | 23.4 | 8.4 | 23.5 | 13.6 | 23.5 | 9.6 | 13.6 | 3 |
+| roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
+| token-classification | 4,431 | 69% | 0.717 | 81.0 | 3.4 | 74.2 | 14.5 | 71.6 | 25.6 | 68.2 | 41.4 | 69.0 | 66.5 | 67.7 | 491 |
+
+##### Veterinary science
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P@1000 | F1@1000 | P@2000 | F1@2000 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 3,764 | 41% | 0.584 | 69.0 | 4.0 | 58.4 | 15.1 | 53.6 | 24.5 | 44.9 | 33.3 | 41.2 | 45.9 | 43.4 | 1 |
+| ridf | 3,764 | 41% | 0.632 | 76.0 | 4.4 | 64.4 | 16.6 | 54.6 | 24.9 | 48.0 | 35.7 | 41.2 | 45.9 | 43.4 | 1 |
+| cvalue | 3,764 | 41% | 0.549 | 66.0 | 3.8 | 54.8 | 14.1 | 45.0 | 20.5 | 45.8 | 34.0 | 41.2 | 45.9 | 43.4 | 1 |
+| basic | 3,764 | 41% | 0.489 | 52.0 | 3.0 | 48.8 | 12.6 | 46.4 | 21.2 | 41.6 | 31.0 | 41.2 | 45.9 | 43.4 | 1 |
+| combobasic | 3,764 | 41% | 0.375 | 37.0 | 2.1 | 34.6 | 8.9 | 38.9 | 17.8 | 39.6 | 29.4 | 41.2 | 45.9 | 43.4 | 1 |
+| domaincoherence | 3,764 | 41% | 0.472 | 59.0 | 3.4 | 45.8 | 11.8 | 41.0 | 18.7 | 40.3 | 30.0 | 41.2 | 45.9 | 43.4 | 1 |
+| relevance | 3,764 | 41% | 0.714 | 88.0 | 5.1 | 71.8 | 18.5 | 63.4 | 28.9 | 51.3 | 38.1 | 41.2 | 45.9 | 43.4 | 2 |
+| domainpertinence | 3,764 | 41% | 0.706 | 87.0 | 5.0 | 72.2 | 18.6 | 62.0 | 28.3 | 51.2 | 38.1 | 41.2 | 45.9 | 43.4 | 2 |
+| weirdness | 3,764 | 41% | 0.710 | 88.0 | 5.1 | 72.6 | 18.7 | 61.6 | 28.1 | 50.9 | 37.9 | 41.2 | 45.9 | 43.4 | 1 |
+| topicmodeling | 1,831 | 39% | 0.387 | 43.0 | 2.5 | 34.2 | 8.8 | 36.4 | 16.6 | 38.5 | 27.1 | 38.5 | 20.9 | 27.1 | 1 |
+| nmf | 3,764 | 41% | 0.498 | 48.0 | 2.8 | 47.6 | 12.3 | 48.6 | 22.2 | 51.1 | 38.0 | 41.2 | 45.9 | 43.4 | 1 |
+| rake | 998 | 35% | 0.369 | 32.0 | 1.3 | 24.2 | 4.6 | 35.4 | 12.3 | 35.4 | 12.3 | 35.4 | 7.4 | 12.3 | 1 |
+| roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
+| token-classification | 4,274 | 72% | 0.709 | 88.0 | 3.6 | 69.2 | 13.2 | 70.3 | 24.5 | 68.0 | 40.3 | 72.0 | 64.8 | 68.2 | 339 |
+
+##### Chemistry
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P@1000 | F1@1000 | P@2000 | F1@2000 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 2,961 | 29% | 0.609 | 74.0 | 8.8 | 52.0 | 25.0 | 42.7 | 33.1 | 31.8 | 35.5 | 29.0 | 54.4 | 37.8 | 1 |
+| ridf | 2,961 | 29% | 0.572 | 70.0 | 8.3 | 47.4 | 22.8 | 38.6 | 29.9 | 32.3 | 36.1 | 29.0 | 54.4 | 37.8 | 1 |
+| cvalue | 2,961 | 29% | 0.615 | 71.0 | 8.5 | 49.2 | 23.7 | 35.3 | 27.4 | 33.2 | 37.2 | 29.0 | 54.4 | 37.8 | 1 |
+| basic | 2,961 | 29% | 0.534 | 54.0 | 6.4 | 49.4 | 23.8 | 37.9 | 29.4 | 31.4 | 35.1 | 29.0 | 54.4 | 37.8 | 1 |
+| combobasic | 2,961 | 29% | 0.420 | 50.0 | 6.0 | 35.4 | 17.0 | 32.8 | 25.4 | 30.1 | 33.7 | 29.0 | 54.4 | 37.8 | 1 |
+| domaincoherence | 2,961 | 29% | 0.532 | 67.0 | 8.0 | 43.4 | 20.9 | 34.9 | 27.1 | 30.7 | 34.3 | 29.0 | 54.4 | 37.8 | 1 |
+| relevance | 2,961 | 29% | 0.671 | 83.0 | 9.9 | 57.4 | 27.6 | 43.7 | 33.9 | 30.8 | 34.4 | 29.0 | 54.4 | 37.8 | 2 |
+| domainpertinence | 2,961 | 29% | 0.657 | 80.0 | 9.5 | 57.8 | 27.8 | 43.5 | 33.7 | 31.6 | 35.3 | 29.0 | 54.4 | 37.8 | 2 |
+| weirdness | 2,961 | 29% | 0.647 | 77.0 | 9.2 | 55.4 | 26.6 | 43.1 | 33.4 | 30.9 | 34.5 | 29.0 | 54.4 | 37.8 | 2 |
+| topicmodeling | 1,775 | 31% | 0.448 | 43.0 | 5.1 | 40.0 | 19.2 | 36.6 | 28.4 | 31.4 | 33.3 | 31.4 | 35.3 | 33.3 | 1 |
+| nmf | 2,961 | 29% | 0.682 | 81.0 | 9.6 | 57.6 | 27.7 | 44.9 | 34.8 | 34.8 | 38.9 | 29.0 | 54.4 | 37.8 | 1 |
+| rake | 923 | 18% | 0.315 | 16.0 | 1.3 | 21.2 | 7.3 | 18.4 | 10.2 | 18.4 | 10.2 | 18.4 | 7.1 | 10.2 | 2 |
+| roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
+| token-classification | 2,230 | 66% | 0.703 | 80.0 | 6.4 | 69.8 | 24.0 | 68.4 | 40.1 | 66.0 | 59.9 | 65.8 | 60.9 | 63.2 | 190 |
+
+##### Biomechanics
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P@1000 | F1@1000 | P@2000 | F1@2000 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 2,202 | 35% | 0.465 | 45.0 | 5.3 | 47.6 | 22.7 | 43.9 | 33.8 | 35.0 | 39.0 | 34.8 | 48.1 | 40.4 | 1 |
+| ridf | 2,202 | 35% | 0.489 | 58.0 | 6.8 | 43.2 | 20.6 | 38.5 | 29.7 | 35.4 | 39.4 | 34.8 | 48.1 | 40.4 | 1 |
+| cvalue | 2,202 | 35% | 0.526 | 56.0 | 6.6 | 50.0 | 23.9 | 42.9 | 33.1 | 37.6 | 41.9 | 34.8 | 48.1 | 40.4 | 1 |
+| basic | 2,202 | 35% | 0.438 | 44.0 | 5.2 | 43.6 | 20.8 | 38.4 | 29.6 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
+| combobasic | 2,202 | 35% | 0.343 | 34.0 | 4.0 | 34.2 | 16.3 | 36.5 | 28.1 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
+| domaincoherence | 2,202 | 35% | 0.463 | 58.0 | 6.8 | 36.8 | 17.6 | 33.8 | 26.0 | 34.3 | 38.2 | 34.8 | 48.1 | 40.4 | 2 |
+| relevance | 2,202 | 35% | 0.583 | 68.0 | 8.0 | 51.6 | 24.6 | 44.5 | 34.3 | 37.1 | 41.3 | 34.8 | 48.1 | 40.4 | 1 |
+| domainpertinence | 2,202 | 35% | 0.563 | 66.0 | 7.8 | 51.0 | 24.3 | 44.6 | 34.4 | 37.0 | 41.2 | 34.8 | 48.1 | 40.4 | 2 |
+| weirdness | 2,202 | 35% | 0.556 | 64.0 | 7.5 | 52.4 | 25.0 | 44.3 | 34.1 | 37.1 | 41.3 | 34.8 | 48.1 | 40.4 | 2 |
+| topicmodeling | 1,437 | 38% | 0.375 | 45.0 | 5.3 | 35.4 | 16.9 | 36.6 | 28.2 | 37.7 | 35.7 | 37.7 | 34.0 | 35.7 | 1 |
+| nmf | 2,202 | 35% | 0.453 | 42.0 | 5.0 | 45.4 | 21.7 | 46.5 | 35.8 | 36.3 | 40.4 | 34.8 | 48.1 | 40.4 | 1 |
+| rake | 653 | 16% | 0.209 | 21.0 | 1.7 | 15.4 | 5.5 | 16.2 | 7.1 | 16.2 | 7.1 | 16.2 | 4.6 | 7.1 | 1 |
+| roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
+| token-classification | 1,981 | 67% | 0.656 | 73.0 | 6.0 | 63.4 | 22.5 | 63.9 | 38.5 | 66.7 | 61.5 | 66.7 | 57.0 | 61.5 | 395 |
+
+#### Observations
+
+- **The reference corpus helps on RSDO5**, unlike on HTEC. With the other domains as
+  reference, relevance, weirdness or domain pertinence has the best precision at the
+  top of the ranking on every domain: P@100 of 87–88 on veterinary science, for
+  example, against 69 for TF-IDF.
+- **Only 42–54% of the lemmatised gold terms are candidates.** RSDO5 annotates every
+  term, including single occurrences and terms that don't match the noun-phrase
+  pattern, so that is the recall of the unsupervised methods over all their candidates.
+- **Token classification** is far ahead of every other method, as on ACTER and HTEC.
+- **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
 
 ## References
 
@@ -324,6 +472,15 @@ the task harder.
 - Goldhahn, D., Eckart, T., & Quasthoff, U. (2012). Building large monolingual
   dictionaries at the Leipzig Corpora Collection: from 100 to 200 languages. In
   *Proceedings of LREC 2012*, 759–765.
+- Ljubešić, N., Fišer, D., & Erjavec, T. (2019). KAS-term: extracting Slovene terms
+  from doctoral theses via supervised machine learning. In *Proceedings of TSD 2019*,
+  115–126.
+- Navigli, R., & Velardi, P. (2004). Learning domain ontologies from document
+  warehouses and dedicated web sites. *Computational Linguistics*, 30(2), 151–179.
+- Tran, H. T. H., Martinc, M., Repar, A., Doucet, A., & Pollak, S. (2022). A
+  transformer-based sequence-labeling approach to the Slovenian cross-domain automatic
+  term extraction. In *Proceedings of the Conference on Language Technologies and
+  Digital Humanities (JTDH 2022)*, 196–204.
 - Rigouts Terryn, A., Hoste, V., Drouin, P., & Lefever, E. (2020). TermEval 2020:
   shared task on automatic term extraction using the Annotated Corpora for Term
   Extraction Research (ACTER) dataset. In *Proceedings of CompuTerm 2020*, 85–94.

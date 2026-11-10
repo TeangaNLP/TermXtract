@@ -1,26 +1,33 @@
 """
 Run the multilingual benchmark of BENCHMARKS.md: every method of TermXtract on HTEC 2.0
-(Hindi).
+(Hindi) and RSDO5 1.1 (Slovenian).
 
     python benchmarks/multilingual.py                 # everything, to benchmarks/multilingual.json
-    python benchmarks/multilingual.py --methods tfidf cvalue
+    python benchmarks/multilingual.py --datasets rsdo5 --methods tfidf cvalue
     python benchmarks/multilingual.py --markdown      # print the tables of a saved run
 
 The datasets are downloaded on first use (see `termxtract.datasets`), as is a sample of
 100,000 sentences of Hindi Wikipedia from the Leipzig Corpora Collection, which the
-reference-corpus methods use as general-language text. The token-classification
+reference-corpus methods use as general-language text for HTEC. The token-classification
 method needs the `transformers` extra, and a GPU to finish in reasonable time.
 
-There is no part-of-speech tagger or lemmatiser for these languages in the benchmark,
-so every method reads the words as written, and candidates are sequences of up to four
-words that neither start nor end with a stopword, whose words each have a letter or
-digit, and that occur at least twice.
+HTEC has no part-of-speech tags or lemmas, so on HTEC every method reads the words as
+written, and candidates are sequences of up to four words that neither start nor end
+with a stopword, whose words each have a letter or digit, and that occur at least twice.
 
 HTEC has no published split, so its documents are split here by article, with a
 fixed seed: about 70% for training, 10% for validation and 20% for testing, as in
 Banerjee (2025). All the methods are scored on the test documents; the supervised
 methods are trained on the training documents, and token classification keeps the
 epoch with the best F1 on the validation documents.
+
+RSDO5 comes with lemmas and Universal Dependencies tags, so the unsupervised methods use
+the candidates of the English benchmark, with the `noun_phrase` pattern over `upos`:
+sequences of up to four lemmas that match it, pass ATR4S's noise filter and occur at
+least twice. Each domain is a test domain in turn, as in Tran et al. (2022): the
+supervised methods train on two other domains, and token classification validates on
+the fourth. The reference-corpus methods compare the test domain with the other three.
+Stopwords are from the Slovenian list.
 """
 
 import argparse
@@ -32,6 +39,7 @@ import time
 from collections.abc import Iterable
 from pathlib import Path
 
+from english import KS as ENGLISH_KS
 from english import (
     MIN_FREQUENCY,
     REFERENCE_METHODS,
@@ -48,13 +56,32 @@ from teanga import Corpus
 import termxtract
 from termxtract import ATEResults, SupervisedTermExtractor, TermExtractor, datasets
 from termxtract.candidates import WORD
-from termxtract.datasets import base
+from termxtract.datasets import base, rsdo5
 from termxtract.evaluation import normalize_term
 from termxtract.stopwords import load_stopwords
 
-KS = (100, 500)
-"""The numbers of top-ranked terms that precision, recall and F1 are reported at. The
-test documents have a few hundred gold terms, so fewer than for English."""
+KS = {"htec": (100, 500)}
+"""The numbers of top-ranked terms that precision, recall and F1 are reported at, by
+dataset. HTEC's test documents have a few hundred gold terms, so fewer than for English;
+the other datasets use those of the English benchmark."""
+
+RSDO5_FOLDS = {
+    "jez": (("bim", "kem"), "vet"),
+    "vet": (("bim", "kem"), "jez"),
+    "kem": (("bim", "vet"), "jez"),
+    "bim": (("kem", "vet"), "jez"),
+}
+"""For each test domain of RSDO5, the training domains and the validation domain: for
+each, the first of the combinations in Table 3 of Tran et al. (2022)."""
+
+TITLES = {
+    "htec": "HTEC 2.0",
+    "rsdo5-bim": "RSDO5, biomechanics",
+    "rsdo5-jez": "RSDO5, linguistics",
+    "rsdo5-kem": "RSDO5, chemistry",
+    "rsdo5-vet": "RSDO5, veterinary science",
+}
+
 
 LEIPZIG = datasets.Resource(
     "https://downloads.wortschatz-leipzig.de/corpora/hin_wikipedia_2021_100K.tar.gz",
@@ -252,7 +279,7 @@ def run_htec(methods: Iterable[str], out: dict, save) -> None:
             keep = keep_written if method == "rake" else bool
         ranked = ranking(results, keep)
         out[method] = {
-            **scores(ranked, gold, KS),
+            **scores(ranked, gold, KS["htec"]),
             "seconds": time.perf_counter() - start,
         }
         if method == "token-classification":
@@ -261,25 +288,118 @@ def run_htec(methods: Iterable[str], out: dict, save) -> None:
         print(f"htec {method}: F1@500 {out[method]['500']['f1']:.3f}", flush=True)
 
 
+def rsdo5_unsupervised(method: str, reference: list[Corpus]) -> TermExtractor:
+    """An unsupervised extractor with the benchmark settings for RSDO5."""
+    options: dict = {}
+    if method in REFERENCE_METHODS:
+        options["reference_corpus"] = reference
+    if method == "rake":
+        # RAKE reads the text itself, so it has no lemmas or tags
+        options["stoplist"] = sorted(load_stopwords("slovenian"))
+        options["phrase_delimiters"] = list(".,;:!?()[]\"'")
+    else:
+        options.update(
+            lemma_layer="lemma",
+            min_frequency=MIN_FREQUENCY,
+            word_pattern="atr4s",
+            pos_pattern="noun_phrase",
+            pos_layer="upos",
+            stopwords="slovenian",
+        )
+    return TermExtractor(method=method, n=N, words_layer="tokens", **options)
+
+
+def rsdo5_supervised(
+    method: str, train: Corpus, validation: Corpus, test: Corpus
+) -> ATEResults:
+    """Train a supervised extractor on the training domains of RSDO5 and extract the
+    terms of the test domain."""
+    if method == "token-classification":
+        extractor = SupervisedTermExtractor(
+            method=method,
+            words_layer="tokens",
+            stopwords="slovenian",
+            **TOKEN_CLASSIFICATION,
+        )
+        return extractor.fit(train, validation=validation).predict(test)
+    gold = {normalize_term(t) for t in datasets.gold_terms(train)}
+    extractor = SupervisedTermExtractor(
+        method=method,
+        n=N,
+        words_layer="tokens",
+        stopwords="slovenian",
+        random_state=0,
+        n_jobs=-1,
+    )
+    return extractor.fit(train, dict.fromkeys(gold, 1)).predict(test)
+
+
+def run_rsdo5(methods: Iterable[str], results: dict, save) -> None:
+    """Run the methods on each test domain of RSDO5, adding the scores of each to
+    `results["datasets"]` and saving."""
+    for test_domain, (train_domains, validation_domain) in RSDO5_FOLDS.items():
+        out = results["datasets"].setdefault(f"rsdo5-{test_domain}", {})
+        out["fold"] = {
+            "train": list(train_domains),
+            "validation": validation_domain,
+            "test": test_domain,
+        }
+        test = datasets.load("rsdo5", domains=test_domain)
+        others = [d for d in rsdo5.DOMAINS if d != test_domain]
+        lemma_gold = {
+            normalize_term(t) for t in datasets.gold_terms(test, lemma_layer="lemma")
+        }
+        written_gold = {normalize_term(t) for t in datasets.gold_terms(test)}
+        keep_written = written_filter(test)
+        for method in methods:
+            start = time.perf_counter()
+            if method in SUPERVISED:
+                results_ = rsdo5_supervised(
+                    method,
+                    datasets.load("rsdo5", domains=train_domains),
+                    datasets.load("rsdo5", domains=validation_domain),
+                    test,
+                )
+                gold = written_gold
+                keep = bool if method == "token-classification" else keep_written
+            else:
+                reference = [datasets.load("rsdo5", domains=d) for d in others]
+                results_ = rsdo5_unsupervised(method, reference).extract(test)
+                # RAKE finds words as written, and the other methods lemmas
+                gold = written_gold if method == "rake" else lemma_gold
+                keep = keep_written if method == "rake" else bool
+            out[method] = {
+                **scores(ranking(results_, keep), gold),
+                "seconds": time.perf_counter() - start,
+            }
+            save()
+            f1 = out[method]["2000"]["f1"]
+            print(f"rsdo5-{test_domain} {method}: F1@2000 {f1:.3f}", flush=True)
+
+
 def markdown(results: dict) -> str:
     """The tables of BENCHMARKS.md for saved results."""
     lines = []
     for dataset, methods in results["datasets"].items():
+        ks = KS.get(dataset, ENGLISH_KS)
         lines += [
-            f"#### {dataset.upper()}",
+            f"#### {TITLES[dataset]}",
             "",
             "| Method | Candidates | Gold | AvP (ATR4S) | "
-            + " | ".join(f"P@{k} | F1@{k}" for k in KS)
+            + " | ".join(f"P@{k} | F1@{k}" for k in ks)
             + " | P | R | F1 | Time (s) |",
-            "|---|---:|---:|---:|" + "---:|---:|" * len(KS) + "---:|---:|---:|---:|",
+            "|---|---:|---:|---:|" + "---:|---:|" * len(ks) + "---:|---:|---:|---:|",
         ]
         for method in UNSUPERVISED + SUPERVISED:
             if method not in methods:
                 continue
             s = methods[method]
+            if "skipped" in s:
+                lines.append(f"| {method} | {s['skipped']} |")
+                continue
             cells = [
                 f"{s[str(k)]['precision'] * 100:.1f} | {s[str(k)]['f1'] * 100:.1f}"
-                for k in KS
+                for k in ks
             ]
             share = s["gold_candidates"] / s["candidates"] if s["candidates"] else 0
             every = s["all"]
@@ -296,6 +416,7 @@ def markdown(results: dict) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--datasets", nargs="+", default=["htec", "rsdo5"])
     parser.add_argument("--methods", nargs="+", default=UNSUPERVISED + SUPERVISED)
     parser.add_argument(
         "--output", type=Path, default=Path(__file__).with_name("multilingual.json")
@@ -306,11 +427,11 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.markdown:
-        print(markdown(json.loads(args.output.read_text())))
+        print(markdown(json.loads(args.output.read_text(encoding="utf-8"))))
         return
 
     results = (
-        json.loads(args.output.read_text())
+        json.loads(args.output.read_text(encoding="utf-8"))
         if args.output.exists()
         else {"datasets": {}}
     )
@@ -321,7 +442,10 @@ def main() -> None:
             json.dumps(results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
 
-    run_htec(args.methods, results["datasets"].setdefault("htec", {}), save)
+    if "htec" in args.datasets:
+        run_htec(args.methods, results["datasets"].setdefault("htec", {}), save)
+    if "rsdo5" in args.datasets:
+        run_rsdo5(args.methods, results, save)
 
 
 if __name__ == "__main__":
