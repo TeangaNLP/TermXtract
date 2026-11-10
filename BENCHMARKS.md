@@ -57,7 +57,7 @@ methods, the candidates are those of ATR4S's candidate collector:
   candidates as weirdness does, so their results are the same.
 - **The supervised methods** are trained on the training domains of ACTER and tested on
   heart failure, so they are only run on ACTER. They read the words as written, so they
-  are scored against the gold terms as written. AdaBoost's and Roger's candidates must
+  are scored against the gold terms as written. Roger's candidates must
   occur twice and have a letter or digit in each word; token classification's are not
   filtered.
 - Everything else is at its default.
@@ -100,7 +100,7 @@ is by default, and trained on English ACTER: corruption and wind energy, with dr
 for validation and choosing the best checkpoint, where TermXtract trains on all three
 for three epochs. Their test set is from an earlier version of ACTER, with 2,585 gold
 terms. The best system of the TermEval 2020 shared task scored 46.7 (Rigouts Terryn et
-al., 2020). AdaBoost, Roger, NMF and RAKE have no published results on these datasets.
+al., 2020). Roger, NMF and RAKE have no published results on these datasets.
 
 **GENIA and the ACL RD-TEC.** ATR4S (Astrakhantsev, 2018, Table 5) reports AvP.
 
@@ -151,7 +151,6 @@ tagging, which is done once and cached.
 | topicmodeling | 2,198 | 34% | 0.422 | 44.0 | 3.5 | 37.4 | 12.7 | 35.1 | 20.4 | 34.5 | 31.2 | 0 |
 | nmf | 2,687 | 34% | 0.471 | 48.0 | 3.8 | 46.2 | 15.7 | 40.7 | 23.7 | 35.4 | 32.0 | 0 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
-| adaboost | 12,283 | 11% | 0.375 | 53.0 | 4.0 | 25.4 | 8.3 | 21.2 | 11.9 | 20.1 | 17.7 | 451 |
 | roger | 8,989 | 6% | 0.348 | 36.0 | 2.7 | 24.4 | 8.0 | 20.2 | 11.4 | 15.7 | 13.7 | 8279 |
 | token-classification | 1,804 | 62% | 0.663 | 71.0 | 5.3 | 66.6 | 21.8 | 64.5 | 36.3 | 62.1 | 51.4 | 379 |
 
@@ -194,9 +193,8 @@ tagging, which is done once and cached.
 The benchmark found these problems in the implementations. Each needs its own fix; the
 results above are of the code as it is.
 
-- **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
-  (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
-  training candidate for every offspring: it takes hours to train on ACTER (#60).
+- **Roger** (`roger`) is slow because its evolutionary search scores every training
+  candidate for every offspring: it takes hours to train on ACTER (#60).
 - `SupervisedTermExtractor.extract` trains and predicts on the same corpus, so the
   benchmark calls the extractors' own methods to train on one corpus and test on
   another (#43). The supervised methods have no `lemma_layer` yet.
@@ -205,7 +203,9 @@ C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (
 domain coherence (#52) and domain pertinence (#64) were fixed after the first version
 of this benchmark, the candidates were brought in line with ATR4S's (#67, #70), NMF no
 longer runs out of memory on GENIA (#66), and token classification no longer fills the
-disk with checkpoints (#68).
+disk with checkpoints (#68). AdaBoost was removed (#59): it was the weakest and slowest
+method, a loose simplification of Vivaldi et al. (2001) with no published results to
+compare with.
 
 ### References
 

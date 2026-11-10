@@ -92,7 +92,7 @@ UNSUPERVISED = [
     "rake",
 ]
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
-SUPERVISED = ["adaboost", "roger", "token-classification"]
+SUPERVISED = ["roger", "token-classification"]
 
 SKIP: dict[tuple[str, str], str] = {}
 """Methods that are not run on a dataset, as (dataset, method), with the reason."""
@@ -283,11 +283,8 @@ def supervised(method: str, train: Corpus, test: Corpus) -> ATEResults:
     if method == "token-classification":
         extractor.train_terms_teanga(train, dict.fromkeys(gold, 1))
         return extractor.extract_terms_teanga(test)
-    if method == "roger":
-        # Roger only learns from labelled candidates, so label every candidate
-        labels = {term: int(term in gold) for term in ngram_counts(train)}
-    else:
-        labels = dict.fromkeys(gold, 1)
+    # Roger only learns from labelled candidates, so label every candidate
+    labels = {term: int(term in gold) for term in ngram_counts(train)}
     extractor.train(tokenize_teanga(train, "tokens"), labels)
     predicted = extractor.predict(tokenize_teanga(test, "tokens"))
     return ATEResults(
