@@ -154,7 +154,7 @@ All supervised methods accept `n` (maximum n-gram length, default 6), and `stopw
 `extract()` returns an `ATEResults` object with:
 
 - `results.terms`: one entry per document, `{"doc_id": ..., "terms": [{"term": str, "score": float}, ...]}`, with terms ranked from highest to lowest score. Every method uses this format.
-- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input, and for `nmf`, which scores terms over the whole corpus rather than per document.
+- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input.
 - `results.corpus`: the input corpus.
 
 ## Development
