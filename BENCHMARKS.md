@@ -53,7 +53,8 @@ methods, the candidates are those of ATR4S's candidate collector:
 - **The reference-corpus methods** (relevance, domain pertinence, weirdness) use the
   [Brown corpus](https://www.nltk.org/nltk_data/) (about a million words) as
   general-language text. ATR4S used the Corpus of Historical American English, which
-  is not freely available.
+  is not freely available. With a single reference corpus, domain pertinence ranks
+  candidates as weirdness does, so their results are the same.
 - **The supervised methods** are trained on the training domains of ACTER and tested on
   heart failure, so they are only run on ACTER. They read the words as written, so they
   are scored against the gold terms as written. AdaBoost's and Roger's candidates must
@@ -88,7 +89,7 @@ with ACTER's term list including named entities.
 | relevance | Relevance | 58.0 | 52.0 | 36.7 | 30.1 | better |
 | weirdness | Weirdness | 69.0 | 31.0 | 37.4 | 27.6 | better |
 | topicmodeling | NovelTopicModel | 44.0 | 49.0 | 31.2 | 26.1 | worse at the top, better overall |
-| domainpertinence | DomainPertinence | 41.0 | 58.0 | 30.7 | 30.3 | **worse** at the top (#64) |
+| domainpertinence | DomainPertinence | 69.0 | 58.0 | 37.4 | 30.3 | better |
 | domaincoherence | PostRankDC | 35.0 | 31.0 | 31.2 | 26.4 | better |
 | token-classification | (token classifier) | 71.0 | | 51.4\* | 58.3\* | **worse**: more precise, with lower recall |
 
@@ -145,7 +146,7 @@ tagging, which is done once and cached.
 | combobasic | 2,687 | 34% | 0.437 | 52.0 | 4.1 | 38.0 | 12.9 | 32.5 | 18.9 | 33.2 | 30.0 | 0 |
 | domaincoherence | 2,687 | 34% | 0.394 | 35.0 | 2.8 | 39.8 | 13.6 | 37.5 | 21.8 | 34.5 | 31.2 | 0 |
 | relevance | 2,687 | 34% | 0.572 | 58.0 | 4.6 | 57.0 | 19.4 | 50.2 | 29.2 | 40.6 | 36.7 | 2 |
-| domainpertinence | 2,687 | 34% | 0.373 | 41.0 | 3.2 | 37.2 | 12.7 | 35.2 | 20.5 | 34.1 | 30.7 | 2 |
+| domainpertinence | 2,687 | 34% | 0.635 | 69.0 | 5.4 | 61.6 | 21.0 | 52.8 | 30.7 | 41.5 | 37.4 | 2 |
 | weirdness | 2,687 | 34% | 0.636 | 69.0 | 5.4 | 61.6 | 21.0 | 52.8 | 30.7 | 41.4 | 37.4 | 3 |
 | topicmodeling | 2,198 | 34% | 0.422 | 44.0 | 3.5 | 37.4 | 12.7 | 35.1 | 20.4 | 34.5 | 31.2 | 0 |
 | nmf | 2,687 | 34% | 0.471 | 48.0 | 3.8 | 46.2 | 15.7 | 40.7 | 23.7 | 35.4 | 32.0 | 0 |
@@ -165,7 +166,7 @@ tagging, which is done once and cached.
 | combobasic | 1,492 | 52% | 0.699 | 73.0 | 4.9 | 65.0 | 19.4 | 61.8 | 32.0 | 52.5 | 36.0 | 0 |
 | domaincoherence | 1,492 | 52% | 0.587 | 66.0 | 4.5 | 56.2 | 16.7 | 53.1 | 27.5 | 52.5 | 36.0 | 0 |
 | relevance | 1,492 | 52% | 0.721 | 78.0 | 5.3 | 69.2 | 20.6 | 64.0 | 33.2 | 52.5 | 36.0 | 2 |
-| domainpertinence | 1,492 | 52% | 0.571 | 66.0 | 4.5 | 53.8 | 16.0 | 52.4 | 27.2 | 52.5 | 36.0 | 2 |
+| domainpertinence | 1,492 | 52% | 0.731 | 80.0 | 5.4 | 69.2 | 20.6 | 62.7 | 32.5 | 52.5 | 36.0 | 2 |
 | weirdness | 1,492 | 52% | 0.731 | 80.0 | 5.4 | 69.2 | 20.6 | 62.7 | 32.5 | 52.5 | 36.0 | 2 |
 | topicmodeling | 1,352 | 55% | 0.736 | 78.0 | 5.3 | 69.2 | 20.6 | 61.4 | 31.8 | 55.3 | 35.5 | 0 |
 | nmf | 1,492 | 52% | 0.682 | 71.0 | 4.8 | 61.8 | 18.4 | 55.6 | 28.8 | 52.5 | 36.0 | 0 |
@@ -182,7 +183,7 @@ tagging, which is done once and cached.
 | combobasic | 15,740 | 53% | 0.641 | 71.0 | 0.5 | 74.2 | 2.4 | 72.2 | 4.6 | 66.9 | 8.2 | 1 |
 | domaincoherence | 15,740 | 53% | 0.631 | 70.0 | 0.5 | 71.2 | 2.3 | 68.6 | 4.3 | 66.1 | 8.1 | 1 |
 | relevance | 15,740 | 53% | 0.685 | 89.0 | 0.6 | 78.8 | 2.5 | 75.8 | 4.8 | 71.7 | 8.8 | 3 |
-| domainpertinence | 15,740 | 53% | 0.561 | 62.0 | 0.4 | 55.0 | 1.8 | 58.5 | 3.7 | 57.1 | 7.0 | 3 |
+| domainpertinence | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 84.8 | 2.7 | 81.1 | 5.1 | 77.4 | 9.5 | 3 |
 | weirdness | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 84.8 | 2.7 | 81.1 | 5.1 | 77.4 | 9.5 | 3 |
 | topicmodeling | 11,045 | 55% | 0.659 | 69.0 | 0.4 | 70.0 | 2.3 | 69.3 | 4.4 | 66.8 | 8.2 | 4 |
 | nmf | 15,740 | 53% | 0.654 | 76.0 | 0.5 | 73.8 | 2.4 | 70.3 | 4.5 | 68.5 | 8.4 | 1 |
@@ -193,10 +194,6 @@ tagging, which is done once and cached.
 The benchmark found these problems in the implementations. Each needs its own fix; the
 results above are of the code as it is.
 
-- **Domain pertinence** (`domainpertinence`) divides the target frequency by the larger
-  of the target and reference frequencies, so every candidate that is rarer in the
-  reference corpus scores 1, and most candidates tie. In ATR4S it is the ratio of the
-  two frequencies, which ranks candidates exactly as weirdness does (#64).
 - **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
   (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
   training candidate for every offspring: it takes hours to train on ACTER (#60).
@@ -204,11 +201,11 @@ results above are of the code as it is.
   benchmark calls the extractors' own methods to train on one corpus and test on
   another (#43). The supervised methods have no `lemma_layer` yet.
 
-C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (#65)
-and domain coherence (#52) were fixed after the first version of this benchmark, the
-candidates were brought in line with ATR4S's (#67, #70), NMF no longer runs out of
-memory on GENIA (#66), and token classification no longer fills the disk with
-checkpoints (#68).
+C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (#65),
+domain coherence (#52) and domain pertinence (#64) were fixed after the first version
+of this benchmark, the candidates were brought in line with ATR4S's (#67, #70), NMF no
+longer runs out of memory on GENIA (#66), and token classification no longer fills the
+disk with checkpoints (#68).
 
 ### References
 
