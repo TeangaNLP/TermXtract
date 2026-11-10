@@ -42,7 +42,6 @@ from termxtract import ATEResults, SupervisedTermExtractor, TermExtractor, datas
 from termxtract.datasets import base
 from termxtract.evaluation import evaluate, normalize_term
 from termxtract.stopwords import load_stopwords
-from termxtract.supervised.words import tokenize_teanga
 
 N = 4
 """The maximum number of words in a candidate."""
@@ -269,35 +268,15 @@ def unsupervised(method: str, reference: Corpus | None):
 
 
 def supervised(method: str, train: Corpus, test: Corpus) -> ATEResults:
-    """
-    Train a supervised extractor on one corpus and score the candidates of another.
-
-    The wrapper's `extract` trains and predicts on the same corpus, so this uses the
-    extractors directly.
-    """
+    """Train a supervised extractor on the gold terms of one corpus and extract the
+    terms of another. Roger takes every other candidate as a non-term."""
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
-    # The extractors have different methods, so the type is that of each branch
     # Roger's evolutionary search is random, so fix its seed; its runs are independent
     options = {"random_state": 0, "n_jobs": -1} if method == "roger" else {}
-    extractor: Any = SupervisedTermExtractor(
+    extractor = SupervisedTermExtractor(
         method=method, n=N, words_layer="tokens", **options
-    ).extractor
-    if method == "token-classification":
-        extractor.train_terms_teanga(train, dict.fromkeys(gold, 1))
-        return extractor.extract_terms_teanga(test)
-    # Roger only learns from labelled candidates, so label every candidate
-    labels = {term: int(term in gold) for term in ngram_counts(train)}
-    extractor.train(tokenize_teanga(train, "tokens"), labels)
-    predicted = extractor.predict(tokenize_teanga(test, "tokens"))
-    return ATEResults(
-        corpus=test,
-        terms=[
-            {
-                "doc_id": "corpus",
-                "terms": [{"term": t, "score": float(s)} for t, s in predicted.items()],
-            }
-        ],
     )
+    return extractor.fit(train, dict.fromkeys(gold, 1)).predict(test)
 
 
 def run(
