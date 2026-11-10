@@ -39,7 +39,7 @@ METHODS = {
     "relevance": {"n": 2, "reference_corpus": "REF"},
 }
 # Methods that score terms over the whole corpus rather than the n-grams of each document.
-NO_OFFSETS = {"nmf", "domaincoherence"}
+NO_OFFSETS = {"nmf"}
 
 
 def make_teanga(texts):

@@ -83,8 +83,7 @@ def test_terms_are_lemmas(method):
     )
     found = terms(results)
     assert not found & {"cells", "divides", "dividing", "stem cells"}
-    if method != "domaincoherence":
-        assert "cell" in found
+    assert "cell" in found
 
 
 def test_inflected_forms_are_counted_together():

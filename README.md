@@ -130,7 +130,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `basic`            | Basic                                               | `alpha`                               |
 | `combobasic`       | ComboBasic                                          | `alpha`, `beta`                       |
 | `rake`             | Rapid Automatic Keyword Extraction                  | `stoplist`, `phrase_delimiters` (required) |
-| `domaincoherence`  | Domain coherence                                    | `window_size`                         |
+| `domaincoherence`  | Domain coherence                                    | `window_size`, `seed_terms`, `context_words` |
 | `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required)         |
 | `weirdness`        | Weirdness                                           | `reference_corpus` (required)         |
 | `relevance`        | Relevance                                           | `reference_corpus` (required)         |
@@ -154,7 +154,7 @@ All supervised methods accept `n` (maximum n-gram length, default 6), and `stopw
 `extract()` returns an `ATEResults` object with:
 
 - `results.terms`: one entry per document, `{"doc_id": ..., "terms": [{"term": str, "score": float}, ...]}`, with terms ranked from highest to lowest score. Every method uses this format.
-- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input, and for `nmf` and `domaincoherence`, which score terms over the whole corpus rather than per document.
+- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input, and for `nmf`, which scores terms over the whole corpus rather than per document.
 - `results.corpus`: the input corpus.
 
 ## Development

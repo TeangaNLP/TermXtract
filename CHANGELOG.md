@@ -78,6 +78,18 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   relative to every n-gram of the document, so its scores only change for terms with
   occurrences that are filtered out.
 
+### Fixed
+
+- Domain coherence, which scored every candidate 0, follows Bordea, Buitelaar &
+  Polajnar (2013) (#52). It takes the 200 best candidates by Basic, chooses the 50
+  content words that occur in at least a quarter of the documents and are most
+  associated with them by normalised PMI within `window_size` words, and scores every
+  candidate, not only those 200, by its average normalised PMI with those words. The
+  numbers of candidates and words are set by the new `seed_terms` and `context_words`
+  parameters. On a Teanga corpus with a part-of-speech layer, only nouns, adjectives and
+  verbs can be context words. Each document lists only its own candidates, with their
+  offsets, instead of every term of the corpus (#66).
+
 ## [0.1.0] - 2026-11-02
 
 The first release on PyPI. This section lists the changes since the code that was
