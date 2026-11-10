@@ -103,6 +103,16 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 
 ### Fixed
 
+- Roger trains much faster (#60). Each run samples at most `max_negatives` (new, default
+  10,000) of the candidates labelled 0, and keeps all those labelled 1. The area under
+  the ROC curve does not depend on the share of positives, so on the English benchmark,
+  where every candidate is labelled, this trains in 25 s instead of over two hours,
+  with similar results. The runs can be trained in parallel with `n_jobs`, and stopped
+  early with `patience`. The fitness is computed in single precision. Each run has its
+  own seed from `random_state`, so a given seed gives different scores from before.
+- `SupervisedTermExtractor` passed its `n` default of 6 to Roger, whose own default is
+  2, multiplying the candidates (#60). `n` now defaults to each method's own default:
+  2 for Roger and 6 for token classification.
 - Domain coherence, which scored every candidate 0, follows Bordea, Buitelaar &
   Polajnar (2013) (#52). It takes the 200 best candidates by Basic, chooses the 50
   content words that occur in at least a quarter of the documents and are most
