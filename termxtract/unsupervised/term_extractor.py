@@ -49,7 +49,7 @@ class TermExtractor:
         "combobasic": (ComboBasicTermExtractor, ("alpha", "beta", *CANDIDATE_PARAMS)),
         "domaincoherence": (
             DomainCoherenceTermExtractor,
-            ("window_size", *CANDIDATE_PARAMS),
+            ("window_size", "seed_terms", "context_words", *CANDIDATE_PARAMS),
         ),
         "relevance": (RelevanceTermExtractor, ("reference_corpus", *CANDIDATE_PARAMS)),
         "topicmodeling": (
@@ -75,6 +75,8 @@ class TermExtractor:
         num_topics: int = 20,
         top_words: int = 200,
         window_size: int = 5,
+        seed_terms: int = 200,
+        context_words: int = 50,
         stoplist: list[str] | None = None,
         phrase_delimiters: list[str] | None = None,
         reference_corpus: Corpus | list[str] | None = None,
@@ -103,7 +105,12 @@ class TermExtractor:
             num_topics (int): Number of LDA topics ('topicmodeling').
             top_words (int): Number of most probable words of each topic that count
                 towards the scores ('topicmodeling').
-            window_size (int): Context window size ('domaincoherence').
+            window_size (int): The number of words on either side of a candidate that
+                count as its context ('domaincoherence').
+            seed_terms (int): The number of best candidates by Basic used to choose the
+                context words ('domaincoherence').
+            context_words (int): The number of context words that candidates are scored
+                against ('domaincoherence').
             stoplist (Optional[List[str]]): List of stop words (required by 'rake').
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (required by 'rake').
             reference_corpus (Optional[Union[Corpus, List[str]]]): General-language reference corpus, required by 'domainpertinence', 'weirdness' and 'relevance'. It must have the same type as the corpus passed to `extract`.
@@ -158,6 +165,8 @@ class TermExtractor:
             "num_topics": num_topics,
             "top_words": top_words,
             "window_size": window_size,
+            "seed_terms": seed_terms,
+            "context_words": context_words,
             "stoplist": stoplist,
             "phrase_delimiters": phrase_delimiters,
             "reference_corpus": reference_corpus,
