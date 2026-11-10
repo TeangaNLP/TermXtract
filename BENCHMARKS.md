@@ -200,17 +200,15 @@ results above are of the code as it is.
 - **AdaBoost** (`adaboost`) is slow, mostly because of a quadratic collocation score
   (#59). **Roger** (`roger`) is slow because its evolutionary search scores every
   training candidate for every offspring: it takes hours to train on ACTER (#60).
-- **Token classification** saves a checkpoint of the model, with its optimizer state,
-  every 500 training steps in `./results`, several gigabytes in all for the default
-  model (#68).
 - `SupervisedTermExtractor.extract` trains and predicts on the same corpus, so the
   benchmark calls the extractors' own methods to train on one corpus and test on
   another (#43). The supervised methods have no `lemma_layer` yet.
 
 C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (#65)
 and domain coherence (#52) were fixed after the first version of this benchmark, the
-candidates were brought in line with ATR4S's (#67, #70), and NMF no longer runs out of
-memory on GENIA (#66).
+candidates were brought in line with ATR4S's (#67, #70), NMF no longer runs out of
+memory on GENIA (#66), and token classification no longer fills the disk with
+checkpoints (#68).
 
 ### References
 
