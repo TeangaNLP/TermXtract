@@ -1,5 +1,6 @@
 import re
 import tempfile
+from typing import Any
 
 import numpy as np
 import torch
@@ -255,36 +256,40 @@ class TokenClassificationTermExtractor:
         Returns:
             Dict[str, float]: Dictionary of extracted terms with confidence scores.
         """
-        extracted_terms = {}
+        # The model tags terms rather than scoring them, so every term scores 1.0
+        return {
+            term: 1.0
+            for pred, txt in zip(token_predictions, texts)
+            for term, _, _ in self.tagged_terms(pred, txt)
+        }
 
-        for i, pred in enumerate(token_predictions):
-            txt = texts[i]
-            j = 0
+    def tagged_terms(
+        self, tags: list[str], tokens: list[str]
+    ) -> list[tuple[str, int, int]]:
+        """
+        Find the terms tagged in a sentence: each `B-T` with the `T` tags after it.
 
-            while j < len(pred):
-                # If beginning of a term is found
-                if pred[j] == "B-T":
-                    term = [txt[j]]
-                    k = j + 1
+        Args:
+            tags (List[str]): The tag of each token.
+            tokens (List[str]): The tokens of the sentence.
 
-                    # Continue adding tokens as long as they are part of the term
-                    while k < len(pred) and pred[k] == "T":
-                        term.append(txt[k])
-                        k += 1
-
-                    # Add the complete term
-                    extracted_term = self.moses_detokenizer.detokenize(term)
-
-                    # For simplicity, set confidence to 1.0
-                    # In a real implementation, you would use model confidence scores
-                    extracted_terms[extracted_term.lower()] = 1.0
-
-                    # Move to the token after the term
-                    j = k
-                else:
-                    j += 1
-
-        return extracted_terms
+        Returns:
+            List[Tuple[str, int, int]]: Each term in lower case, with the index of its
+            first token and of the token after its last.
+        """
+        terms = []
+        j = 0
+        while j < len(tags):
+            if tags[j] == "B-T":
+                k = j + 1
+                while k < len(tags) and tags[k] == "T":
+                    k += 1
+                term = self.moses_detokenizer.detokenize(tokens[j:k])
+                terms.append((term.lower(), j, k))
+                j = k
+            else:
+                j += 1
+        return terms
 
     def train_model(self, tokenized_dataset: torch.utils.data.Dataset):
         """
@@ -329,6 +334,23 @@ class TokenClassificationTermExtractor:
             List[Dict[str, float]]: The terms extracted from each sentence, with
             confidence scores.
         """
+        return [
+            self.extract_terms_from_predictions([prediction], [text])
+            for prediction, text in zip(self.predict_tags(tokenized_dataset), texts)
+        ]
+
+    def predict_tags(
+        self, tokenized_dataset: torch.utils.data.Dataset
+    ) -> list[list[str]]:
+        """
+        Tag the tokens of each sentence with the trained model.
+
+        Args:
+            tokenized_dataset: Dataset for prediction.
+
+        Returns:
+            List[List[str]]: The tag of each token of each sentence.
+        """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
 
@@ -347,8 +369,8 @@ class TokenClassificationTermExtractor:
         predictions, labels, _ = self.trainer.predict(tokenized_dataset)
         predictions = np.argmax(predictions, axis=2)
 
-        # Convert to label names
-        true_predictions = [
+        # Convert to label names, keeping the first model token of each word
+        return [
             [
                 self.id_to_label[p]
                 for (p, gold) in zip(prediction, label)
@@ -356,12 +378,6 @@ class TokenClassificationTermExtractor:
             ]
             # The dataset always has (placeholder) labels, so `labels` is never None
             for prediction, label in zip(predictions, labels)  # type: ignore[arg-type]
-        ]
-
-        # Extract the terms of each sentence
-        return [
-            self.extract_terms_from_predictions([prediction], [text])
-            for prediction, text in zip(true_predictions, texts)
         ]
 
     def predict(
@@ -395,37 +411,36 @@ class TokenClassificationTermExtractor:
             List[List[Tuple[List[str], str]]]: For each document, its (tokens, original
             sentence) tuples.
         """
-        documents = []
+        return [
+            [(tokens, " ".join(tokens)) for tokens, _ in sentences]
+            for sentences in self._teanga_sentences(corpus)
+        ]
 
+    def _teanga_sentences(
+        self, corpus: Corpus
+    ) -> list[list[tuple[list[str], list[tuple[int, int]]]]]:
+        """
+        Split each document of a Teanga corpus into sentences, after each word that is
+        ".", "!" or "?".
+
+        Returns:
+            For each document, the words and the word spans of each sentence.
+        """
+        documents = []
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            sentence_list = []
-
-            # Extract tokens from document
-            tokens = []
+            sentences = []
+            tokens: list[str] = []
+            spans: list[tuple[int, int]] = []
             for start, end in word_spans(doc, self.words_layer):
                 tokens.append(doc.text[start:end])
-
-            # Group tokens into sentences (simplistic approach)
-            current_sentence = []
-            current_text = ""
-
-            for token in tokens:
-                current_sentence.append(token)
-                current_text += token + " "
-
-                # If sentence-ending punctuation, add to sentence list
-                if token in [".", "!", "?"] and current_sentence:
-                    sentence_list.append((current_sentence, current_text.strip()))
-                    current_sentence = []
-                    current_text = ""
-
-            # Add any remaining tokens as a sentence
-            if current_sentence:
-                sentence_list.append((current_sentence, current_text.strip()))
-
-            documents.append(sentence_list)
-
+                spans.append((start, end))
+                if tokens[-1] in (".", "!", "?"):
+                    sentences.append((tokens, spans))
+                    tokens, spans = [], []
+            if tokens:
+                sentences.append((tokens, spans))
+            documents.append(sentences)
         return documents
 
     def prepare_teanga_corpus(self, corpus: Corpus) -> list[tuple[list[str], str]]:
@@ -449,6 +464,7 @@ class TokenClassificationTermExtractor:
         corpus: Corpus | list[str],
         doc_ids: list[str],
         documents: list[list[tuple[list[str], str]]],
+        spans: list[list[list[tuple[int, int]]]] | None = None,
     ) -> ATEResults:
         """
         Tag the sentences of each document with the trained model.
@@ -460,9 +476,13 @@ class TokenClassificationTermExtractor:
             doc_ids (List[str]): The ID of each document.
             documents (List[List[Tuple[List[str], str]]]): For each document, its
                 (tokens, original sentence) tuples.
+            spans (Optional[List[List[List[Tuple[int, int]]]]]): The character offsets
+                of each token of each sentence of each document, to give the offsets of
+                the tagged terms, or None.
 
         Returns:
-            ATEResults: Results object with extracted terms.
+            ATEResults: Results object with extracted terms, and their offsets if
+            `spans` is given.
         """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction.")
@@ -472,42 +492,133 @@ class TokenClassificationTermExtractor:
         tags = [["n"] * len(tokens) for tokens in texts]
         tokenized_inputs = self.tokenize_and_align_labels(texts, tags)
         tokenized_dataset = self.create_torch_dataset(tokenized_inputs)
-        sentence_terms = iter(self.predict_sentences(tokenized_dataset, texts))
+        sentence_tags = iter(self.predict_tags(tokenized_dataset))
 
         terms_by_doc = []
-        for doc_id, sentences in zip(doc_ids, documents):
-            doc_scores: dict[str, float] = {}
-            for _ in sentences:
-                doc_scores.update(next(sentence_terms))
-            terms_by_doc.append(
-                {
-                    "doc_id": doc_id,
-                    "terms": rank_terms(doc_scores, stopwords=self.stopwords),
-                }
-            )
+        offsets_by_doc = []
+        for k, (doc_id, sentences) in enumerate(zip(doc_ids, documents)):
+            # The model tags terms rather than scoring them, so every term scores 1.0
+            found = [
+                (term, s, start, end)
+                for s, (tokens, _) in enumerate(sentences)
+                for term, start, end in self.tagged_terms(next(sentence_tags), tokens)
+            ]
+            doc_terms: dict[str, Any] = {
+                "doc_id": doc_id,
+                "terms": rank_terms(
+                    dict.fromkeys((term for term, _, _, _ in found), 1.0),
+                    stopwords=self.stopwords,
+                ),
+            }
+            terms_by_doc.append(doc_terms)
+            if spans is not None:
+                kept = {term["term"] for term in doc_terms["terms"]}
+                offsets_by_doc.append(
+                    {
+                        "doc_id": doc_id,
+                        "offsets": [
+                            {
+                                "term": term,
+                                "offset": (
+                                    spans[k][s][start][0],
+                                    spans[k][s][end - 1][1],
+                                ),
+                            }
+                            for term, s, start, end in found
+                            if term in kept
+                        ],
+                    }
+                )
 
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        return ATEResults(
+            corpus=corpus,
+            terms=terms_by_doc,
+            offsets=offsets_by_doc if spans is not None else None,
+        )
+
+    def fit_strings(self, corpus: list[str], labels: dict[str, int]) -> None:
+        """
+        Fine-tune the model on a list of strings, tagging the terms labelled 1.
+
+        Args:
+            corpus (List[str]): List of text documents.
+            labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
+        """
+        self._fit(
+            [sentence for doc in corpus for sentence in self.preprocess_text(doc)],
+            labels,
+        )
+
+    def fit_teanga(self, corpus: Corpus, labels: dict[str, int]) -> None:
+        """
+        Fine-tune the model on a Teanga corpus, tagging the terms labelled 1.
+
+        Args:
+            corpus: Teanga corpus object.
+            labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
+        """
+        self._fit(self.prepare_teanga_corpus(corpus), labels)
+
+    def _fit(
+        self, sentence_list: list[tuple[list[str], str]], labels: dict[str, int]
+    ) -> None:
+        training_data = self.create_training_data(sentence_list, labels)
+        train_texts = [tokens for tokens, _ in training_data]
+        train_tags = [tags for _, tags in training_data]
+        train_tokenized = self.tokenize_and_align_labels(train_texts, train_tags)
+        self.train_model(self.create_torch_dataset(train_tokenized))
+
+    def predict_strings(self, corpus: list[str]) -> ATEResults:
+        """
+        Tag the terms of a list of strings with the trained model.
+
+        Args:
+            corpus (List[str]): List of text documents.
+
+        Returns:
+            ATEResults: The terms tagged in each document.
+        """
+        return self.extract_documents(
+            corpus,
+            [f"doc_{i}" for i in range(len(corpus))],
+            [self.preprocess_text(doc) for doc in corpus],
+        )
+
+    def predict_teanga(self, corpus: Corpus) -> ATEResults:
+        """
+        Tag the terms of a Teanga corpus with the trained model.
+
+        Args:
+            corpus: Teanga corpus object.
+
+        Returns:
+            ATEResults: The terms tagged in each document, with their offsets.
+        """
+        sentences = self._teanga_sentences(corpus)
+        return self.extract_documents(
+            corpus,
+            list(corpus.doc_ids),
+            [[(tokens, " ".join(tokens)) for tokens, _ in doc] for doc in sentences],
+            [[spans for _, spans in doc] for doc in sentences],
+        )
 
     def extract_terms_teanga(
         self, corpus: Corpus, labels: dict[str, int] | None = None
     ) -> ATEResults:
         """
-        Extract terms from a Teanga corpus.
+        Extract terms from a Teanga corpus, training on it first if labels are given.
 
         Args:
             corpus: Teanga corpus object.
-            labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values (for training).
+            labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
+                labels as values, to train on, or None to use the trained model.
 
         Returns:
             ATEResults: Results object with extracted terms.
         """
-        # If labels are provided, we're in training mode
         if labels is not None:
-            return self.train_terms_teanga(corpus, labels)
-
-        return self.extract_documents(
-            corpus, list(corpus.doc_ids), self.prepare_teanga_documents(corpus)
-        )
+            self.fit_teanga(corpus, labels)
+        return self.predict_teanga(corpus)
 
     def train_terms_teanga(self, corpus: Corpus, labels: dict[str, int]) -> ATEResults:
         """
@@ -520,50 +631,25 @@ class TokenClassificationTermExtractor:
         Returns:
             ATEResults: Results object with extracted terms.
         """
-        # Prepare corpus for training
-        sentence_list = self.prepare_teanga_corpus(corpus)
-
-        # Create training data
-        training_data = self.create_training_data(sentence_list, labels)
-
-        # Separate tokens and tags
-        train_texts = [tup[0] for tup in training_data]
-        train_tags = [tup[1] for tup in training_data]
-
-        # Tokenize for the model
-        train_tokenized = self.tokenize_and_align_labels(train_texts, train_tags)
-
-        # Create dataset
-        train_dataset = self.create_torch_dataset(train_tokenized)
-
-        # Train the model
-        self.train_model(train_dataset)
-
-        # Extract terms from the corpus
-        return self.extract_terms_teanga(corpus)
+        return self.extract_terms_teanga(corpus, labels)
 
     def extract_terms_strings(
         self, corpus: list[str], labels: dict[str, int] | None = None
     ) -> ATEResults:
         """
-        Extract terms from a list of strings.
+        Extract terms from a list of strings, training on it first if labels are given.
 
         Args:
             corpus (List[str]): List of text documents.
-            labels (Dict[str, int]): Dictionary with terms as keys and binary labels as values (for training).
+            labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
+                labels as values, to train on, or None to use the trained model.
 
         Returns:
             ATEResults: Results object with extracted terms.
         """
-        # If labels are provided, we're in training mode
         if labels is not None:
-            return self.train_terms_strings(corpus, labels)
-
-        return self.extract_documents(
-            corpus,
-            [f"doc_{i}" for i in range(len(corpus))],
-            [self.preprocess_text(doc) for doc in corpus],
-        )
+            self.fit_strings(corpus, labels)
+        return self.predict_strings(corpus)
 
     def train_terms_strings(
         self, corpus: list[str], labels: dict[str, int]
@@ -578,26 +664,4 @@ class TokenClassificationTermExtractor:
         Returns:
             ATEResults: Results object with extracted terms.
         """
-        # Preprocess text
-        sentence_list = []
-        for doc in corpus:
-            sentence_list.extend(self.preprocess_text(doc))
-
-        # Create training data
-        training_data = self.create_training_data(sentence_list, labels)
-
-        # Separate tokens and tags
-        train_texts = [tup[0] for tup in training_data]
-        train_tags = [tup[1] for tup in training_data]
-
-        # Tokenize for the model
-        train_tokenized = self.tokenize_and_align_labels(train_texts, train_tags)
-
-        # Create dataset
-        train_dataset = self.create_torch_dataset(train_tokenized)
-
-        # Train the model
-        self.train_model(train_dataset)
-
-        # Extract terms from the corpus
-        return self.extract_terms_strings(corpus)
+        return self.extract_terms_strings(corpus, labels)

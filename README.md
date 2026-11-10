@@ -96,6 +96,8 @@ extractor = SupervisedTermExtractor(method="roger", n=3)
 results = extractor.extract(corpus, labels)
 ```
 
+`extract` trains on a corpus and extracts terms from the same corpus. To train on one corpus and extract terms from another, use `extractor.fit(train_corpus, labels).predict(test_corpus)`.
+
 ### Using a Teanga corpus
 
 Any extractor also accepts a Teanga `Corpus` with a `words` span layer:

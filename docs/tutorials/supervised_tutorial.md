@@ -32,10 +32,10 @@ A few rules apply to the labels:
 
 - **Write terms in lower case**, with single spaces between words. Plain-text input is lower-cased and split into words before candidates are generated, so `"Photosynthesis"` would never match.
 - **Multi-word terms** are only generated as candidates if `n` is at least their number of words. Use `n=2` for the labels above.
-- **Unlabelled candidates are not used for training.** Roger learns only from the candidates you label (see [Roger](#roger)), and token classification only from the terms labelled `1`.
+- **Unlabelled candidates are only used by Roger, and only without non-terms.** Roger learns from the candidates you label, but if you label only terms, as with a list of gold terms, it counts every other candidate as a non-term (see [Roger](#roger)). Token classification learns only from the terms labelled `1`.
 - **Stopwords are filtered from the results, not from training.** As for the unsupervised methods, extracted terms that start or end with a stopword are dropped (see [Stopwords](tfidf_tutorial.md#stopwords)), but candidates such as `the` and `of` are still used as training examples. Pass `stopwords=None` to keep them in the results.
 
-`extract(corpus, labels)` trains the model on the corpus and then scores the candidates in the **same** corpus. The examples below use this small biology corpus:
+`extract(corpus, labels)` trains the model on the corpus and then scores the candidates in the **same** corpus. To extract terms from other documents, train with `fit` and then call `predict` (see [Training on one corpus, extracting from another](#training-on-one-corpus-extracting-from-another)). The examples below use this small biology corpus:
 
 ```python
 from termxtract import SupervisedTermExtractor
@@ -107,28 +107,29 @@ The labelled terms `light energy` and `chemical energy` come first, and the labe
 
 Roger's scores are only meaningful for **ranking**: their scale depends on the learned functions.
 
-### Scoring new documents
+## Training on one corpus, extracting from another
 
-`extract()` always trains a new model. To apply a model you have already trained to other documents, call `predict_terms_strings` on the underlying extractor. It returns a dictionary of scores, which you can rank yourself:
+`extract()` trains a new model and extracts terms from the corpus it was trained on. To train on one corpus, such as the training split of a dataset or another domain, and extract terms from another, call `fit` and then `predict`. `predict` returns `ATEResults` like `extract`, with the terms of each document and, for a Teanga corpus, their offsets. Here a Roger model trained on the biology corpus scores two new documents:
 
 ```python
+extractor = SupervisedTermExtractor(method="roger", n=2, random_state=0)
+extractor.fit(corpus, roger_labels)
 new_documents = [
     "Algae use chlorophyll for photosynthesis in the ocean.",
     "Glucose is broken down during cellular respiration.",
 ]
-scores = extractor.extractor.predict_terms_strings(new_documents)
-ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-for term, score in ranked[:3]:
+results = extractor.predict(new_documents)
+for term, score in corpus_ranking(results)[:3]:
     print(f"{score:.3f}  {term}")
 ```
 
 ```text
 -0.034  algae use
 -0.034  use chlorophyll
--0.034  chlorophyll for
+-0.034  cellular respiration
 ```
 
-Here every candidate ties, `cellular respiration` included. In two short sentences each pair of words occurs once, and so does each of its words, so all the association measures are the same. Like training, scoring needs documents large enough for the counts to differ.
+Here every candidate ties, the term `cellular respiration` included. In two short sentences each pair of words occurs once, and so does each of its words, so all the association measures are the same. Like training, scoring needs documents large enough for the counts to differ.
 
 ## Token classification
 
@@ -170,6 +171,6 @@ Any Hugging Face model that supports token classification can be used as `model_
 
 ## Using a Teanga corpus
 
-Both methods also accept a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` with a `words` layer in place of the list of strings, with labels in the same format. Unlike the unsupervised methods, the supervised methods do not return term offsets.
+Both methods also accept a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` with a `words` layer in place of the list of strings, with labels in the same format. As for the unsupervised methods, the results then include the offsets of each extracted term.
 
 See the API reference for [`SupervisedTermExtractor`](../api/supervised_term_extractor.md), [Roger](../api/supervised/roger.md) and [Token Classification](../api/supervised/token_classification.md) for all parameters.
