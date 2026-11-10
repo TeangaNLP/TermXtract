@@ -39,7 +39,7 @@ class ComboBasicTermExtractor(NestedTermExtractor):
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", a list of words, or None.
+                with a stopword: "english", "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the

@@ -10,6 +10,7 @@ from pathlib import Path
 import teanga
 from teanga import Corpus
 
+from ..candidates import WORD
 from .base import (
     CATEGORY_LAYER,
     GOLD_LAYER,
@@ -31,9 +32,9 @@ CATEGORIES = (
 )
 """The categories of the terms, as named in Table 6.1 of Banerjee (2025)."""
 
-# A word is a run of letters, digits and Devanagari vowel signs and other marks, which
-# Python does not count as word characters; any other character but a space is a token
-_TOKEN = re.compile(r"(?:\w|[ऀ-ःऺ-ॏ॑-ॗॢॣ])+|\S")
+# A word is a run of letters, digits and combining marks such as vowel signs; any other
+# character but a space is a token of its own
+_TOKEN = re.compile(rf"{WORD.pattern}|\S")
 
 # A sentence ends at a line break or after a danda, a double danda, "?", "!" or "."
 _SENTENCE = re.compile(r"[^\n]*?(?:[।॥?!.](?=\s|$)|(?=\n)|$)")

@@ -1,8 +1,7 @@
-import re
-
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from ..candidates import split_words
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -35,7 +34,7 @@ class NMFTermExtractor(BaseTermExtractor):
             n_topics (int): Number of topics for NMF-based extraction.
             max_features (Optional[int]): Maximum number of features for TF-IDF vectorization.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", a list of words, or None.
+                with a stopword: "english", "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
@@ -89,7 +88,7 @@ class NMFTermExtractor(BaseTermExtractor):
     def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using NMF."""
         corpus_ngrams = self.candidate_ngrams_strings(
-            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+            [split_words(doc) for doc in corpus]
         )
         term_scores = self.score_terms(corpus_ngrams)
         # A term has the same score in every document, but is listed only in those it

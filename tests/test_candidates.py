@@ -6,7 +6,7 @@ import pytest
 from teanga import Corpus
 
 from termxtract import TermExtractor
-from termxtract.candidates import candidate_spans, compile_word_pattern
+from termxtract.candidates import candidate_spans, compile_word_pattern, split_words
 from termxtract.pos import compile_pos_pattern
 from termxtract.unsupervised.cvalue import CValueTermExtractor
 
@@ -110,6 +110,25 @@ def test_word_patterns():
     assert not {"95", "ci"} & atr4s
     with pytest.raises(ValueError, match="Invalid word pattern"):
         compile_word_pattern("[")
+
+
+def test_split_words():
+    # Vowel signs and viramas are part of Devanagari words, and accents combining
+    # with a letter are part of Latin ones
+    assert split_words("प्राथमिक शिक्षा, बच्चों के लिए!") == [
+        "प्राथमिक",
+        "शिक्षा",
+        "बच्चों",
+        "के",
+        "लिए",
+    ]
+    assert split_words("Cafe\u0301 de Flore") == ["cafe\u0301", "de", "flore"]
+
+
+def test_atr4s_pattern_accepts_devanagari():
+    pattern = compile_word_pattern("atr4s")
+    assert pattern.fullmatch("शिक्षा")
+    assert not pattern.fullmatch("के")
 
 
 def test_only_matching_occurrences_are_counted():
