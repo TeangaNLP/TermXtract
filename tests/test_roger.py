@@ -162,6 +162,36 @@ def test_fit_on_one_corpus_and_predict_on_another():
     ]
 
 
+def test_fit_on_gold_terms_layer():
+    # Without labels, the gold terms of a Teanga corpus are the terms
+    corpus = teanga_corpus(CORPUS)
+    corpus.add_layer_meta("terms", layer_type="span", base="text")
+    for doc_id in corpus.doc_ids:
+        doc = corpus.doc_by_id(doc_id)
+        doc.terms = [
+            m.span()
+            for m in re.finditer(r"(?i)genetic algorithms|machine learning", doc.text)
+        ]
+    extractor = roger()
+    assert extractor.extractor.gold_terms(corpus) == {
+        "genetic algorithms",
+        "machine learning",
+    }
+    found = scores(extractor.fit(corpus).predict(corpus))
+    terms = {"genetic algorithms": 1, "machine learning": 1}
+    assert found == scores(roger().extract(corpus, terms))
+
+
+def test_fit_without_labels_needs_a_teanga_corpus():
+    with pytest.raises(ValueError, match="needs labels"):
+        roger().fit(CORPUS)
+
+
+def test_no_validation_set():
+    with pytest.raises(ValueError, match="no validation set"):
+        roger().fit(CORPUS, LABELS, validation=CORPUS)
+
+
 def test_predict_new_documents():
     extractor = roger()
     extractor.extract(CORPUS, LABELS)
