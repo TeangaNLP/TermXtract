@@ -196,6 +196,27 @@ class TestTokenClassificationExtraction(unittest.TestCase):
             len(extract_results.terms), 1, "Should have results for one document"
         )
 
+    def test_training_writes_nothing_to_the_working_directory(self):
+        """Checkpoints and logs are not saved in the working directory (#68)."""
+        import os
+        import tempfile
+
+        extractor = SupervisedTermExtractor(
+            method="token-classification",
+            model_name="xlm-roberta-base",
+            n=2,
+            batch_size=4,
+            epochs=1,
+        )
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as directory:
+            os.chdir(directory)
+            try:
+                extractor.extract(self.text_corpus, self.labels)
+                self.assertEqual(os.listdir(directory), [])
+            finally:
+                os.chdir(cwd)
+
     def test_token_classification_with_different_models(self):
         """Test term extraction with different transformer models."""
         # Test with another model type (smaller for faster tests)

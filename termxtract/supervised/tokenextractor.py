@@ -1,4 +1,5 @@
 import re
+import tempfile
 
 import numpy as np
 import torch
@@ -292,28 +293,26 @@ class TokenClassificationTermExtractor:
         Args:
             tokenized_dataset: Training dataset.
         """
-        # Initialize training arguments
-        training_args = TrainingArguments(
-            output_dir="./results",
-            num_train_epochs=self.epochs,
-            per_device_train_batch_size=self.batch_size,
-            per_device_eval_batch_size=self.batch_size * 2,
-            warmup_steps=0,
-            weight_decay=0.01,
-            learning_rate=self.learning_rate,
-            logging_dir="./logs",
-            logging_steps=100,
-            save_steps=500,
-            eval_strategy="no",
-        )
-
-        # Initialize trainer
-        self.trainer = Trainer(
-            model=self.model, args=training_args, train_dataset=tokenized_dataset
-        )
-
-        # Train the model
-        self.trainer.train()
+        # The trained model is kept in memory, so save no checkpoints or logs, and give
+        # the Trainer a temporary directory rather than one in the working directory
+        with tempfile.TemporaryDirectory() as output_dir:
+            training_args = TrainingArguments(
+                output_dir=output_dir,
+                num_train_epochs=self.epochs,
+                per_device_train_batch_size=self.batch_size,
+                per_device_eval_batch_size=self.batch_size * 2,
+                warmup_steps=0,
+                weight_decay=0.01,
+                learning_rate=self.learning_rate,
+                logging_steps=100,
+                save_strategy="no",
+                eval_strategy="no",
+                report_to="none",
+            )
+            self.trainer = Trainer(
+                model=self.model, args=training_args, train_dataset=tokenized_dataset
+            )
+            self.trainer.train()
         self.is_trained = True
 
     def predict_sentences(
@@ -334,9 +333,15 @@ class TokenClassificationTermExtractor:
             raise RuntimeError("Model must be trained before prediction.")
 
         if not self.trainer:
-            self.trainer = Trainer(
-                model=self.model, args=TrainingArguments(output_dir="./results")
-            )
+            with tempfile.TemporaryDirectory() as output_dir:
+                self.trainer = Trainer(
+                    model=self.model,
+                    args=TrainingArguments(
+                        output_dir=output_dir,
+                        per_device_eval_batch_size=self.batch_size * 2,
+                        report_to="none",
+                    ),
+                )
 
         # Get predictions
         predictions, labels, _ = self.trainer.predict(tokenized_dataset)
