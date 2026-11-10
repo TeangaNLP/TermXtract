@@ -144,7 +144,7 @@ print([term["term"] for term in results.terms[0]["terms"]])
 
 A custom list **replaces** the built-in one, which is why `into` has to be included. To extend the built-in list, use `termxtract.stopwords.ENGLISH_STOPWORDS | {"energy", "converts"}`.
 
-For Hindi, pass `stopwords="hindi"` for the 225 words of the [stopwords-iso](https://github.com/stopwords-iso/stopwords-hi) list, such as `के`, `लिए` and `है`. Words are split so that vowel signs and viramas stay inside them, as in `शिक्षा`.
+For other languages, pass the ISO 639-1 code of the language, such as `stopwords="fr"` for French or `stopwords="ga"` for Irish. TermXtract has the lists of the 58 languages of [stopwords-iso](https://github.com/stopwords-iso/stopwords-iso); `termxtract.stopwords.STOPWORD_LISTS` lists them. Hindi and Slovenian can also be named `"hindi"` and `"slovenian"`. In Hindi, words are split so that vowel signs and viramas stay inside them, as in `शिक्षा`. Chinese, Japanese and Thai are written without spaces between words, so their lists only work on a Teanga corpus whose words have already been segmented.
 
 ## Using a Teanga corpus
 

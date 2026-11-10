@@ -26,9 +26,10 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 - The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
   computational linguistics papers with terms in seven classes, a choice of annotator,
   and lemmas and part-of-speech tags (#39).
-- A Hindi stopword list, as `stopwords="hindi"`: the 225 words of stopwords-iso's list
-  (MIT licence), in `termxtract.stopwords.HINDI_STOPWORDS`. `STOPWORD_LISTS` maps the
-  names of the built-in lists to them.
+- Stopword lists for 58 languages, from stopwords-iso (MIT licence), by ISO 639-1 code:
+  `stopwords="fr"`, `"ga"`, `"hi"`, `"sl"` and so on (#88). `"hindi"` and `"slovenian"`
+  name the Hindi and Slovenian lists too, and `"en"` is the English list of NLTK, as
+  `"english"` is. `termxtract.stopwords.STOPWORD_LISTS` maps every name to its list.
 - HTEC 2.0, the Hindi Term Extraction Corpus, as `datasets.load("htec")`: 97 segments
   of Hindi Wikipedia articles on education, with 5,452 term annotations in seven
   categories (#37). It was converted to Teanga, with the spellings of the categories

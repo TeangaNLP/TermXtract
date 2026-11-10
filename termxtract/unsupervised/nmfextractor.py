@@ -34,7 +34,7 @@ class NMFTermExtractor(BaseTermExtractor):
             n_topics (int): Number of topics for NMF-based extraction.
             max_features (Optional[int]): Maximum number of features for TF-IDF vectorization.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", "hindi", a list of words, or None.
+                with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the

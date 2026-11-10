@@ -192,7 +192,7 @@ class RogerTermExtractor:
             n_jobs (Optional[int]): Number of runs trained in parallel, as in joblib: -1
                 for one per CPU, or None for one at a time.
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
-                end with a stopword: "english", "hindi", a list of words, or None.
+                end with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             terms_layer (str): For Teanga input without labels, the span layer of gold
