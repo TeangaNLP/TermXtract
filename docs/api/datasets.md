@@ -17,6 +17,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 | `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
 | `genia` | [GENIA term corpus 3.02](http://www.geniaproject.org/genia-corpus/term-corpus) | en | biomedicine | GENIA Project License (annotations CC BY 3.0) | | `nested`, `labels` |
 | `htec` | [HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) | hi | education | CC BY-SA 4.0 | | `partial_words`, `labels` |
+| `rsdo5` | [RSDO5 1.1](http://hdl.handle.net/11356/1470) | sl | biomechanics, linguistics, chemistry, veterinary science | CC BY-SA 4.0 | | `domains`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
 ## ACTER
@@ -70,6 +71,22 @@ The corpus is not tokenised, so the loader splits the text into words, keeping D
       members:
         - load_htec
         - CATEGORIES
+
+## RSDO5 1.1
+
+RSDO5 annotates every term in 12 Slovenian texts, three per domain: biomechanics (`bim`), linguistics (`jez`), chemistry (`kem`) and veterinary science (`vet`). Each domain has a doctoral thesis or a monograph, a university textbook and one or two journal articles. It has about 310,000 tokens and 37,985 annotated terms, which do not nest. Each text is a document. The corpus is downloaded from CLARIN.SI in its vertical format, under CC BY-SA 4.0.
+
+Each term is marked `in-domain`, if it belongs to the domain of the text (24,282 of them), or `out-domain`, if it belongs to another field, such as a statistics term in a chemistry text. Both count by default; pass `labels="in-domain"` for the domain's own terms. Pass `domains` to load some of the domains, for example to train on three and test on the fourth, as in the cross-domain experiments of Tran et al. (2024).
+
+The corpus comes with its Universal Dependencies annotation, so the documents have `tokens`, `sentences`, `lemma`, `upos` and `msd` (MULTEXT-East) layers, and `lemma_layer="lemma"` and `pos_pattern="noun_phrase"` work without a tagger.
+
+::: termxtract.datasets.rsdo5
+    options:
+      show_root_heading: false
+      members:
+        - load_rsdo5
+        - DOMAINS
+        - LABELS
 
 ## Adding a dataset
 
