@@ -1,6 +1,6 @@
 # Datasets
 
-`termxtract.datasets` loads standard term-extraction datasets as Teanga corpora, with the gold terms in a `terms` span layer. Datasets are not distributed with TermXtract: each one is downloaded from its original source on first use, checked against a SHA-256 checksum, and cached under `~/.cache/termxtract`. Set the `TERMXTRACT_DATA` environment variable, or pass `home=`, to cache them elsewhere.
+`termxtract.datasets` loads standard term-extraction datasets as Teanga corpora, with the gold terms in a `terms` span layer. Datasets are not distributed with TermXtract: each one is downloaded from its original source (or, for HTEC, its Teanga version on Zenodo) on first use, checked against a SHA-256 checksum, and cached under `~/.cache/termxtract`. Set the `TERMXTRACT_DATA` environment variable, or pass `home=`, to cache them elsewhere.
 
 ```python
 from termxtract import TermExtractor, datasets, evaluate
@@ -16,6 +16,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 |------|---------|-----------|---------|---------|--------|---------|
 | `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
 | `genia` | [GENIA term corpus 3.02](http://www.geniaproject.org/genia-corpus/term-corpus) | en | biomedicine | GENIA Project License (annotations CC BY 3.0) | | `nested`, `labels` |
+| `htec` | [HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) | hi | education | CC BY-SA 4.0 | | `partial_words`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
 ## ACTER
@@ -56,6 +57,19 @@ Terms nest deeply in GENIA (`IL-2 gene expression` contains `IL-2 gene`, which c
       members:
         - load_genia
         - CLASSES
+
+## HTEC 2.0
+
+HTEC 2.0, the Hindi Term Extraction Corpus, annotates education terms in 97 documents, segments of 65 Hindi Wikipedia articles, in seven categories such as *Educationists, Learners and Researchers* and *Ambiguous* (Banerjee, Chakravarthi & McCrae, 2025). It is downloaded from Zenodo, as a Teanga file converted from the annotation tool's files, under CC BY-SA 4.0 like the Wikipedia texts. `source` gives the document ID, such as `99_a`; documents with the same number come from the same article.
+
+The corpus is not tokenised, so the loader splits the text into words, keeping Devanagari vowel signs and viramas inside them, and into sentences at line breaks and after `।`, `?`, `!` and `.`. The annotations include nested and overlapping terms, all kept. Some start inside a word, such as `शोध` in `संशोधित`, and are left out unless `partial_words=True`; those that end inside a word, mostly stems of inflected words such as `कक्षा` in `कक्षाओं`, are kept.
+
+::: termxtract.datasets.htec
+    options:
+      show_root_heading: false
+      members:
+        - load_htec
+        - CATEGORIES
 
 ## Adding a dataset
 

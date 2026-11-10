@@ -26,6 +26,11 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 - The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
   computational linguistics papers with terms in seven classes, a choice of annotator,
   and lemmas and part-of-speech tags (#39).
+- HTEC 2.0, the Hindi Term Extraction Corpus, as `datasets.load("htec")`: 97 segments
+  of Hindi Wikipedia articles on education, with 5,452 term annotations in seven
+  categories (#37). It was converted to Teanga, with the spellings of the categories
+  normalised, and published on Zenodo under CC BY-SA 4.0. The loader tokenises the text and splits it into sentences, and by default
+  leaves out the 335 annotations that start inside a word.
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
 - `lemma_layer` parameter for every unsupervised method except RAKE, which reads each
