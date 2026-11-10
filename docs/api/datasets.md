@@ -16,7 +16,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 |------|---------|-----------|---------|---------|--------|---------|
 | `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
 | `genia` | [GENIA term corpus 3.02](http://www.geniaproject.org/genia-corpus/term-corpus) | en | biomedicine | GENIA Project License (annotations CC BY 3.0) | | `nested`, `labels` |
-| `htec` | [HTEC 2.0](https://zenodo.org/records/TODO) | hi | education | CC BY-SA 4.0 | | `partial_words`, `labels` |
+| `htec` | [HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) | hi | education | CC BY-SA 4.0 | | `partial_words`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
 ## ACTER

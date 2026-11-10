@@ -146,10 +146,10 @@ HTEC = register(
             "Hindi term extraction in education: A dataset and analysis. In "
             "Proceedings of Language, Data and Knowledge (LDK 2025)."
         ),
-        homepage="https://zenodo.org/records/TODO",
+        homepage="https://doi.org/10.5281/zenodo.24111051",
         resources=(
             Resource(
-                "https://zenodo.org/records/TODO/files/htec-2.0.yaml",
+                "https://zenodo.org/records/24111051/files/htec-2.0.yaml?download=1",
                 "db276582ffee1b27aee084d11b36f9321748e0161b3d0c06e2e84bcc1494d62c",
                 "htec-2.0.yaml",
             ),
