@@ -83,7 +83,7 @@ class TokenClassificationTermExtractor:
             max_length (int): Maximum sequence length for input tokenization.
             language (str): Language code for tokenization (en, fr, nl).
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or
-                end with a stopword: "english", a list of words, or None.
+                end with a stopword: "english", "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             random_state (Optional[int]): Seed for the new classification layer of the

@@ -1,13 +1,12 @@
-import re
-
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..layers import words_with_offsets
 
 
 def tokenize_strings(corpus: list[str]) -> list[list[str]]:
     """Split each document into lower-case words."""
-    return [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+    return [split_words(doc) for doc in corpus]
 
 
 def tokenize_teanga(corpus: Corpus, words_layer: str | None = None) -> list[list[str]]:

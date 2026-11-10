@@ -1,11 +1,52 @@
 import re
+import sys
+import unicodedata
 from collections.abc import Iterator
 
 from .stopwords import is_candidate
 
+
+def _marks() -> str:
+    """A regular expression character class of the Unicode combining marks."""
+    ranges = []
+    start = None
+    for code in range(sys.maxunicode + 2):
+        is_mark = code <= sys.maxunicode and unicodedata.category(chr(code))[0] == "M"
+        if is_mark and start is None:
+            start = code
+        elif not is_mark and start is not None:
+            ranges.append(f"\\U{start:08x}-\\U{code - 1:08x}")
+            start = None
+    return "[" + "".join(ranges) + "]"
+
+
+MARKS = _marks()
+"""
+A character class of the Unicode combining marks, such as the vowel signs and virama of
+Devanagari. Python's `\\w` does not match them, but they are part of words: `शिक्षा` is
+`श`, `ि`, `क`, `्`, `ष` and `ा`.
+"""
+
+WORD = re.compile(rf"(?:\w|{MARKS})+")
+"""A word of plain text: a run of letters, digits, underscores and combining marks."""
+
+
+def split_words(text: str) -> list[str]:
+    """
+    Split plain text into lower-case words.
+
+    Args:
+        text (str): The text.
+
+    Returns:
+        List[str]: The runs of letters, digits, underscores and combining marks.
+    """
+    return WORD.findall(text.lower())
+
+
 WORD_PATTERNS = {
     "alphanumeric": r".*[^\W_].*",
-    "atr4s": r"(?:[^\W_]|-){3,}",
+    "atr4s": rf"(?:[^\W_]|-|{MARKS}){{3,}}",
 }
 """
 Named word patterns for `word_pattern`, as regular expressions that every word of a
@@ -13,7 +54,7 @@ candidate must fully match.
 
 `alphanumeric` matches words with at least one letter or digit, so candidates such as
 "95 % ci" are dropped. `atr4s` is the noise filter of ATR4S (Astrakhantsev, 2018): words
-of at least three characters, each a letter, a digit or a hyphen.
+of at least three characters, each a letter, a digit, a hyphen or a combining mark.
 """
 
 

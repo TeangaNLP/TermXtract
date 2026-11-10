@@ -1,10 +1,10 @@
-import re
 from abc import abstractmethod
 from collections import Counter
 from typing import TypeAlias
 
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -51,7 +51,7 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", a list of words, or None.
+                with a stopword: "english", "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
@@ -170,13 +170,10 @@ class ReferenceCorpusTermExtractor(BaseTermExtractor):
                 "terms from must also be a Teanga Corpus, not a list of strings."
             )
         target_ngrams = self.candidate_ngrams_strings(
-            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+            [split_words(doc) for doc in corpus]
         )
         ref_ngrams = [
-            [
-                self.generate_ngrams_strings(re.findall(r"\b\w+\b", doc.lower()))
-                for doc in reference
-            ]
+            [self.generate_ngrams_strings(split_words(doc)) for doc in reference]
             for reference in self.reference_corpora
         ]
         self._check_words(ref_ngrams)

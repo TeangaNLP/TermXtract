@@ -26,6 +26,14 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 - The ACL RD-TEC 2.0 dataset, as `datasets.load("acl-rd-tec")`: 299 abstracts of
   computational linguistics papers with terms in seven classes, a choice of annotator,
   and lemmas and part-of-speech tags (#39).
+- A Hindi stopword list, as `stopwords="hindi"`: the 225 words of stopwords-iso's list
+  (MIT licence), in `termxtract.stopwords.HINDI_STOPWORDS`. `STOPWORD_LISTS` maps the
+  names of the built-in lists to them.
+- HTEC 2.0, the Hindi Term Extraction Corpus, as `datasets.load("htec")`: 97 segments
+  of Hindi Wikipedia articles on education, with 5,452 term annotations in seven
+  categories (#37). It was converted to Teanga, with the spellings of the categories
+  normalised, and published on Zenodo under CC BY-SA 4.0. The loader tokenises the text and splits it into sentences, and by default
+  leaves out the 335 annotations that start inside a word.
 - The GENIA term corpus 3.02, as `datasets.load("genia")`: 2,000 MEDLINE abstracts with
   biomedical terms in 36 classes, outermost or nested (#38).
 - `BENCHMARKS.md`, with the results of every method on ACTER, the ACL RD-TEC and GENIA
@@ -127,6 +135,12 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   `method`, whose default was `"adaboost"`, must now be given.
 
 ### Fixed
+
+- Plain-text input is split into words that keep their combining marks, such as the
+  vowel signs and viramas of Devanagari, which Python's `\w` does not match. Hindi
+  words such as `शिक्षा` used to be split into fragments. The `atr4s` word pattern
+  accepts them too. English text is split as before, except that accents written as
+  combining characters stay in their words.
 
 - Roger trains much faster (#60). Each run samples at most `max_negatives` (new, default
   10,000) of the candidates labelled 0, and keeps all those labelled 1. The area under

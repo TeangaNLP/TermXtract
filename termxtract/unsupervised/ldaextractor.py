@@ -1,5 +1,4 @@
 import math
-import re
 from collections import Counter
 
 import numpy as np
@@ -7,6 +6,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -60,8 +60,8 @@ class TopicModelingTermExtractor(BaseTermExtractor):
             threshold (Optional[float]): Minimum score for term inclusion.
             n (int): Maximum n-gram size (e.g., 1 for unigrams, 2 for bigrams, etc.).
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword, and leave stopwords out of the topic model: "english", a
-                list of words, or None.
+                with a stopword, and leave stopwords out of the topic model: "english",
+                "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
@@ -216,7 +216,7 @@ class TopicModelingTermExtractor(BaseTermExtractor):
         Returns:
             ATEResults: Results with ranked terms and scores.
         """
-        words_by_doc = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        words_by_doc = [split_words(doc) for doc in corpus]
         if not self.lda_model:
             self.train_topic_model([self.topic_words(words) for words in words_by_doc])
         ngrams_by_doc = self.candidate_ngrams_strings(words_by_doc)

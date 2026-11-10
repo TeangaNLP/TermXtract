@@ -4,6 +4,7 @@ from collections import Counter
 
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..layers import POS_LAYERS, pos_tags
 from ..stopwords import Stopwords
 from ..utils import ATEResults
@@ -66,7 +67,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
             context_words (int): The number of context words that candidates are
                 scored against.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
-                with a stopword: "english", a list of words, or None.
+                with a stopword: "english", "hindi", a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
             lemma_layer (Optional[str]): For Teanga input, a sequence layer holding the
@@ -140,7 +141,7 @@ class DomainCoherenceTermExtractor(BaseTermExtractor):
 
     def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using DomainCoherence."""
-        docs = [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
+        docs = [split_words(doc) for doc in corpus]
         occurrences = self.candidate_occurrences(docs)
         scores = self.corpus_scores(docs, occurrences)
 
