@@ -74,6 +74,17 @@ DATASETS: dict[str, tuple[dict[str, Any], dict[str, Any] | None]] = {
     "genia": ({}, None),
 }
 
+VALIDATION: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
+    # name: (options of the training corpus, of the validation corpus) for token
+    # classification, added to the options of the training corpus. As in Lang et al.
+    # (2021), it trains on corruption and wind energy and validates on dressage.
+    "acter": ({"domains": ("corp", "wind")}, {"domains": "equi"}),
+}
+
+TOKEN_CLASSIFICATION = {"epochs": 10, "patience": 2, "random_state": 0}
+"""The options of token classification: train for up to 10 epochs, keep the best on
+the validation corpus, and stop after 2 epochs without improvement."""
+
 TITLES = {"acter": "ACTER", "acl-rd-tec": "ACL RD-TEC 2.0", "genia": "GENIA"}
 
 UNSUPERVISED = [
@@ -267,14 +278,25 @@ def unsupervised(method: str, reference: Corpus | None):
     return TermExtractor(method=method, n=N, words_layer="tokens", **options)
 
 
-def supervised(method: str, train: Corpus, test: Corpus) -> ATEResults:
-    """Train a supervised extractor on the gold terms of one corpus and extract the
-    terms of another. Roger takes every other candidate as a non-term."""
+def supervised(dataset: str, method: str, train: Corpus, test: Corpus) -> ATEResults:
+    """Train a supervised extractor on the gold terms of the training corpus and
+    extract the terms of the test corpus. Roger takes every other candidate as a
+    non-term, and token classification learns from each annotated occurrence."""
+    if method == "token-classification":
+        train_options = DATASETS[dataset][1]
+        assert train_options is not None
+        train_extra, validation_extra = VALIDATION[dataset]
+        extractor = SupervisedTermExtractor(
+            method=method, words_layer="tokens", **TOKEN_CLASSIFICATION
+        )
+        return extractor.fit(
+            datasets.load(dataset, **train_options, **train_extra),
+            validation=datasets.load(dataset, **train_options, **validation_extra),
+        ).predict(test)
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
     # Roger's evolutionary search is random, so fix its seed; its runs are independent
-    options = {"random_state": 0, "n_jobs": -1} if method == "roger" else {}
     extractor = SupervisedTermExtractor(
-        method=method, n=N, words_layer="tokens", **options
+        method=method, n=N, words_layer="tokens", random_state=0, n_jobs=-1
     )
     return extractor.fit(train, dict.fromkeys(gold, 1)).predict(test)
 
@@ -307,7 +329,7 @@ def run(
         start = time.perf_counter()
         if method in SUPERVISED:
             assert train is not None
-            results = supervised(method, train, test)
+            results = supervised(dataset, method, train, test)
             gold = written_gold
             # Token classification tags terms rather than ranking candidates, so its
             # terms are not filtered, as in Lang et al. (2021)

@@ -57,13 +57,17 @@ methods, the candidates are those of ATR4S's candidate collector:
   candidates as weirdness does, so their results are the same.
 - **The supervised methods** are trained on the training domains of ACTER and tested on
   heart failure, so they are only run on ACTER: `fit` learns from the gold terms of the
-  training domains, and `predict` extracts the terms of the test domain. They read the
+  training domains, and `predict` extracts the terms of the test domain. Roger learns
+  from the list of gold terms of all three training domains. Token classification
+  learns from each annotated occurrence, as Lang et al. (2021) do: it trains on
+  corruption and wind energy for up to 10 epochs and keeps the epoch with the best F1
+  on dressage, stopping after 2 epochs without improvement (`patience=2`). They read the
   words as written, so they are scored against the gold terms as written. Roger's
   candidates must occur twice and have a letter or digit in each word, and by default
   it drops those that start or end with a stopword; token classification's are not
   filtered.
-- Roger's evolutionary search is seeded (`random_state=0`), and its runs are trained
-  in parallel (`n_jobs=-1`).
+- Both are seeded (`random_state=0`), and Roger's runs are trained in parallel
+  (`n_jobs=-1`).
 - Everything else is at its default.
 
 Terms are matched to the gold standard after lowercasing, against the distinct terms of
@@ -95,14 +99,14 @@ with ACTER's term list including named entities.
 | topicmodeling | NovelTopicModel | 44.0 | 49.0 | 31.2 | 26.1 | worse at the top, better overall |
 | domainpertinence | DomainPertinence | 69.0 | 58.0 | 37.4 | 30.3 | better |
 | domaincoherence | PostRankDC | 35.0 | 31.0 | 31.2 | 26.4 | better |
-| token-classification | (token classifier) | 72.0 | | 51.0\* | 58.3\* | **worse**: more precise, with lower recall |
+| token-classification | (token classifier) | 78.0 | | 58.2\* | 58.3\* | **same**: more precise, with lower recall |
 
-\* F1 of all the terms tagged: precision 61.2 and recall 43.6, against precision 54.9 and recall 62.2.
+\* F1 of all the terms tagged: precision 61.7 and recall 55.0, against precision 54.9 and recall 62.2.
 
 The token classifier of Lang et al. (Table 3) is based on XLM-RoBERTa, as TermXtract's
-is by default, and trained on English ACTER: corruption and wind energy, with dressage
-for validation and choosing the best checkpoint, where TermXtract trains on all three
-for three epochs. Their test set is from an earlier version of ACTER, with 2,585 gold
+is by default, and trained in the same way, on corruption and wind energy with dressage
+for validation. Validation F1 was best after the first epoch (51.5, then 33.3 and
+26.5), so TermXtract's training stopped after three. Their test set is from an earlier version of ACTER, with 2,585 gold
 terms. The best system of the TermEval 2020 shared task scored 46.7 (Rigouts Terryn et
 al., 2020). Roger, NMF and RAKE have no published results on these datasets.
 
@@ -156,7 +160,7 @@ tagging, which is done once and cached.
 | nmf | 2,687 | 34% | 0.471 | 48.0 | 3.8 | 46.2 | 15.7 | 40.7 | 23.7 | 35.4 | 32.0 | 0 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
-| token-classification | 1,821 | 61% | 0.657 | 72.0 | 5.4 | 65.0 | 21.3 | 63.9 | 35.9 | 61.2 | 51.0 | 335 |
+| token-classification | 2,280 | 62% | 0.716 | 78.0 | 5.9 | 72.6 | 23.8 | 67.8 | 38.1 | 61.9 | 54.3 | 305 |
 
 #### ACL RD-TEC 2.0
 
@@ -205,7 +209,8 @@ domain coherence (#52) and domain pertinence (#64) were fixed after the first ve
 of this benchmark, the candidates were brought in line with ATR4S's (#67, #70), NMF no
 longer runs out of memory on GENIA (#66), token classification no longer fills the
 disk with checkpoints (#68), Roger trains in seconds instead of hours (#60), and the
-supervised methods can train on one corpus and extract from another (#43).
+supervised methods can train on one corpus and extract from another, token
+classification from gold spans with a validation set (#43).
 AdaBoost was removed (#59): it was the weakest and slowest method, a loose
 simplification of Vivaldi et al. (2001) with no published results to compare with.
 
