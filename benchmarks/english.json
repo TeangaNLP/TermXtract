@@ -335,8 +335,8 @@
         "candidates": 2687,
         "gold": 2435,
         "gold_candidates": 912,
-        "atr4s_average_precision": 0.47043470809233523,
-        "average_precision": 0.15351537098608217,
+        "atr4s_average_precision": 0.4706089796324865,
+        "average_precision": 0.15352006758669057,
         "100": {
           "precision": 0.48,
           "recall": 0.01971252566735113,
@@ -362,7 +362,7 @@
           "recall": 0.37453798767967145,
           "f1": 0.3561108941819602
         },
-        "seconds": 0.48404477164149284
+        "seconds": 0.17493786104023457
       },
       "rake": {
         "candidates": 928,
@@ -832,8 +832,8 @@
         "candidates": 1492,
         "gold": 2857,
         "gold_candidates": 783,
-        "atr4s_average_precision": 0.6823180029945446,
-        "average_precision": 0.17148464842569097,
+        "atr4s_average_precision": 0.6823543135097424,
+        "average_precision": 0.1714959135455328,
         "100": {
           "precision": 0.71,
           "recall": 0.024851242562128107,
@@ -859,7 +859,7 @@
           "recall": 0.27406370318515927,
           "f1": 0.36008277765003455
         },
-        "seconds": 0.33811833150684834
+        "seconds": 0.09461699239909649
       },
       "rake": {
         "candidates": 219,
@@ -1230,8 +1230,8 @@
         "candidates": 15740,
         "gold": 30593,
         "gold_candidates": 8395,
-        "atr4s_average_precision": 0.6541046523173268,
-        "average_precision": 0.16817555340609933,
+        "atr4s_average_precision": 0.6541066092611594,
+        "average_precision": 0.16817575655477987,
         "100": {
           "precision": 0.76,
           "recall": 0.0024842284182656164,
@@ -1257,7 +1257,7 @@
           "recall": 0.27440917857026115,
           "f1": 0.3623767077460988
         },
-        "seconds": 20.4492524061352
+        "seconds": 1.0808495953679085
       },
       "rake": {
         "candidates": 4912,
