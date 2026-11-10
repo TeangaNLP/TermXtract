@@ -277,8 +277,10 @@ def supervised(method: str, train: Corpus, test: Corpus) -> ATEResults:
     """
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
     # The extractors have different methods, so the type is that of each branch
+    # Roger's evolutionary search is random, so fix its seed; its runs are independent
+    options = {"random_state": 0, "n_jobs": -1} if method == "roger" else {}
     extractor: Any = SupervisedTermExtractor(
-        method=method, n=N, words_layer="tokens"
+        method=method, n=N, words_layer="tokens", **options
     ).extractor
     if method == "token-classification":
         extractor.train_terms_teanga(train, dict.fromkeys(gold, 1))

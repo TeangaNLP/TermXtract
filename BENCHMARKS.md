@@ -60,6 +60,8 @@ methods, the candidates are those of ATR4S's candidate collector:
   are scored against the gold terms as written. Roger's candidates must
   occur twice and have a letter or digit in each word; token classification's are not
   filtered.
+- Roger's evolutionary search is seeded (`random_state=0`), and its runs are trained
+  in parallel (`n_jobs=-1`).
 - Everything else is at its default.
 
 Terms are matched to the gold standard after lowercasing, against the distinct terms of
@@ -151,7 +153,7 @@ tagging, which is done once and cached.
 | topicmodeling | 2,198 | 34% | 0.422 | 44.0 | 3.5 | 37.4 | 12.7 | 35.1 | 20.4 | 34.5 | 31.2 | 0 |
 | nmf | 2,687 | 34% | 0.471 | 48.0 | 3.8 | 46.2 | 15.7 | 40.7 | 23.7 | 35.4 | 32.0 | 0 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
-| roger | 8,989 | 6% | 0.348 | 36.0 | 2.7 | 24.4 | 8.0 | 20.2 | 11.4 | 15.7 | 13.7 | 8279 |
+| roger | 8,989 | 6% | 0.386 | 39.0 | 2.9 | 26.4 | 8.6 | 22.1 | 12.4 | 16.9 | 14.8 | 25 |
 | token-classification | 1,804 | 62% | 0.663 | 71.0 | 5.3 | 66.6 | 21.8 | 64.5 | 36.3 | 62.1 | 51.4 | 379 |
 
 #### ACL RD-TEC 2.0
@@ -193,8 +195,6 @@ tagging, which is done once and cached.
 The benchmark found these problems in the implementations. Each needs its own fix; the
 results above are of the code as it is.
 
-- **Roger** (`roger`) is slow because its evolutionary search scores every training
-  candidate for every offspring: it takes hours to train on ACTER (#60).
 - `SupervisedTermExtractor.extract` trains and predicts on the same corpus, so the
   benchmark calls the extractors' own methods to train on one corpus and test on
   another (#43). The supervised methods have no `lemma_layer` yet.
@@ -202,10 +202,10 @@ results above are of the code as it is.
 C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (#65),
 domain coherence (#52) and domain pertinence (#64) were fixed after the first version
 of this benchmark, the candidates were brought in line with ATR4S's (#67, #70), NMF no
-longer runs out of memory on GENIA (#66), and token classification no longer fills the
-disk with checkpoints (#68). AdaBoost was removed (#59): it was the weakest and slowest
-method, a loose simplification of Vivaldi et al. (2001) with no published results to
-compare with.
+longer runs out of memory on GENIA (#66), token classification no longer fills the
+disk with checkpoints (#68), and Roger trains in seconds instead of hours (#60).
+AdaBoost was removed (#59): it was the weakest and slowest method, a loose
+simplification of Vivaldi et al. (2001) with no published results to compare with.
 
 ### References
 
