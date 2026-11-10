@@ -72,6 +72,32 @@ class TestNMFExtraction(unittest.TestCase):
                     "score", term_data, "Each term entry should have a 'score'."
                 )
 
+    def test_documents_list_their_own_terms(self):
+        """Each document lists only the scored candidates that occur in it (#66)."""
+        texts = ["heart failure patients", "heart failure", "rain falls"]
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
+        for text in texts:
+            doc = corpus.add_doc(text)
+            doc.words = [m.span() for m in re.finditer(r"\w+", text)]
+
+        results = TermExtractor(method="nmf", n_topics=2).extract(corpus)
+        found = [{t["term"] for t in doc["terms"]} for doc in results.terms]
+        self.assertEqual(found, [set(text.split()) for text in texts])
+        self.assertEqual(
+            results.offsets[2]["offsets"],
+            [
+                {"term": "rain", "offset": (0, 4)},
+                {"term": "falls", "offset": (5, 10)},
+            ],
+        )
+
+        # With max_features, candidates outside the vocabulary have no score
+        limited = TermExtractor(method="nmf", n_topics=2, max_features=2).extract(texts)
+        found = [{t["term"] for t in doc["terms"]} for doc in limited.terms]
+        self.assertEqual(found, [{"heart", "failure"}, {"heart", "failure"}, set()])
+
 
 if __name__ == "__main__":
     unittest.main()

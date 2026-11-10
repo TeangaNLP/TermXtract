@@ -88,13 +88,18 @@ class NMFTermExtractor(BaseTermExtractor):
 
     def extract_terms_strings(self, corpus: list[str]) -> ATEResults:
         """Extract terms from a plain list of strings using NMF."""
-        term_scores = self.score_terms(
-            self.candidate_ngrams_strings(
-                [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
-            )
+        corpus_ngrams = self.candidate_ngrams_strings(
+            [re.findall(r"\b\w+\b", doc.lower()) for doc in corpus]
         )
+        term_scores = self.score_terms(corpus_ngrams)
+        # A term has the same score in every document, but is listed only in those it
+        # occurs in. With max_features, some candidates have no score.
         terms_by_doc = [
-            self.doc_terms(f"doc_{idx}", term_scores) for idx in range(len(corpus))
+            self.doc_terms(
+                f"doc_{idx}",
+                {ngram: term_scores[ngram] for ngram in ngrams if ngram in term_scores},
+            )
+            for idx, ngrams in enumerate(corpus_ngrams)
         ]
         return ATEResults(corpus=corpus, terms=terms_by_doc)
 
@@ -104,7 +109,19 @@ class NMFTermExtractor(BaseTermExtractor):
         term_scores = self.score_terms(
             [[ngram for ngram, _ in ngrams] for ngrams in ngrams_by_doc.values()]
         )
-        terms_by_doc = [
-            self.doc_terms(doc_id, term_scores) for doc_id in corpus.doc_ids
-        ]
-        return ATEResults(corpus=corpus, terms=terms_by_doc)
+        terms_by_doc = []
+        offsets_by_doc = []
+        for doc_id, ngrams_with_offsets in ngrams_by_doc.items():
+            doc_terms = self.doc_terms(
+                doc_id,
+                {
+                    ngram: term_scores[ngram]
+                    for ngram, _ in ngrams_with_offsets
+                    if ngram in term_scores
+                },
+            )
+            terms_by_doc.append(doc_terms)
+            offsets_by_doc.append(
+                self.doc_offsets(doc_id, ngrams_with_offsets, doc_terms)
+            )
+        return ATEResults(corpus=corpus, terms=terms_by_doc, offsets=offsets_by_doc)
