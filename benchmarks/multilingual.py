@@ -1,14 +1,14 @@
 """
 Run the multilingual benchmark of BENCHMARKS.md: every method of TermXtract on HTEC 2.0
-(Hindi) and RSDO5 1.1 (Slovenian).
+(Hindi), RSDO5 1.1 (Slovenian) and the Irish Wikipedia gold standard.
 
     python benchmarks/multilingual.py                 # everything, to benchmarks/multilingual.json
     python benchmarks/multilingual.py --datasets rsdo5 --methods tfidf cvalue
     python benchmarks/multilingual.py --markdown      # print the tables of a saved run
 
-The datasets are downloaded on first use (see `termxtract.datasets`), as is a sample of
-100,000 sentences of Hindi Wikipedia from the Leipzig Corpora Collection, which the
-reference-corpus methods use as general-language text for HTEC. The token-classification
+The datasets are downloaded on first use (see `termxtract.datasets`), as are samples of
+Hindi and Irish Wikipedia from the Leipzig Corpora Collection, which the reference-corpus
+methods use as general-language text for HTEC and the Irish gold standard. The token-classification
 method needs the `transformers` extra, and a GPU to finish in reasonable time.
 
 HTEC has no part-of-speech tags or lemmas, so on HTEC every method reads the words as
@@ -28,6 +28,15 @@ least twice. Each domain is a test domain in turn, as in Tran et al. (2022): the
 supervised methods train on two other domains, and token classification validates on
 the fourth. The reference-corpus methods compare the test domain with the other three.
 Stopwords are from the Slovenian list.
+
+The Irish gold standard is tokenised but has no lemmas or tags, so the unsupervised
+methods read the words as written, as on HTEC, over all 11 articles, with the Irish
+stopwords. It is too small for a fixed split, so the supervised methods are evaluated
+leaving one article out: each article is the test article in turn, token classification
+validates on the next one, and the methods train on the other nine. Their results are
+pooled over the 11 folds: the term sets, for precision, recall and F1, since the
+rankings of 11 models cannot be merged, and for token classification the tagged
+occurrences and the B, I and O tag of each token, as McCrae & Doyle (2019) report.
 """
 
 import argparse
@@ -36,7 +45,7 @@ import random
 import re
 import tarfile
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from english import KS as ENGLISH_KS
@@ -60,10 +69,11 @@ from termxtract.datasets import base, rsdo5
 from termxtract.evaluation import normalize_term
 from termxtract.stopwords import load_stopwords
 
-KS = {"htec": (100, 500)}
+KS = {"htec": (100, 500), "irish-wikipedia": (100, 500)}
 """The numbers of top-ranked terms that precision, recall and F1 are reported at, by
-dataset. HTEC's test documents have a few hundred gold terms, so fewer than for English;
-the other datasets use those of the English benchmark."""
+dataset. HTEC's test documents and the Irish gold standard have a few hundred gold
+terms, so fewer than for English; the other datasets use those of the English
+benchmark."""
 
 RSDO5_FOLDS = {
     "jez": (("bim", "kem"), "vet"),
@@ -80,16 +90,25 @@ TITLES = {
     "rsdo5-jez": "RSDO5, linguistics",
     "rsdo5-kem": "RSDO5, chemistry",
     "rsdo5-vet": "RSDO5, veterinary science",
+    "irish-wikipedia": "Irish Wikipedia",
 }
 
 
-LEIPZIG = datasets.Resource(
+LEIPZIG_HINDI = datasets.Resource(
     "https://downloads.wortschatz-leipzig.de/corpora/hin_wikipedia_2021_100K.tar.gz",
     "bdb8cd8d52db3a974319c4c2791d3cac322aea223e71e4b204587afcff52289d",
     "hin_wikipedia_2021_100K.tar.gz",
 )
 """100,000 sentences of Hindi Wikipedia (2021) from the Leipzig Corpora Collection
 (Goldhahn, Eckart & Quasthoff, 2012), about 1.8 million words."""
+
+LEIPZIG_IRISH = datasets.Resource(
+    "https://downloads.wortschatz-leipzig.de/corpora/gle_wikipedia_2021_30K.tar.gz",
+    "605ddb1d7847d609826392bbc44177ce7b189a3bd342d8dc837e9a00c6a6853c",
+    "gle_wikipedia_2021_30K.tar.gz",
+)
+"""30,000 sentences of Irish Wikipedia (2021) from the Leipzig Corpora Collection, about
+560,000 words: its largest Irish sample."""
 
 REFERENCE_DOCUMENT = 100
 """The number of consecutive sentences of the reference corpus in each document."""
@@ -104,23 +123,23 @@ RAKE_DELIMITERS = list(".,;:!?()[]\"'।॥")
 """The punctuation that RAKE splits phrases at, with the danda and double danda."""
 
 
-def load_reference(exclude: Iterable[str]) -> Corpus:
+def load_reference(
+    resource: datasets.Resource, exclude: Callable[[str], bool]
+) -> Corpus:
     """
-    The Leipzig sample of Hindi Wikipedia as a Teanga corpus with a `tokens` layer,
-    leaving out the sentences in `exclude`, such as those of the dataset.
+    A Leipzig sample as a Teanga corpus with a `tokens` layer, leaving out the
+    sentences for which `exclude` is true, such as those of the dataset.
     """
-    path = base.data_home() / "leipzig" / LEIPZIG.filename
+    path = base.data_home() / "leipzig" / resource.filename
     if not path.exists():
-        base._fetch(LEIPZIG, path)
-    excluded = {" ".join(sentence.split()) for sentence in exclude}
+        base._fetch(resource, path)
+    name = resource.filename.removesuffix(".tar.gz")
     with tarfile.open(path) as archive:
-        member = archive.extractfile(
-            "hin_wikipedia_2021_100K/hin_wikipedia_2021_100K-sentences.txt"
-        )
+        member = archive.extractfile(f"{name}/{name}-sentences.txt")
         assert member is not None
         lines = member.read().decode("utf-8").splitlines()
     sentences = [line.split("\t", 1)[1] for line in lines]
-    sentences = [s for s in sentences if " ".join(s.split()) not in excluded]
+    sentences = [s for s in sentences if not exclude(s)]
     corpus = Corpus()
     corpus.add_layer_meta("text")
     corpus.add_layer_meta("tokens", layer_type="span", base="text")
@@ -152,19 +171,21 @@ def split_htec(corpus: Corpus) -> dict[str, list[str]]:
 
 
 def subset(corpus: Corpus, doc_ids: list[str]) -> Corpus:
-    """A new corpus of some documents of a loaded HTEC corpus, with all their layers."""
+    """A new corpus of some documents of a loaded corpus, with all their layers."""
     out = Corpus()
-    for name in ("text", "source", "tokens", "sentences", "terms", "categories"):
-        desc = corpus.meta[name]
+    for name, desc in corpus.meta.items():
         out.add_layer_meta(
             name, layer_type=desc.layer_type, base=desc.base, data=desc.data
         )
+    characters = [n for n, d in corpus.meta.items() if d.layer_type == "characters"]
     for doc_id in doc_ids:
         doc = corpus.doc_by_id(doc_id)
-        new = out.add_doc(text=doc.text, source=doc["source"].text[0])
-        for name in ("tokens", "sentences", "terms"):
-            new[name] = [(span[0], span[1]) for span in doc[name]]
-        new["categories"] = list(doc["categories"])
+        new = out.add_doc(**{name: doc[name].text[0] for name in characters})
+        for name, desc in corpus.meta.items():
+            if desc.layer_type == "span":
+                new[name] = [(span[0], span[1]) for span in doc[name]]
+            elif desc.layer_type == "seq":
+                new[name] = list(doc[name])
     return out
 
 
@@ -191,44 +212,82 @@ def tagged_occurrences(corpus: Corpus) -> set[tuple[str, int, int]]:
     return occurrences
 
 
-def mention_scores(results: ATEResults, corpus: Corpus) -> dict:
-    """Precision, recall and F1 of the tagged occurrences, by exact offsets, against
-    `tagged_occurrences`."""
+def found_occurrences(results: ATEResults) -> set[tuple[str, int, int]]:
+    """The occurrences that token classification tagged, as (document, start, end)."""
     assert results.offsets is not None
-    found = {
+    return {
         (doc["doc_id"], *occurrence["offset"])
         for doc in results.offsets
         for occurrence in doc["offsets"]
     }
-    gold = tagged_occurrences(corpus)
-    correct = len(found & gold)
-    precision = correct / len(found) if found else 0.0
-    recall = correct / len(gold) if gold else 0.0
+
+
+def prf(found: int, gold: int, correct: int) -> dict:
+    """Precision, recall and F1 from counts."""
+    precision = correct / found if found else 0.0
+    recall = correct / gold if gold else 0.0
     f1 = 2 * precision * recall / (precision + recall) if correct else 0.0
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+
+def mention_scores(found: set[tuple[str, int, int]], corpus: Corpus) -> dict:
+    """Precision, recall and F1 of the tagged occurrences, by exact offsets, against
+    `tagged_occurrences`."""
+    gold = tagged_occurrences(corpus)
     return {
         "occurrences": len(found),
         "gold": len(gold),
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
+        **prf(len(found), len(gold), len(found & gold)),
     }
 
 
-def unsupervised(method: str, reference: Corpus) -> TermExtractor:
-    """An unsupervised extractor with the benchmark settings."""
+def iob(corpus: Corpus, occurrences: set[tuple[str, int, int]]) -> list[str]:
+    """The B, I or O tag of each token of the corpus, given the occurrences of terms."""
+    tags = []
+    for doc_id in corpus.doc_ids:
+        doc = corpus.doc_by_id(doc_id)
+        spans = [(s, e) for d, s, e in occurrences if d == doc_id]
+        for start, end in doc.tokens:
+            covering = [s for s, e in spans if s <= start and end <= e]
+            tags.append("O" if not covering else "B" if start in covering else "I")
+    return tags
+
+
+def tag_scores(corpus: Corpus, found: set[tuple[str, int, int]]) -> dict:
+    """Precision, recall and F1 of each of the B, I and O tags of the tokens."""
+    gold = iob(corpus, tagged_occurrences(corpus))
+    predicted = iob(corpus, found)
+    return {
+        tag: prf(
+            predicted.count(tag),
+            gold.count(tag),
+            sum(p == g == tag for p, g in zip(predicted, gold)),
+        )
+        for tag in "BIO"
+    }
+
+
+def unsupervised(
+    method: str, reference: Corpus, stopwords: str = "hindi"
+) -> TermExtractor:
+    """An unsupervised extractor with the benchmark settings for words as written."""
     options: dict = {}
     if method in REFERENCE_METHODS:
         options["reference_corpus"] = reference
     if method == "rake":
-        options["stoplist"] = sorted(load_stopwords("hindi"))
+        options["stoplist"] = sorted(load_stopwords(stopwords))
         options["phrase_delimiters"] = RAKE_DELIMITERS
     else:
-        options.update(min_frequency=MIN_FREQUENCY, stopwords="hindi")
+        options.update(min_frequency=MIN_FREQUENCY, stopwords=stopwords)
     return TermExtractor(method=method, n=N, words_layer="tokens", **options)
 
 
 def supervised(
-    method: str, train: Corpus, validation: Corpus, test: Corpus
+    method: str,
+    train: Corpus,
+    validation: Corpus,
+    test: Corpus,
+    stopwords: str = "hindi",
 ) -> ATEResults:
     """Train a supervised extractor on the training documents and extract the terms of
     the test documents, as for the English benchmark."""
@@ -236,7 +295,7 @@ def supervised(
         extractor = SupervisedTermExtractor(
             method=method,
             words_layer="tokens",
-            stopwords="hindi",
+            stopwords=stopwords,
             **TOKEN_CLASSIFICATION,
         )
         return extractor.fit(train, validation=validation).predict(test)
@@ -245,7 +304,7 @@ def supervised(
         method=method,
         n=N,
         words_layer="tokens",
-        stopwords="hindi",
+        stopwords=stopwords,
         random_state=0,
         n_jobs=-1,
     )
@@ -263,8 +322,13 @@ def run_htec(methods: Iterable[str], out: dict, save) -> None:
         name: sorted(corpus.doc_by_id(d)["source"].text[0] for d in ids)
         for name, ids in parts.items()
     }
+    excluded = {
+        " ".join(s.split())
+        for d in corpus.doc_ids
+        for s in corpus.doc_by_id(d).sentences.text
+    }
     reference = load_reference(
-        s for d in corpus.doc_ids for s in corpus.doc_by_id(d).sentences.text
+        LEIPZIG_HINDI, lambda sentence: " ".join(sentence.split()) in excluded
     )
     gold = {normalize_term(t) for t in datasets.gold_terms(test)}
     keep_written = written_filter(test)
@@ -283,7 +347,7 @@ def run_htec(methods: Iterable[str], out: dict, save) -> None:
             "seconds": time.perf_counter() - start,
         }
         if method == "token-classification":
-            out[method]["mentions"] = mention_scores(results, test)
+            out[method]["mentions"] = mention_scores(found_occurrences(results), test)
         save()
         print(f"htec {method}: F1@500 {out[method]['500']['f1']:.3f}", flush=True)
 
@@ -377,6 +441,65 @@ def run_rsdo5(methods: Iterable[str], results: dict, save) -> None:
             print(f"rsdo5-{test_domain} {method}: F1@2000 {f1:.3f}", flush=True)
 
 
+def run_irish(methods: Iterable[str], out: dict, save) -> None:
+    """Run the methods on the Irish gold standard, adding the scores of each to `out`
+    and saving."""
+    corpus = datasets.load("irish-wikipedia")
+    doc_ids = list(corpus.doc_ids)
+    # The texts are tokenised, so compare them with the reference without spaces
+    texts = ["".join(corpus.doc_by_id(d).text.split()) for d in doc_ids]
+    reference = load_reference(
+        LEIPZIG_IRISH,
+        lambda sentence: any("".join(sentence.split()) in text for text in texts),
+    )
+    gold = {normalize_term(t) for t in datasets.gold_terms(corpus)}
+    keep_written = written_filter(corpus)
+    for method in methods:
+        start = time.perf_counter()
+        if method not in SUPERVISED:
+            results = unsupervised(method, reference, stopwords="ga").extract(corpus)
+            keep = keep_written if method == "rake" else bool
+            out[method] = {
+                **scores(ranking(results, keep), gold, KS["irish-wikipedia"]),
+                "seconds": time.perf_counter() - start,
+            }
+            save()
+            f1 = out[method]["500"]["f1"]
+            print(f"irish-wikipedia {method}: F1@500 {f1:.3f}", flush=True)
+            continue
+        # Leave one article out, validating on the next, and pool the folds
+        terms: set[str] = set()
+        found: set[tuple[str, int, int]] = set()
+        for i, test_id in enumerate(doc_ids):
+            validation_id = doc_ids[(i + 1) % len(doc_ids)]
+            train_ids = [d for d in doc_ids if d not in (test_id, validation_id)]
+            results = supervised(
+                method,
+                subset(corpus, train_ids),
+                subset(corpus, [validation_id]),
+                subset(corpus, [test_id]),
+                stopwords="ga",
+            )
+            # As for English, token classification's tagged terms are not filtered
+            keep = bool if method == "token-classification" else keep_written
+            terms |= {t["term"] for t in ranking(results, keep).terms[0]["terms"]}
+            if method == "token-classification":
+                found |= found_occurrences(results)
+        out[method] = {
+            "candidates": len(terms),
+            "gold": len(gold),
+            "gold_candidates": len(terms & gold),
+            "all": prf(len(terms), len(gold), len(terms & gold)),
+            "seconds": time.perf_counter() - start,
+        }
+        if method == "token-classification":
+            out[method]["mentions"] = mention_scores(found, corpus)
+            out[method]["tags"] = tag_scores(corpus, found)
+        save()
+        f1 = out[method]["all"]["f1"]
+        print(f"irish-wikipedia {method}: F1 {f1:.3f}", flush=True)
+
+
 def markdown(results: dict) -> str:
     """The tables of BENCHMARKS.md for saved results."""
     lines = []
@@ -397,15 +520,20 @@ def markdown(results: dict) -> str:
             if "skipped" in s:
                 lines.append(f"| {method} | {s['skipped']} |")
                 continue
+            # The pooled folds of the Irish gold standard have no ranking
             cells = [
                 f"{s[str(k)]['precision'] * 100:.1f} | {s[str(k)]['f1'] * 100:.1f}"
+                if str(k) in s
+                else "– | –"
                 for k in ks
             ]
             share = s["gold_candidates"] / s["candidates"] if s["candidates"] else 0
             every = s["all"]
+            average = s.get("atr4s_average_precision")
             lines.append(
                 f"| {method} | {s['candidates']:,} | {share:.0%} | "
-                f"{s['atr4s_average_precision']:.3f} | "
+                + ("–" if average is None else f"{average:.3f}")
+                + " | "
                 + " | ".join(cells)
                 + f" | {every['precision'] * 100:.1f} | {every['recall'] * 100:.1f}"
                 f" | {every['f1'] * 100:.1f} | {s['seconds']:.0f} |"
@@ -416,7 +544,9 @@ def markdown(results: dict) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--datasets", nargs="+", default=["htec", "rsdo5"])
+    parser.add_argument(
+        "--datasets", nargs="+", default=["htec", "rsdo5", "irish-wikipedia"]
+    )
     parser.add_argument("--methods", nargs="+", default=UNSUPERVISED + SUPERVISED)
     parser.add_argument(
         "--output", type=Path, default=Path(__file__).with_name("multilingual.json")
@@ -446,6 +576,10 @@ def main() -> None:
         run_htec(args.methods, results["datasets"].setdefault("htec", {}), save)
     if "rsdo5" in args.datasets:
         run_rsdo5(args.methods, results, save)
+    if "irish-wikipedia" in args.datasets:
+        run_irish(
+            args.methods, results["datasets"].setdefault("irish-wikipedia", {}), save
+        )
 
 
 if __name__ == "__main__":

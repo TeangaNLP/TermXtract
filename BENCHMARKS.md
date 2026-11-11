@@ -5,8 +5,8 @@ published results of the same methods where there are any. The point is both to 
 baselines for new methods and to check that the implementations behave like the
 methods they implement.
 
-It covers the English datasets and, of the multilingual ones, HTEC (Hindi) and RSDO5
-(Slovenian). The Irish Wikipedia gold standard will follow once that dataset is added.
+It covers the English datasets and three multilingual ones: HTEC (Hindi), RSDO5
+(Slovenian) and the Irish Wikipedia gold standard.
 
 To reproduce the English results, install spaCy and its `en_core_web_sm` model, and
 run `python benchmarks/english.py`; for the multilingual results, run
@@ -220,8 +220,8 @@ simplification of Vivaldi et al. (2001) with no published results to compare wit
 
 #### Setup
 
-[HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) is the only multilingual dataset so
-far: 97 segments of 65 Hindi Wikipedia articles on education. The annotations that start
+[HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) has 97 segments of 65 Hindi
+Wikipedia articles on education. The annotations that start
 inside a word are left out, as `datasets.load("htec")` does by default.
 
 - **Split.** HTEC has no published split, so the benchmark splits it by article, so that
@@ -455,6 +455,85 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 - **Token classification** is far ahead of every other method, as on ACTER and HTEC.
 - **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
 
+### Irish Wikipedia gold standard
+
+#### Setup
+
+The [Irish Wikipedia gold standard](https://doi.org/10.5281/zenodo.24132067) of McCrae &
+Doyle (2019) has 11 Irish Wikipedia articles, 5,178 tokens and 577 distinct gold terms.
+The two annotations that are a lone quotation mark are left out, as
+`datasets.load("irish-wikipedia")` does.
+
+- **Candidates.** The articles are tokenised but have no lemmas or tags, so, as on
+  HTEC, words are read as written and there is no part-of-speech pattern. Candidates are
+  sequences of up to four words that don't start or end with a word of stopwords-iso's
+  Irish list (`stopwords="ga"`), whose words each have a letter or digit, and that occur
+  at least twice. The unsupervised methods run on all 11 articles.
+- **The reference corpus** is a sample of Irish Wikipedia from the Leipzig Corpora
+  Collection, its largest Irish sample: 30,000 sentences, or 560,000 words. The 13
+  sentences it shares with the gold standard are left out.
+- **The supervised methods** are evaluated leaving one article out, since 11 articles
+  are too few for a fixed split. Each article is the test article in turn: the methods
+  train on nine of the others, and token classification keeps the best epoch on the
+  remaining one, the next article. The results of the 11 folds are pooled: the terms
+  found in each test article are scored together against all the gold terms. Rankings
+  from 11 models can't be merged, so the supervised methods have no ranked scores.
+- **Cut-offs.** With 577 gold terms, precision, recall and F1 are reported for the top
+  100 and 500 terms, and over all candidates.
+
+#### Comparison with published results
+
+McCrae & Doyle (2019, Table 4) report precision, recall and F1 for each of the B, I and
+O tags of the tokens. Their tagger is a maximum-entropy model trained on other Irish
+corpora, tagged by part of speech or by matching the Tearma term database. TermXtract's
+token classification is pooled over the folds, as described above:
+
+| Tag | Best published P | R | F1 | TermXtract P | R | F1 | |
+|---|---:|---:|---:|---:|---:|---:|---|
+| B | 70.7 | 50.6 | 59.0 | 76.6 | 75.7 | 76.2 | **better** |
+| I | 74.7 | 46.8 | 57.6 | 84.8 | 58.2 | 69.0 | **better** |
+| O | 90.7 | 83.5 | 86.9 | 91.1 | 95.8 | 93.4 | **better** |
+
+The best published F1 for B is from the merged part-of-speech corpora converted to IOB
+tags, for I from the merged part-of-speech corpora, and for O from all the corpora
+together (Tearma alone ties). The comparison favours TermXtract: it fine-tunes
+XLM-RoBERTa on articles from the gold standard itself, while McCrae & Doyle train on
+other corpora. Per occurrence, TermXtract tags terms with precision 65.0, recall 64.2 and
+F1 64.6.
+
+#### Results
+
+| Method | Candidates | Gold | AvP (ATR4S) | P@100 | F1@100 | P@500 | F1@500 | P | R | F1 | Time (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tfidf | 638 | 20% | 0.424 | 30.0 | 8.9 | 20.8 | 19.3 | 19.9 | 22.0 | 20.9 | 0 |
+| ridf | 638 | 20% | 0.313 | 29.0 | 8.6 | 23.2 | 21.5 | 19.9 | 22.0 | 20.9 | 0 |
+| cvalue | 638 | 20% | 0.238 | 24.0 | 7.1 | 23.6 | 21.9 | 19.9 | 22.0 | 20.9 | 0 |
+| basic | 638 | 20% | 0.206 | 15.0 | 4.4 | 19.8 | 18.4 | 19.9 | 22.0 | 20.9 | 0 |
+| combobasic | 638 | 20% | 0.168 | 15.0 | 4.4 | 19.8 | 18.4 | 19.9 | 22.0 | 20.9 | 0 |
+| domaincoherence | 638 | 20% | 0.217 | 19.0 | 5.6 | 21.4 | 19.9 | 19.9 | 22.0 | 20.9 | 0 |
+| relevance | 638 | 20% | 0.302 | 25.0 | 7.4 | 23.2 | 21.5 | 19.9 | 22.0 | 20.9 | 1 |
+| domainpertinence | 638 | 20% | 0.317 | 26.0 | 7.7 | 23.8 | 22.1 | 19.9 | 22.0 | 20.9 | 1 |
+| weirdness | 638 | 20% | 0.315 | 25.0 | 7.4 | 23.8 | 22.1 | 19.9 | 22.0 | 20.9 | 1 |
+| topicmodeling | 631 | 20% | 0.275 | 28.0 | 8.3 | 20.2 | 18.8 | 19.8 | 21.7 | 20.7 | 0 |
+| nmf | 638 | 20% | 0.385 | 34.0 | 10.0 | 19.0 | 17.6 | 19.9 | 22.0 | 20.9 | 0 |
+| rake | 42 | 60% | 0.759 | 59.5 | 8.1 | 59.5 | 8.1 | 59.5 | 4.3 | 8.1 | 0 |
+| roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
+| token-classification | 575 | 66% | – | – | – | – | – | 65.7 | 65.5 | 65.6 | 192 |
+
+#### Observations
+
+- **Few gold terms are candidates.** Only 22% of the gold terms are candidates of the
+  unsupervised methods. 435 of the 577 gold terms occur only once, and 20 are longer
+  than four words. A few start with the article `an` or `na`, as in `an tSomáilis`,
+  and both are stopwords.
+- **The reference corpus helps a little.** Weirdness and domain pertinence have the best
+  F1@500 (22.1), against 19.3 for TF-IDF. NMF and TF-IDF have the best precision at
+  the top, with P@100 of 34 and 30.
+- **Token classification** is far ahead of every other method, as on the other datasets,
+  even with only nine articles to train on.
+- **Roger and RAKE** are the weakest. RAKE keeps only 42 candidates, since its phrases
+  are long and must occur twice.
+
 ## References
 
 - Astrakhantsev, N. (2018). ATR4S: toolkit with state-of-the-art automatic terms
@@ -475,6 +554,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 - Ljubešić, N., Fišer, D., & Erjavec, T. (2019). KAS-term: extracting Slovene terms
   from doctoral theses via supervised machine learning. In *Proceedings of TSD 2019*,
   115–126.
+- McCrae, J. P., & Doyle, A. (2019). Adapting term recognition to an under-resourced
+  language: the case of Irish. In *Proceedings of the Celtic Language Technology
+  Workshop*, 48–57. https://aclanthology.org/W19-6907
 - Navigli, R., & Velardi, P. (2004). Learning domain ontologies from document
   warehouses and dedicated web sites. *Computational Linguistics*, 30(2), 151–179.
 - Tran, H. T. H., Martinc, M., Repar, A., Doucet, A., & Pollak, S. (2022). A
