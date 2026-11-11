@@ -62,9 +62,9 @@ methods, the candidates are those of ATR4S's candidate collector:
   learns from each annotated occurrence, as Lang et al. (2021) do: it trains on
   corruption and wind energy for up to 10 epochs and keeps the epoch with the best F1
   on dressage, stopping after 2 epochs without improvement (`patience=2`). They read the
-  words as written, since they have no `lemma_layer` yet (#91), so they are scored
-  against the gold terms as written. Roger's
-  candidates must occur twice and have a letter or digit in each word, and by default
+  words as written and are scored against the gold terms as written, as Lang et al.
+  (2021) and Tran et al. (2022) score token classification, although they could read
+  lemmas too (`lemma_layer`). Roger's candidates must occur twice and have a letter or digit in each word, and by default
   it drops those that start or end with a stopword; token classification's are not
   filtered. AdaBoost was removed (#59): it was the weakest and slowest method, a loose
   simplification of Vivaldi et al. (2001) with no published results to compare with.
