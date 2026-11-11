@@ -50,6 +50,7 @@ class SupervisedTermExtractor:
                 "n_jobs",
                 "stopwords",
                 "words_layer",
+                "lemma_layer",
                 "terms_layer",
             ),
         ),
@@ -66,6 +67,7 @@ class SupervisedTermExtractor:
                 "language",
                 "stopwords",
                 "words_layer",
+                "lemma_layer",
                 "random_state",
                 "patience",
                 "terms_layer",
@@ -101,6 +103,7 @@ class SupervisedTermExtractor:
         language: str = "en",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
         terms_layer: str = GOLD_LAYER,
         sentences_layer: str | None = None,
         pos_pattern: str | None = None,
@@ -143,6 +146,14 @@ class SupervisedTermExtractor:
             words_layer (Optional[str]): For Teanga input, the span layer holding the words:
                 None (the default) for `words` or, if the corpus has no `words` layer,
                 `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on the
+                words layer, holding the lemma of each word, such as `lemma`. If given,
+                each term is given by the lemmas of its words, so inflected forms such as
+                "cell" and "cells" are one term, as for `TermExtractor`. Roger also
+                computes its measures over the lemmas, while token classification tags
+                the words as written. Labels given to `fit` are matched to the lemmas, so
+                write them as lemmas; gold terms of `terms_layer` are read by their
+                lemmas. None (the default) gives terms as written.
             terms_layer (str): For Teanga input, the span layer of gold terms that
                 `fit` trains on when it is given no labels: `terms` by default, as in
                 the corpora of `termxtract.datasets`.
@@ -188,11 +199,13 @@ class SupervisedTermExtractor:
             "language": language,
             "stopwords": stopwords,
             "words_layer": words_layer,
+            "lemma_layer": lemma_layer,
             "terms_layer": terms_layer,
             "sentences_layer": sentences_layer,
         }
         self.method = method
         self.words_layer = words_layer
+        self.lemma_layer = lemma_layer
         self.pos_pattern = (
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
@@ -278,7 +291,12 @@ class SupervisedTermExtractor:
         if self.pos_pattern is None:
             return results
         return filter_by_pos(
-            results, corpus, self.pos_pattern, self.pos_layer, self.words_layer
+            results,
+            corpus,
+            self.pos_pattern,
+            self.pos_layer,
+            self.words_layer,
+            self.lemma_layer,
         )
 
     def extract(

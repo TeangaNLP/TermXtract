@@ -21,7 +21,7 @@ from transformers import (
 )
 
 from ..datasets.base import GOLD_LAYER, SENTENCES_LAYER
-from ..layers import find_layer, word_spans
+from ..layers import find_layer, word_annotations, word_spans
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 
@@ -65,6 +65,7 @@ class TokenClassificationTermExtractor:
         language: str = "en",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
         random_state: int | None = None,
         patience: int | None = None,
         terms_layer: str = GOLD_LAYER,
@@ -86,6 +87,11 @@ class TokenClassificationTermExtractor:
                 end with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on
+                the words layer, holding the lemma of each word. The model still tags
+                the words as written, but each tagged term is given by the lemmas of its
+                words, so inflected forms are one term, and labels are matched to the
+                lemmas of the words. None gives terms as written.
             random_state (Optional[int]): Seed for the new classification layer of the
                 model and the order of the training examples, for reproducible
                 training, or None for an unseeded classification layer.
@@ -106,6 +112,7 @@ class TokenClassificationTermExtractor:
         self.language = language
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
+        self.lemma_layer = lemma_layer
         self.random_state = random_state
         self.patience = patience
         self.terms_layer = terms_layer
@@ -182,7 +189,10 @@ class TokenClassificationTermExtractor:
         return results
 
     def create_training_data(
-        self, sentence_list: list[tuple[list[str], str]], terms: dict[str, int]
+        self,
+        sentence_list: list[tuple[list[str], str]],
+        terms: dict[str, int],
+        lemmas: list[list[str]] | None = None,
     ) -> list[tuple[list[str], list[str]]]:
         """
         Create training data with token-level annotations.
@@ -193,6 +203,9 @@ class TokenClassificationTermExtractor:
         Args:
             sentence_list (List[Tuple[List[str], str]]): List of (tokens, original sentence) tuples.
             terms (Dict[str, int]): Dictionary with terms as keys and binary labels as values.
+            lemmas (Optional[List[List[str]]]): The lemma of each token of each
+                sentence, to match the terms to the lemmas rather than the tokens, or
+                None.
 
         Returns:
             List[Tuple[List[str], List[str]]]: List of (tokens, tags) tuples.
@@ -201,7 +214,7 @@ class TokenClassificationTermExtractor:
         # Only terms labelled 1 are tagged; labels are matched case-insensitively
         positive_terms = {term.lower() for term, label in terms.items() if label == 1}
 
-        for sentence_tokens, original_sentence in sentence_list:
+        for i, (sentence_tokens, original_sentence) in enumerate(sentence_list):
             if not sentence_tokens:
                 continue
 
@@ -211,8 +224,10 @@ class TokenClassificationTermExtractor:
                     end = start + length
                     if any(tag != "O" for tag in tags[start:end]):
                         continue
-                    n_gram = self.moses_detokenizer.detokenize(
-                        sentence_tokens[start:end]
+                    n_gram = (
+                        self.moses_detokenizer.detokenize(sentence_tokens[start:end])
+                        if lemmas is None
+                        else " ".join(lemmas[i][start:end])
                     )
                     if n_gram.lower() in positive_terms:
                         tags[start:end] = ["B"] + ["I"] * (length - 1)
@@ -359,7 +374,7 @@ class TokenClassificationTermExtractor:
         }
 
     def tagged_terms(
-        self, tags: list[str], tokens: list[str]
+        self, tags: list[str], tokens: list[str], lemmas: list[str] | None = None
     ) -> list[tuple[str, int, int]]:
         """
         Find the terms tagged in a sentence: each `B` with the `I` tags after it.
@@ -367,13 +382,23 @@ class TokenClassificationTermExtractor:
         Args:
             tags (List[str]): The tag of each token.
             tokens (List[str]): The tokens of the sentence.
+            lemmas (Optional[List[str]]): The lemma of each token, to give each term
+                by its lemmas, or None to give it as written.
 
         Returns:
             List[Tuple[str, int, int]]: Each term in lower case, with the index of its
             first token and of the token after its last.
         """
         return [
-            (self.moses_detokenizer.detokenize(tokens[j:k]).lower(), j, k)
+            (
+                (
+                    self.moses_detokenizer.detokenize(tokens[j:k])
+                    if lemmas is None
+                    else " ".join(lemmas[j:k])
+                ).lower(),
+                j,
+                k,
+            )
             for j, k in tag_spans(tags)
         ]
 
@@ -598,6 +623,32 @@ class TokenClassificationTermExtractor:
             documents.append(sentences)
         return documents
 
+    def _teanga_lemmas(
+        self,
+        corpus: Corpus,
+        documents: list[list[tuple[list[str], list[tuple[int, int]]]]],
+    ) -> list[list[list[str]]] | None:
+        """
+        Get the lemma of each word of each sentence from `_teanga_sentences`, or None
+        if `lemma_layer` is not set.
+        """
+        if self.lemma_layer is None:
+            return None
+        lemmas = []
+        for doc_id, sentences in zip(corpus.doc_ids, documents):
+            words = iter(
+                word_annotations(
+                    corpus.doc_by_id(doc_id),
+                    self.lemma_layer,
+                    (),
+                    "lemma_layer",
+                    self.words_layer,
+                )
+            )
+            # The sentences hold every word of the document, in order
+            lemmas.append([[next(words) for _ in tokens] for tokens, _ in sentences])
+        return lemmas
+
     def _teanga_training_data(
         self, corpus: Corpus, labels: dict[str, int] | None
     ) -> list[tuple[list[str], list[str]]]:
@@ -607,9 +658,11 @@ class TokenClassificationTermExtractor:
         """
         documents = self._teanga_sentences(corpus)
         if labels is not None:
+            lemmas = self._teanga_lemmas(corpus, documents)
             return self.create_training_data(
                 [(tokens, " ".join(tokens)) for doc in documents for tokens, _ in doc],
                 labels,
+                None if lemmas is None else [s for doc in lemmas for s in doc],
             )
         layer = find_layer(corpus.meta, self.terms_layer, (), "terms_layer")
         return [
@@ -643,6 +696,7 @@ class TokenClassificationTermExtractor:
         doc_ids: list[str],
         documents: list[list[tuple[list[str], str]]],
         spans: list[list[list[tuple[int, int]]]] | None = None,
+        lemmas: list[list[list[str]]] | None = None,
     ) -> ATEResults:
         """
         Tag the sentences of each document with the trained model.
@@ -657,6 +711,9 @@ class TokenClassificationTermExtractor:
             spans (Optional[List[List[List[Tuple[int, int]]]]]): The character offsets
                 of each token of each sentence of each document, to give the offsets of
                 the tagged terms, or None.
+            lemmas (Optional[List[List[List[str]]]]): The lemma of each token of each
+                sentence of each document, to give the tagged terms by their lemmas, or
+                None to give them as written.
 
         Returns:
             ATEResults: Results object with extracted terms, and their offsets if
@@ -679,7 +736,11 @@ class TokenClassificationTermExtractor:
             found = [
                 (term, s, start, end)
                 for s, (tokens, _) in enumerate(sentences)
-                for term, start, end in self.tagged_terms(next(sentence_tags), tokens)
+                for term, start, end in self.tagged_terms(
+                    next(sentence_tags),
+                    tokens,
+                    None if lemmas is None else lemmas[k][s],
+                )
             ]
             doc_terms: dict[str, Any] = {
                 "doc_id": doc_id,
@@ -812,6 +873,7 @@ class TokenClassificationTermExtractor:
             list(corpus.doc_ids),
             [[(tokens, " ".join(tokens)) for tokens, _ in doc] for doc in sentences],
             [[spans for _, spans in doc] for doc in sentences],
+            self._teanga_lemmas(corpus, sentences),
         )
 
     def extract_terms_teanga(

@@ -196,4 +196,6 @@ results = extractor.fit(train).predict(test)
 
 Token classification splits a Teanga document into sentences by its `sentences` layer, if it has one, or else after each `.`, `!` and `?`.
 
+If the corpus has a lemma layer, such as the `lemma` layer of RSDO5 or the ACL RD-TEC, pass `lemma_layer="lemma"` to give each term by its lemmas, so that `cell` and `cells` are one term, as for the unsupervised methods. Roger then computes its measures over the lemmas, while token classification still tags the words as written and only names the tagged terms by their lemmas. Gold terms of the `terms` layer are read by their lemmas too, but labels are matched to the lemmas as given, so write them as lemmas. To evaluate, read the gold terms in the same way, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
+
 See the API reference for [`SupervisedTermExtractor`](../api/supervised_term_extractor.md), [Roger](../api/supervised/roger.md) and [Token Classification](../api/supervised/token_classification.md) for all parameters.

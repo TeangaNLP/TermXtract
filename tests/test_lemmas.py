@@ -3,8 +3,9 @@ import re
 import pytest
 from teanga import Corpus
 
-from termxtract import TermExtractor
+from termxtract import SupervisedTermExtractor, TermExtractor
 from termxtract.datasets import gold_terms
+from termxtract.supervised.words import tokenize_teanga
 
 TEXTS = [
     "Cells divide quickly. A dividing cell grows.",
@@ -139,3 +140,57 @@ def test_gold_terms_by_lemma():
         "stem cell",
         "blood cell",
     }
+
+
+def roger(**params):
+    return SupervisedTermExtractor(
+        method="roger", generations=5, runs=3, random_state=0, **params
+    )
+
+
+def test_roger_terms_are_lemmas():
+    results = roger(lemma_layer="lemma").extract(corpus())
+    found = terms(results)
+    assert {"stem cell", "blood cell"} <= found
+    assert not any("cells" in term.split() for term in found)
+    offsets = [o for o in results.offsets[2]["offsets"] if o["term"] == "stem cell"]
+    assert [TEXTS[2][s:e] for s, e in (o["offset"] for o in offsets)] == ["Stem cells"]
+
+
+def test_roger_counts_inflected_forms_together():
+    by_lemma = roger(lemma_layer="lemma").extractor
+    as_written = roger().extractor
+    # "cell divide" is written "cells divide" in two documents and "cell divides" once
+    _, lemma_candidates = by_lemma.extract_features(
+        tokenize_teanga(corpus(), lemma_layer="lemma")
+    )
+    _, candidates = as_written.extract_features(tokenize_teanga(corpus()))
+    assert "cell divide" in lemma_candidates
+    assert {"cells divide", "cell divides"} <= set(candidates)
+    assert len(lemma_candidates) < len(candidates)
+
+
+def test_roger_gold_terms_by_lemma():
+    assert roger(lemma_layer="lemma").extractor.gold_terms(corpus()) == gold_terms(
+        corpus(), lemma_layer="lemma"
+    )
+
+
+def test_roger_labels_are_matched_to_lemmas():
+    labels = {"stem cell": 1, "blood cell": 1}
+    by_lemma = roger(lemma_layer="lemma").fit(corpus(), labels).predict(corpus())
+    assert {"stem cell", "blood cell"} <= terms(by_lemma)
+    # As written, no candidate is labelled 1
+    with pytest.raises(ValueError, match="labelled 1"):
+        roger().fit(corpus(), labels)
+
+
+def test_supervised_pos_pattern_matches_lemmas():
+    results = roger(lemma_layer="lemma", pos_pattern="noun_phrase").extract(corpus())
+    assert {"stem cell", "blood cell"} <= terms(results)
+    assert "cell divide" not in terms(results)
+
+
+def test_supervised_missing_lemma_layer():
+    with pytest.raises(ValueError, match="no 'lemma' layer"):
+        roger(lemma_layer="lemma").extract(corpus(with_lemmas=False))

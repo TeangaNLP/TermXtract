@@ -146,7 +146,7 @@ All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `st
 | `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state`, `max_negatives`, `patience`, `n_jobs` |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language`, `random_state`, `patience`, `sentences_layer` |
 
-All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger` and 6 for `token-classification`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates, and `words_layer` and `pos_layer` for Teanga input.
+All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger` and 6 for `token-classification`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates, and `words_layer`, `lemma_layer` and `pos_layer` for Teanga input.
 
 ## Results
 

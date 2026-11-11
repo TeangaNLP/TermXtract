@@ -163,6 +163,7 @@ class RogerTermExtractor:
         n_jobs: int | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
+        lemma_layer: str | None = None,
         terms_layer: str = GOLD_LAYER,
     ):
         """
@@ -195,6 +196,11 @@ class RogerTermExtractor:
                 end with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
                 words, or None for `words` or, failing that, `tokens`.
+            lemma_layer (Optional[str]): For Teanga input, a sequence layer, based on
+                the words layer, holding the lemma of each word. If given, every word
+                is read as its lemma, so the measures count inflected forms together,
+                candidates are written as lemmas, and labels and gold terms are matched
+                to them by their lemmas. None reads the words as written.
             terms_layer (str): For Teanga input without labels, the span layer of gold
                 terms to train on.
 
@@ -214,6 +220,7 @@ class RogerTermExtractor:
         self.n_jobs = n_jobs
         self.stopwords = load_stopwords(stopwords)
         self.words_layer = words_layer
+        self.lemma_layer = lemma_layer
         self.terms_layer = terms_layer
         self.models: list[tuple[np.ndarray, np.ndarray]] = []
         self.feature_min = np.zeros(len(MEASURES))
@@ -426,7 +433,7 @@ class RogerTermExtractor:
 
     def predict_terms_teanga(self, corpus) -> dict[str, float]:
         """Score the candidates in a Teanga corpus."""
-        return self.predict(tokenize_teanga(corpus, self.words_layer))
+        return self.predict(tokenize_teanga(corpus, self.words_layer, self.lemma_layer))
 
     def fit_strings(self, corpus: list[str], labels: dict[str, int]) -> None:
         """Learn the ranking functions from a list of strings."""
@@ -437,16 +444,16 @@ class RogerTermExtractor:
         `terms_layer` as the terms if `labels` is None."""
         if labels is None:
             labels = dict.fromkeys(self.gold_terms(corpus), 1)
-        self.train(tokenize_teanga(corpus, self.words_layer), labels)
+        self.train(tokenize_teanga(corpus, self.words_layer, self.lemma_layer), labels)
 
     def gold_terms(self, corpus) -> set[str]:
-        """The gold terms of `terms_layer`, each as the lower-cased words within its
-        span, as candidates are written."""
+        """The gold terms of `terms_layer`, each as the lower-cased words, or their
+        lemmas if `lemma_layer` is set, within its span, as candidates are written."""
         layer = find_layer(corpus.meta, self.terms_layer, (), "terms_layer")
         terms = set()
         for doc_id in corpus.doc_ids:
             doc = corpus.doc_by_id(doc_id)
-            words = words_with_offsets(doc, self.words_layer)
+            words = words_with_offsets(doc, self.words_layer, self.lemma_layer)
             starts = [start for start, _, _ in words]
             for span in doc[layer]:
                 last = bisect_left(starts, span[0])
@@ -467,7 +474,9 @@ class RogerTermExtractor:
     def predict_teanga(self, corpus) -> ATEResults:
         """Rank the candidates of a Teanga corpus, with their offsets."""
         words = [
-            words_with_offsets(corpus.doc_by_id(doc_id), self.words_layer)
+            words_with_offsets(
+                corpus.doc_by_id(doc_id), self.words_layer, self.lemma_layer
+            )
             for doc_id in corpus.doc_ids
         ]
         return self._results(

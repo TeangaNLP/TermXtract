@@ -51,6 +51,9 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   are counted, and returned, as one term (#70). `pos_pattern` then matches the lemmas,
   and `datasets.gold_terms` takes a `lemma_layer` too, so gold terms can be compared by
   their lemmas.
+- `lemma_layer` parameter for the supervised methods (#91). Terms are given by their
+  lemmas, and gold terms and labels are matched to them; Roger also computes its
+  measures over the lemmas, while token classification still tags the words as written.
 - `min_frequency` and `word_pattern` parameters for every unsupervised method except
   RAKE (#67). `min_frequency` drops candidates that occur fewer times in the corpus
   (default 1). `word_pattern` drops candidates with a word that does not match a
