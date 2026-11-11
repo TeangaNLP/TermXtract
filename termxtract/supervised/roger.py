@@ -1,128 +1,17 @@
 import math
 from bisect import bisect_left
-from collections import Counter
-from collections.abc import Iterator
 from typing import Any
 
 import numpy as np
 from joblib import Parallel, delayed
 from scipy.stats import rankdata
 
+from ..association import MEASURES, NgramCounts
 from ..datasets.base import GOLD_LAYER
 from ..layers import find_layer, words_with_offsets
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
 from .words import tokenize_strings, tokenize_teanga
-
-MEASURES = (
-    "MI",
-    "MI3",
-    "Dice",
-    "L",
-    "OccL",
-    "SeSc",
-    "J",
-    "Conv",
-    "LC",
-    "CM",
-    "Khi2",
-    "T test",
-)
-"""Names of the association measures used as features, in order."""
-
-
-def _xlogx(x: float) -> float:
-    return x * math.log(x) if x > 0 else 0.0
-
-
-def association_measures(a: int, n_x: int, n_y: int, total: int) -> list[float]:
-    """
-    Compute the association measures of a collocation `x y` from its contingency table.
-
-    The table counts the `total` positions of collocations of the same length: `a` of
-    them are `x y`, `n_x` start with `x` and `n_y` end with `y`. The measures are those
-    of Azé et al. (2005), section 2, without Jacquemin's association measure, whose
-    definition is not given there. Rule-based measures (SeSc, J, Conv, LC, CM) treat the
-    collocation as the rule `x → y`.
-
-    The rule-based measures divide by the number of counter-examples `b`, the positions
-    starting with `x` but not ending with `y`. When `x` is always followed by `y`, `b`
-    is 0 and these measures are infinite, so `b` is then taken to be 0.5.
-
-    Args:
-        a (int): Occurrences of the collocation `x y`.
-        n_x (int): Positions starting with `x`.
-        n_y (int): Positions ending with `y`.
-        total (int): Positions of collocations of this length.
-
-    Returns:
-        list[float]: The measures named in `MEASURES`, in order.
-    """
-    b = n_x - a  # x, not y
-    c = n_y - a  # y, not x
-    d = total - a - b - c  # neither
-    n_not_x = total - n_x
-    n_not_y = total - n_y
-    b_smoothed = b if b > 0 else 0.5
-
-    # Mutual information (Church and Hanks, 1990) and its cube (Daille et al., 1998)
-    mi = math.log2(a * total / (n_x * n_y))
-    mi3 = math.log2(a**3 / (n_x * n_y))
-    # Dice coefficient (Smadja et al., 1996)
-    dice = 2 * a / (n_x + n_y)
-    # Log-likelihood ratio (Dunning, 1993)
-    log_likelihood = 2 * (
-        _xlogx(a)
-        + _xlogx(b)
-        + _xlogx(c)
-        + _xlogx(d)
-        - _xlogx(n_x)
-        - _xlogx(n_not_x)
-        - _xlogx(n_y)
-        - _xlogx(n_not_y)
-        + _xlogx(total)
-    )
-    log_likelihood = max(log_likelihood, 0.0)  # Rounding error for independent words
-    # Occurrences, with ties broken by log-likelihood (Roche et al., 2004)
-    occ_l = a + log_likelihood / (log_likelihood + 1)
-    # Sebag-Schoenauer: examples over counter-examples of x → y
-    sebag_schoenauer = a / b_smoothed
-    # J-measure (Goodman and Smyth, 1988)
-    p_y_given_x = a / n_x
-    p_y = n_y / total
-    j_measure = (n_x / total) * (
-        (p_y_given_x * math.log(p_y_given_x / p_y))
-        + (
-            (1 - p_y_given_x) * math.log((1 - p_y_given_x) / (1 - p_y))
-            if p_y_given_x < 1
-            else 0.0
-        )
-    )
-    # Conviction (Brin et al., 1997): P(x) P(not y) / P(x, not y)
-    conviction = n_x * n_not_y / (total * b_smoothed)
-    # Least contradiction (Azé and Kodratoff, 2004): (examples - counter-examples) / n_y
-    least_contradiction = (a - b) / n_y
-    # Odds multiplier ("cote multiplier", Lallich and Teytaud, 2004)
-    odds_multiplier = a * n_not_y / (b_smoothed * n_y)
-    # Chi-squared and t-test (Manning and Schütze, 1999, chapter 5)
-    denominator = n_x * n_y * n_not_x * n_not_y
-    khi2 = total * (a * d - b * c) ** 2 / denominator if denominator else 0.0
-    t_test = (a - n_x * n_y / total) / math.sqrt(a)
-
-    return [
-        mi,
-        mi3,
-        dice,
-        log_likelihood,
-        occ_l,
-        sebag_schoenauer,
-        j_measure,
-        conviction,
-        least_contradiction,
-        odds_multiplier,
-        khi2,
-        t_test,
-    ]
 
 
 class RogerTermExtractor:
@@ -226,12 +115,6 @@ class RogerTermExtractor:
         self.feature_min = np.zeros(len(MEASURES))
         self.feature_range = np.ones(len(MEASURES))
 
-    def _ngrams(self, docs: list[list[str]]) -> Iterator[tuple[str, ...]]:
-        for words in docs:
-            for k in range(2, self.n + 1):
-                for i in range(len(words) - k + 1):
-                    yield tuple(words[i : i + k])
-
     def extract_features(self, docs: list[list[str]]) -> tuple[np.ndarray, list[str]]:
         """
         Compute the association measures of every candidate of 2 to `n` words.
@@ -243,26 +126,10 @@ class RogerTermExtractor:
             The feature matrix (one row per candidate, one column per measure) and the
             candidates, in order of first occurrence.
         """
-        ngram_counts = Counter(self._ngrams(docs))
-        prefix_counts: Counter[tuple[str, ...]] = Counter()
-        last_word_counts: Counter[tuple[int, str]] = Counter()
-        totals: Counter[int] = Counter()
-        for ngram, count in ngram_counts.items():
-            prefix_counts[ngram[:-1]] += count
-            last_word_counts[len(ngram), ngram[-1]] += count
-            totals[len(ngram)] += count
-
-        candidates = list(ngram_counts)
+        counts = NgramCounts(docs, self.n)
+        candidates = list(counts.ngrams)
         features = np.array(
-            [
-                association_measures(
-                    ngram_counts[ngram],
-                    prefix_counts[ngram[:-1]],
-                    last_word_counts[len(ngram), ngram[-1]],
-                    totals[len(ngram)],
-                )
-                for ngram in candidates
-            ]
+            [counts.measures(ngram, len(ngram) - 1) for ngram in candidates]
         ).reshape(len(candidates), len(MEASURES))
         return features, [" ".join(ngram) for ngram in candidates]
 

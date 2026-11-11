@@ -136,8 +136,9 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `relevance`        | Relevance                                           | `reference_corpus` (required)         |
 | `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
 | `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
+| `pmi`, `llr`, `chi2`, `dice`, `tscore` | Unithood: PMI, log-likelihood ratio, χ², Dice or t-score of the words of multi-word terms | `aggregation` |
 
-All methods accept `n` (maximum n-gram length), `threshold` (minimum score), `stopwords` (default `"english"`, or the ISO 639-1 code of another language, such as `"fr"`), `min_frequency` (default 1), `word_pattern` (default `"alphanumeric"`, dropping words without a letter or digit), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `min_frequency`, `word_pattern`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
+All methods accept `n` (maximum n-gram length; by default 2 for the unithood methods and 1 for the others), `threshold` (minimum score), `stopwords` (default `"english"`, or the ISO 639-1 code of another language, such as `"fr"`), `min_frequency` (default 1), `word_pattern` (default `"alphanumeric"`, dropping words without a letter or digit), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `min_frequency`, `word_pattern`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
 
 ### Supervised — `SupervisedTermExtractor(method=...)`
 

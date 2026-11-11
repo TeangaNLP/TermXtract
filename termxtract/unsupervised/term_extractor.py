@@ -18,6 +18,13 @@ from .reference_extractor import ReferenceCorpus
 from .relevance import RelevanceTermExtractor
 from .ridf import RIDFTermExtractor
 from .tfidf import TFIDFTermExtractor
+from .unithood import (
+    Chi2TermExtractor,
+    DiceTermExtractor,
+    LLRTermExtractor,
+    PMITermExtractor,
+    TScoreTermExtractor,
+)
 from .weirdness import WeirdnessTermExtractor
 
 CANDIDATE_PARAMS = (
@@ -64,6 +71,11 @@ class TermExtractor:
             ("reference_corpus", "tie_break", *CANDIDATE_PARAMS),
         ),
         "weirdness": (WeirdnessTermExtractor, ("reference_corpus", *CANDIDATE_PARAMS)),
+        "pmi": (PMITermExtractor, ("aggregation", *CANDIDATE_PARAMS)),
+        "llr": (LLRTermExtractor, ("aggregation", *CANDIDATE_PARAMS)),
+        "chi2": (Chi2TermExtractor, ("aggregation", *CANDIDATE_PARAMS)),
+        "dice": (DiceTermExtractor, ("aggregation", *CANDIDATE_PARAMS)),
+        "tscore": (TScoreTermExtractor, ("aggregation", *CANDIDATE_PARAMS)),
     }
 
     def __init__(
@@ -72,7 +84,7 @@ class TermExtractor:
         alpha: float = 0.5,
         beta: float = 0.5,
         threshold: float | None = None,
-        n: int = 1,
+        n: int | None = None,
         num_topics: int = 20,
         top_words: int = 200,
         window_size: int = 5,
@@ -84,6 +96,7 @@ class TermExtractor:
         tie_break: str | None = "ratio",
         n_topics: int = 10,
         max_features: int | None = None,
+        aggregation: str = "min",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -103,7 +116,10 @@ class TermExtractor:
             alpha (float): Weight for \( e_t \) ('basic' and 'combobasic').
             beta (float): Weight for \( e'_t \) ('combobasic').
             threshold (Optional[float]): Minimum score threshold for term inclusion.
-            n (int): Maximum length of n-grams to consider (all methods except 'rake').
+            n (Optional[int]): Maximum length of n-grams to consider (all methods except
+                'rake'), or None for the method's default: 2 for the unithood methods
+                ('pmi', 'llr', 'chi2', 'dice' and 'tscore'), which rank only multi-word
+                terms, and 1 for the others.
             num_topics (int): Number of LDA topics ('topicmodeling').
             top_words (int): Number of most probable words of each topic that count
                 towards the scores ('topicmodeling').
@@ -124,6 +140,9 @@ class TermExtractor:
                 ('domainpertinence'): "ratio", "frequency" or None.
             n_topics (int): Number of NMF topics ('nmf').
             max_features (Optional[int]): Maximum vocabulary size ('nmf').
+            aggregation (str): How the unithood methods combine the scores of the
+                splits of a candidate of three or more words into two parts: "min"
+                (the default) for its weakest split, or "mean".
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
                 stopword (all methods except 'rake', which uses `stoplist`): the name of a
                 built-in list in `termxtract.stopwords.STOPWORD_LISTS`, such as "english"
@@ -182,6 +201,7 @@ class TermExtractor:
             "tie_break": tie_break,
             "n_topics": n_topics,
             "max_features": max_features,
+            "aggregation": aggregation,
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,
@@ -199,8 +219,13 @@ class TermExtractor:
         # Methods that take pos_pattern count only the matching occurrences; the terms
         # of the others are filtered after extraction
         self.filters_by_pos = "pos_pattern" not in param_names
+        # Leave out n when it is None, so the extractor uses its own default
         self.extractor: BaseTermExtractor = extractor_class(
-            **{name: params[name] for name in param_names}
+            **{
+                name: params[name]
+                for name in param_names
+                if name != "n" or n is not None
+            }
         )
 
     def extract(
