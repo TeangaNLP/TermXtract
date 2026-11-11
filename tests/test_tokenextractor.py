@@ -344,6 +344,24 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
 
         self.assertEqual(tags, ["B", "I", "I", "O", "B", "O"])
 
+    def test_labels_are_matched_to_lemmas(self):
+        from sacremoses import MosesDetokenizer
+
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.n = 2
+        extractor.moses_detokenizer = MosesDetokenizer(lang="en")
+        tokens = ["Stem", "cells", "and", "stem", "cell", "lines"]
+        lemmas = [["stem", "cell", "and", "stem", "cell", "line"]]
+        labels = {"stem cell": 1}
+
+        [(_, tags)] = extractor.create_training_data([(tokens, "")], labels, lemmas)
+
+        self.assertEqual(tags, ["B", "I", "O", "B", "I", "O"])
+
     def test_gold_spans_are_tagged_longest_first(self):
         from termxtract.supervised.tokenextractor import (
             TokenClassificationTermExtractor,
@@ -466,5 +484,53 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
             [
                 {"term": "plant cells", "offset": (0, 11)},
                 {"term": "cells", "offset": (18, 23)},
+            ],
+        )
+
+    def test_tagged_terms_are_given_by_their_lemmas(self):
+        from unittest import mock
+
+        from sacremoses import MosesDetokenizer
+
+        from termxtract.stopwords import load_stopwords
+        from termxtract.supervised.tokenextractor import (
+            TokenClassificationTermExtractor,
+        )
+
+        corpus = Corpus()
+        corpus.add_layer_meta("text")
+        corpus.add_layer_meta("words", layer_type="span", base="text")
+        corpus.add_layer_meta("lemma", layer_type="seq", base="words", data="string")
+        doc = corpus.add_doc("Plant cells grow. A plant cell divides.")
+        doc.words = [(0, 5), (6, 11), (12, 16), (16, 17)] + [
+            (18, 19),
+            (20, 25),
+            (26, 30),
+            (31, 38),
+            (38, 39),
+        ]
+        doc.lemma = ["plant", "cell", "grow", ".", "a", "plant", "cell", "divide", "."]
+        extractor = object.__new__(TokenClassificationTermExtractor)
+        extractor.is_trained = True
+        extractor.stopwords = load_stopwords("english")
+        extractor.moses_detokenizer = MosesDetokenizer(lang="en")
+        extractor.words_layer = None
+        extractor.lemma_layer = "lemma"
+        extractor.sentences_layer = None
+        # The model tags "Plant cells" and "plant cell"
+        tags = [["B", "I", "O", "O"], ["O", "B", "I", "O", "O"]]
+        with (
+            mock.patch.object(extractor, "tokenize_and_align_labels"),
+            mock.patch.object(extractor, "create_torch_dataset"),
+            mock.patch.object(extractor, "predict_tags", return_value=tags),
+        ):
+            results = extractor.predict_teanga(corpus)
+
+        self.assertEqual([t["term"] for t in results.terms[0]["terms"]], ["plant cell"])
+        self.assertEqual(
+            results.offsets[0]["offsets"],
+            [
+                {"term": "plant cell", "offset": (0, 11)},
+                {"term": "plant cell", "offset": (20, 30)},
             ],
         )
