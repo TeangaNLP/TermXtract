@@ -1,6 +1,6 @@
 # Datasets
 
-`termxtract.datasets` loads standard term-extraction datasets as Teanga corpora, with the gold terms in a `terms` span layer. Datasets are not distributed with TermXtract: each one is downloaded from its original source (or, for HTEC, its Teanga version on Zenodo) on first use, checked against a SHA-256 checksum, and cached under `~/.cache/termxtract`. Set the `TERMXTRACT_DATA` environment variable, or pass `home=`, to cache them elsewhere.
+`termxtract.datasets` loads standard term-extraction datasets as Teanga corpora, with the gold terms in a `terms` span layer. Datasets are not distributed with TermXtract: each one is downloaded from its original source (or, for HTEC and the Irish Wikipedia gold standard, their copies on Zenodo) on first use, checked against a SHA-256 checksum, and cached under `~/.cache/termxtract`. Set the `TERMXTRACT_DATA` environment variable, or pass `home=`, to cache them elsewhere.
 
 ```python
 from termxtract import TermExtractor, datasets, evaluate
@@ -17,6 +17,7 @@ Each dataset keeps its own license, given by `datasets.info(name).license`; plea
 | `acl-rd-tec` | [ACL RD-TEC 2.0](http://hdl.handle.net/11372/LRT-1661) | en | computational linguistics | CC BY-NC-SA 4.0 | | `annotator`, `labels` |
 | `genia` | [GENIA term corpus 3.02](http://www.geniaproject.org/genia-corpus/term-corpus) | en | biomedicine | GENIA Project License (annotations CC BY 3.0) | | `nested`, `labels` |
 | `htec` | [HTEC 2.0](https://doi.org/10.5281/zenodo.24111051) | hi | education | CC BY-SA 4.0 | | `partial_words`, `labels` |
+| `irish-wikipedia` | [Irish Wikipedia gold standard](https://doi.org/10.5281/zenodo.24132067) | ga | general | CC BY-SA 4.0 | | |
 | `rsdo5` | [RSDO5 1.1](http://hdl.handle.net/11356/1470) | sl | biomechanics, linguistics, chemistry, veterinary science | CC BY-SA 4.0 | | `domains`, `labels` |
 | `acter` | [ACTER 1.5](https://github.com/AylaRT/ACTER) | en, fr, nl | corruption, dressage, heart failure, wind energy | CC BY-NC-SA 4.0 | `train`, `test` | `language`, `domains`, `include_named_entities`, `labels` |
 
@@ -71,6 +72,18 @@ The corpus is not tokenised, so the loader splits the text into words, keeping D
       members:
         - load_htec
         - CATEGORIES
+
+## Irish Wikipedia
+
+The Irish Wikipedia gold standard annotates the terms of 11 Irish Wikipedia articles, on subjects from film studios to hurricanes and politicians, with B, I and O tags (McCrae & Doyle, 2019). It has 5,178 tokens and 844 terms, 577 of them distinct, which do not nest. Each article is a document. It is downloaded from Zenodo, as published in the [irish_saffron](https://github.com/jmccrae/irish_saffron) repository, under CC BY-SA 4.0 like the Wikipedia texts.
+
+The file is tokenised, so the text of each document is its tokens joined by spaces, with `tokens` and `sentences` layers; a sentence ends after `.`, `?`, `!` or `...`. Each article starts with its title, which runs into the first sentence. Two annotations are a lone quotation mark, and are left out.
+
+::: termxtract.datasets.irish_wikipedia
+    options:
+      show_root_heading: false
+      members:
+        - load_irish_wikipedia
 
 ## RSDO5 1.1
 
