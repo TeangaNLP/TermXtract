@@ -62,10 +62,12 @@ methods, the candidates are those of ATR4S's candidate collector:
   learns from each annotated occurrence, as Lang et al. (2021) do: it trains on
   corruption and wind energy for up to 10 epochs and keeps the epoch with the best F1
   on dressage, stopping after 2 epochs without improvement (`patience=2`). They read the
-  words as written, so they are scored against the gold terms as written. Roger's
+  words as written, since they have no `lemma_layer` yet (#91), so they are scored
+  against the gold terms as written. Roger's
   candidates must occur twice and have a letter or digit in each word, and by default
   it drops those that start or end with a stopword; token classification's are not
-  filtered.
+  filtered. AdaBoost was removed (#59): it was the weakest and slowest method, a loose
+  simplification of Vivaldi et al. (2001) with no published results to compare with.
 - Both are seeded (`random_state=0`), and Roger's runs are trained in parallel
   (`n_jobs=-1`).
 - Everything else is at its default.
@@ -195,24 +197,6 @@ tagging, which is done once and cached.
 | topicmodeling | 11,045 | 55% | 0.659 | 69.0 | 0.4 | 70.0 | 2.3 | 69.3 | 4.4 | 66.8 | 8.2 | 4 |
 | nmf | 15,740 | 53% | 0.654 | 76.0 | 0.5 | 73.8 | 2.4 | 70.3 | 4.5 | 68.5 | 8.4 | 1 |
 | rake | 4,912 | 53% | 0.582 | 61.0 | 0.4 | 59.8 | 1.9 | 58.2 | 3.6 | 56.1 | 6.7 | 0 |
-
-### Known problems
-
-The benchmark found these problems in the implementations. Each needs its own fix; the
-results above are of the code as it is.
-
-- The supervised methods have no `lemma_layer` yet, so they are scored against the
-  gold terms as written rather than lemmatised.
-
-C-value (#62), Basic and ComboBasic (#62), Residual IDF (#63), topic modelling (#65),
-domain coherence (#52) and domain pertinence (#64) were fixed after the first version
-of this benchmark, the candidates were brought in line with ATR4S's (#67, #70), NMF no
-longer runs out of memory on GENIA (#66), token classification no longer fills the
-disk with checkpoints (#68), Roger trains in seconds instead of hours (#60), and the
-supervised methods can train on one corpus and extract from another, token
-classification from gold spans with a validation set (#43).
-AdaBoost was removed (#59): it was the weakest and slowest method, a loose
-simplification of Vivaldi et al. (2001) with no published results to compare with.
 
 ## Multilingual
 
@@ -567,3 +551,5 @@ F1 64.6.
   shared task on automatic term extraction using the Annotated Corpora for Term
   Extraction Research (ACTER) dataset. In *Proceedings of CompuTerm 2020*, 85–94.
   https://aclanthology.org/2020.computerm-1.12
+- Vivaldi, J., Màrquez, L., & Rodríguez, H. (2001). Improving term extraction by system
+  combination using boosting. In *Machine Learning: ECML 2001*, LNCS 2167, 515–526.
