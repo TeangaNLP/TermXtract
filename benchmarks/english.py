@@ -99,6 +99,11 @@ UNSUPERVISED = [
     "weirdness",
     "topicmodeling",
     "nmf",
+    "pmi",
+    "llr",
+    "chi2",
+    "dice",
+    "tscore",
     "rake",
 ]
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
