@@ -35,6 +35,9 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   categories (#37). It was converted to Teanga, with the spellings of the categories
   normalised, and published on Zenodo under CC BY-SA 4.0. The loader tokenises the text and splits it into sentences, and by default
   leaves out the 335 annotations that start inside a word.
+- The Irish Wikipedia gold standard of McCrae & Doyle (2019), as
+  `datasets.load("irish-wikipedia")`: 11 Irish Wikipedia articles with 844 terms
+  (#41). It is published on Zenodo under CC BY-SA 4.0, as the Wikipedia texts are.
 - RSDO5 1.1, as `datasets.load("rsdo5")`: 12 Slovenian texts in four domains, with
   37,985 terms marked in- or out-domain, and lemmas and part-of-speech tags (#40).
   `domains` loads some of the domains, and `labels="in-domain"` only the terms of the
