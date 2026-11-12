@@ -70,10 +70,14 @@ methods, the candidates are those of ATR4S's candidate collector:
   (2021) and Tran et al. (2022) score token classification, although they could read
   lemmas too (`lemma_layer`). Roger's candidates must occur twice and have a letter or digit in each word, and by default
   it drops those that start or end with a stopword; token classification's are not
-  filtered. AdaBoost was removed (#59): it was the weakest and slowest method, a loose
+  filtered. The features method learns from the gold terms of the training domains,
+  as HAMLET (Rigouts Terryn et al., 2021) does: its candidates are the sequences of up
+  to four words with the tag sequence of a training term (`pos_pattern="learned"`),
+  with the Brown corpus as reference corpus, and it is scored on the candidates it
+  classifies as terms. AdaBoost was removed (#59): it was the weakest and slowest method, a loose
   simplification of Vivaldi et al. (2001) with no published results to compare with.
-- Both are seeded (`random_state=0`), and Roger's runs are trained in parallel
-  (`n_jobs=-1`).
+- All three are seeded (`random_state=0`), and Roger's runs and the features method's
+  trees are trained in parallel (`n_jobs=-1`).
 - Everything else is at its default.
 
 Terms are matched to the gold standard after lowercasing, against the distinct terms of
@@ -115,6 +119,16 @@ for validation. Validation F1 was best after the first epoch (51.5, then 33.3 an
 26.5), so TermXtract's training stopped after three. Their test set is from an earlier version of ACTER, with 2,585 gold
 terms. The best system of the TermEval 2020 shared task scored 46.7 (Rigouts Terryn et
 al., 2020). Roger, NMF and RAKE have no published results on these datasets.
+
+HAMLET (Rigouts Terryn et al., 2021, Table 5, setup 1) trains a random forest on the
+three other English domains and tests on heart failure, with named entities as terms. It
+classifies with precision 55.6, recall 37.0 and F1 44.4; the features method, over the
+candidates it classifies as terms, with precision 38.1, recall 52.0 and F1 44.0. The F1
+is the same, with recall and precision the other way round. HAMLET has 177 features,
+against 130 here (99 of them part-of-speech features), and tunes its forest by grid
+search, where the features method's forest weights the classes and has leaves of at
+least 5 candidates, the settings that classified best on the training domains when one
+was left out. HAMLET also used an earlier version of ACTER.
 
 **GENIA and the ACL RD-TEC.** ATR4S (Astrakhantsev, 2018, Table 5) reports AvP.
 
@@ -171,6 +185,7 @@ tagging, which is done once and cached.
 | tscore | 1,312 | 30% | 0.531 | 49.0 | 3.9 | 40.2 | 13.7 | 35.1 | 20.4 | 30.4 | 21.3 | 0 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
+| features | 3,490 | 38% | 0.665 | 76.0 | 5.7 | 67.6 | 22.1 | 60.4 | 34.0 | 48.6 | 42.7 | 20 |
 | token-classification | 2,280 | 62% | 0.716 | 78.0 | 5.9 | 72.6 | 23.8 | 67.8 | 38.1 | 61.9 | 54.3 | 305 |
 
 #### ACL RD-TEC 2.0
@@ -247,9 +262,12 @@ inside a word are left out, as `datasets.load("htec")` does by default.
 - **The reference corpus** is a sample of Hindi Wikipedia from the Leipzig Corpora
   Collection: 100,000 sentences, or 1.8 million words. The one sentence it shares with
   HTEC is left out.
-- **The supervised methods** train on the training documents. Roger learns from the
-  list of their gold terms. Token classification learns from their annotated
-  occurrences and keeps the best epoch on the validation documents, as for ACTER.
+- **The supervised methods** train on the training documents. Roger and the features
+  method learn from the list of their gold terms. HTEC has no tags, so the features
+  method's candidates are every sequence of up to four words that doesn't start or end
+  with a stopword, and its reference corpus is the one below. Token classification
+  learns from their annotated occurrences and keeps the best epoch on the validation
+  documents, as for ACTER.
 - **Cut-offs.** The test documents have only 207 gold terms, so precision, recall and F1
   are reported for the top 100 and 500 terms, and over all candidates.
 
@@ -300,6 +318,7 @@ the task harder.
 | tscore | 485 | 5% | 0.452 | 11.0 | 7.2 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 0 |
 | rake | 63 | 29% | 0.403 | 28.6 | 13.3 | 28.6 | 13.3 | 28.6 | 8.7 | 13.3 | 0 |
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
+| features | 50 | 30% | 0.591 | 30.0 | 11.7 | 30.0 | 11.7 | 30.0 | 7.2 | 11.7 | 25 |
 | token-classification | 189 | 61% | 0.718 | 63.0 | 41.0 | 61.4 | 58.6 | 61.4 | 56.0 | 58.6 | 121 |
 
 #### Observations
@@ -315,6 +334,8 @@ the task harder.
   weirdness does.
 - **Roger** does worst of all, with 552 training terms and candidates that only cover
   12% of the test gold terms.
+- **The features method** ranks well (AvP 0.591, second to token classification), but
+  classifies only 50 candidates as terms, so its F1 is 11.7.
 - **RAKE** keeps only 63 candidates, since its phrases are long and must occur twice.
 
 ### RSDO5 1.1 (Slovenian)
@@ -352,7 +373,9 @@ with every term annotated. Both in-domain and out-domain terms count, as in Tran
   them as one corpus.
 - **The supervised methods** train on the two training domains. Token classification
   learns from their annotated occurrences and keeps the best epoch on the validation
-  domain, with the settings used for ACTER.
+  domain, with the settings used for ACTER. The features method learns the tag
+  sequences of the training terms over `upos`, as on ACTER, but has no reference
+  corpus, since the other domains include the training domains.
 
 #### Comparison with published results
 
@@ -397,6 +420,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tscore | 2,205 | 32% | 0.574 | 64.0 | 4.0 | 48.0 | 13.3 | 38.5 | 18.8 | 33.8 | 26.5 | 32.4 | 23.0 | 26.9 | 1 |
 | rake | 1,876 | 24% | 0.285 | 33.0 | 1.4 | 23.6 | 4.6 | 23.4 | 8.4 | 23.5 | 13.6 | 23.5 | 9.6 | 13.6 | 3 |
 | roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
+| features | 10,170 | 35% | 0.570 | 70.0 | 3.0 | 61.6 | 12.1 | 57.3 | 20.5 | 54.9 | 33.3 | 34.8 | 76.9 | 47.9 | 9 |
 | token-classification | 4,431 | 69% | 0.717 | 81.0 | 3.4 | 74.2 | 14.5 | 71.6 | 25.6 | 68.2 | 41.4 | 69.0 | 66.5 | 67.7 | 491 |
 
 ##### Veterinary science
@@ -421,6 +445,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tscore | 1,941 | 38% | 0.634 | 69.0 | 4.0 | 56.0 | 14.4 | 45.5 | 20.8 | 37.8 | 27.6 | 37.8 | 21.7 | 27.6 | 1 |
 | rake | 998 | 35% | 0.369 | 32.0 | 1.3 | 24.2 | 4.6 | 35.4 | 12.3 | 35.4 | 12.3 | 35.4 | 7.4 | 12.3 | 1 |
 | roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
+| features | 7,500 | 43% | 0.650 | 72.0 | 3.0 | 70.2 | 13.4 | 67.5 | 23.5 | 60.7 | 36.0 | 42.8 | 67.6 | 52.4 | 8 |
 | token-classification | 4,274 | 72% | 0.709 | 88.0 | 3.6 | 69.2 | 13.2 | 70.3 | 24.5 | 68.0 | 40.3 | 72.0 | 64.8 | 68.2 | 339 |
 
 ##### Chemistry
@@ -445,6 +470,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tscore | 1,771 | 27% | 0.659 | 66.0 | 7.9 | 48.8 | 23.5 | 36.2 | 28.1 | 27.3 | 28.8 | 27.3 | 30.6 | 28.8 | 1 |
 | rake | 923 | 18% | 0.315 | 16.0 | 1.3 | 21.2 | 7.3 | 18.4 | 10.2 | 18.4 | 10.2 | 18.4 | 7.1 | 10.2 | 2 |
 | roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
+| features | 6,323 | 30% | 0.527 | 66.0 | 5.3 | 53.8 | 18.5 | 46.2 | 27.1 | 41.3 | 37.5 | 29.6 | 77.6 | 42.8 | 8 |
 | token-classification | 2,230 | 66% | 0.703 | 80.0 | 6.4 | 69.8 | 24.0 | 68.4 | 40.1 | 66.0 | 59.9 | 65.8 | 60.9 | 63.2 | 190 |
 
 ##### Biomechanics
@@ -469,6 +495,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tscore | 1,294 | 36% | 0.542 | 60.0 | 7.1 | 47.4 | 22.6 | 42.0 | 32.4 | 36.4 | 32.6 | 36.4 | 29.5 | 32.6 | 1 |
 | rake | 653 | 16% | 0.209 | 21.0 | 1.7 | 15.4 | 5.5 | 16.2 | 7.1 | 16.2 | 7.1 | 16.2 | 4.6 | 7.1 | 1 |
 | roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
+| features | 4,876 | 32% | 0.564 | 66.0 | 5.5 | 56.2 | 19.9 | 52.3 | 31.5 | 44.1 | 40.8 | 32.1 | 67.5 | 43.5 | 8 |
 | token-classification | 1,981 | 67% | 0.656 | 73.0 | 6.0 | 63.4 | 22.5 | 63.9 | 38.5 | 66.7 | 61.5 | 66.7 | 57.0 | 61.5 | 395 |
 
 #### Observations
@@ -481,6 +508,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
   term, including single occurrences and terms that don't match the noun-phrase
   pattern, so that is the recall of the unsupervised methods over all their candidates.
 - **Token classification** is far ahead of every other method, as on ACTER and HTEC.
+- **The features method** is second, with F1 43–52 over the candidates it classifies as
+  terms, ahead of the 30–38 of Ljubešić et al. (2019). Its learned tag sequences cover
+  more of the gold terms than the noun-phrase pattern, and its recall is 68–78.
 - **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
 
 ### Irish Wikipedia gold standard
@@ -503,7 +533,10 @@ The two annotations that are a lone quotation mark are left out, as
 - **The supervised methods** are evaluated leaving one article out, since 11 articles
   are too few for a fixed split. Each article is the test article in turn: the methods
   train on nine of the others, and token classification keeps the best epoch on the
-  remaining one, the next article. The results of the 11 folds are pooled: the terms
+  remaining one, the next article. The features method's candidates are every
+  sequence of up to four words that doesn't start or end with a stopword, including
+  those that occur once, with the reference corpus below. The results of the 11 folds
+  are pooled: the terms
   found in each test article are scored together against all the gold terms. Rankings
   from 11 models can't be merged, so the supervised methods have no ranked scores.
 - **Cut-offs.** With 577 gold terms, precision, recall and F1 are reported for the top
@@ -551,6 +584,7 @@ F1 64.6.
 | tscore | 188 | 20% | 0.283 | 20.0 | 5.9 | 19.7 | 9.7 | 19.7 | 6.4 | 9.7 | 0 |
 | rake | 42 | 60% | 0.759 | 59.5 | 8.1 | 59.5 | 8.1 | 59.5 | 4.3 | 8.1 | 0 |
 | roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
+| features | 1,013 | 29% | – | – | – | – | – | 29.1 | 51.1 | 37.1 | 79 |
 | token-classification | 575 | 66% | – | – | – | – | – | 65.7 | 65.5 | 65.6 | 192 |
 
 #### Observations
@@ -564,6 +598,8 @@ F1 64.6.
   the top, with P@100 of 34 and 30.
 - **Token classification** is far ahead of every other method, as on the other datasets,
   even with only nine articles to train on.
+- **The features method** is second, with F1 37.1. Unlike the unsupervised methods, its
+  candidates include those that occur once, so it finds 51% of the gold terms.
 - **Roger and RAKE** are the weakest. RAKE keeps only 42 candidates, since its phrases
   are long and must occur twice.
 
@@ -596,6 +632,9 @@ F1 64.6.
   transformer-based sequence-labeling approach to the Slovenian cross-domain automatic
   term extraction. In *Proceedings of the Conference on Language Technologies and
   Digital Humanities (JTDH 2022)*, 196–204.
+- Rigouts Terryn, A., Hoste, V., & Lefever, E. (2021). HAMLET: Hybrid Adaptable Machine
+  Learning approach to Extract Terminology. *Terminology*, 27(2), 254–293.
+  https://doi.org/10.1075/term.20017.rig
 - Rigouts Terryn, A., Hoste, V., Drouin, P., & Lefever, E. (2020). TermEval 2020:
   shared task on automatic term extraction using the Annotated Corpora for Term
   Extraction Research (ACTER) dataset. In *Proceedings of CompuTerm 2020*, 85–94.

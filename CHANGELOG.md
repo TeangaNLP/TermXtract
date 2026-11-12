@@ -54,6 +54,14 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 - `lemma_layer` parameter for the supervised methods (#91). Terms are given by their
   lemmas, and gold terms and labels are matched to them; Roger also computes its
   measures over the lemmas, while token classification still tags the words as written.
+- The features method, `SupervisedTermExtractor(method="features")`, in the style of
+  HAMLET (Rigouts Terryn et al., 2021) (#45). A classifier, a random forest by default
+  or any scikit-learn classifier, learns from the scores of the unsupervised methods,
+  the association measures, and frequency, shape and part-of-speech features of each
+  candidate, and `feature_importances()` shows which matter. Its candidates are those
+  of the unsupervised methods, or with `pos_pattern="learned"` those with the tag
+  sequences of the training terms. On ACTER's English heart failure test set its F1 is
+  44.0, against HAMLET's 44.4.
 - Unithood methods, which rank multi-word terms by how strongly their words stick
   together (#47): `TermExtractor(method="pmi" | "llr" | "chi2" | "dice" | "tscore")`.
   A term of three or more words is scored by its weakest split into two parts, or with
