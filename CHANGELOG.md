@@ -73,6 +73,13 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   candidates: nouns, adjectives and verbs within `window_size` words, or every word
   that is not a stopword when there are no part-of-speech tags. `cvalue_weight` sets
   the 0.8/0.2 balance of the paper.
+- YAKE! (Campos et al., 2020), as `TermExtractor(method="yake")` (#48). It scores the
+  candidates of each document from the casing, position, frequency, context and
+  sentence spread of their words, and drops near-duplicates (`dedup_threshold`).
+  `corpus_aggregation` gives each term its best or mean score over the documents, or
+  keeps each document's own. Terms are reported in lower case, and `n` defaults to 3.
+  `TermExtractor`'s `window_size` now defaults to None, the method's own default: 1
+  for YAKE! and 5, as before, for domain coherence and NC-value.
 - `min_frequency` and `word_pattern` parameters for every unsupervised method except
   RAKE (#67). `min_frequency` drops candidates that occur fewer times in the corpus
   (default 1). `word_pattern` drops candidates with a word that does not match a
