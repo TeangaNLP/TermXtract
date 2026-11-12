@@ -56,6 +56,7 @@ from english import (
     TOKEN_CLASSIFICATION,
     UNSUPERVISED,
     N,
+    method_options,
     ranking,
     scores,
     written_filter,
@@ -279,7 +280,7 @@ def unsupervised(
         options["phrase_delimiters"] = RAKE_DELIMITERS
     else:
         options.update(min_frequency=MIN_FREQUENCY, stopwords=stopwords)
-    return TermExtractor(method=method, n=N, words_layer="tokens", **options)
+    return TermExtractor(**method_options(method), n=N, words_layer="tokens", **options)
 
 
 def supervised(
@@ -374,7 +375,7 @@ def rsdo5_unsupervised(method: str, reference: list[Corpus]) -> TermExtractor:
             pos_layer="upos",
             stopwords="slovenian",
         )
-    return TermExtractor(method=method, n=N, words_layer="tokens", **options)
+    return TermExtractor(**method_options(method), n=N, words_layer="tokens", **options)
 
 
 def rsdo5_supervised(

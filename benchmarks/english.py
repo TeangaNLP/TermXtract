@@ -108,10 +108,23 @@ UNSUPERVISED = [
     "dice",
     "tscore",
     "yake",
+    "textrank",
+    "singlerank",
+    "positionrank",
     "rake",
 ]
+VARIANTS = {"textrank": "plain", "singlerank": "single", "positionrank": "position"}
+"""The benchmark names of the variants of `method="textrank"`."""
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
 SUPERVISED = ["roger", "features", "token-classification"]
+
+
+def method_options(method: str) -> dict:
+    """The `TermExtractor` options that pick a method by its benchmark name."""
+    if method in VARIANTS:
+        return {"method": "textrank", "variant": VARIANTS[method]}
+    return {"method": method}
+
 
 SKIP: dict[tuple[str, str], str] = {}
 """Methods that are not run on a dataset, as (dataset, method), with the reason."""
@@ -285,7 +298,7 @@ def unsupervised(method: str, reference: Corpus | None):
             pos_pattern=POS_PATTERN,
             pos_layer="pos",
         )
-    return TermExtractor(method=method, n=N, words_layer="tokens", **options)
+    return TermExtractor(**method_options(method), n=N, words_layer="tokens", **options)
 
 
 def supervised(

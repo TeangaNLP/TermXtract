@@ -168,6 +168,15 @@ words, and ranks below TF-IDF and C-value on every dataset (AvP 0.437, 0.648 and
 It counts words case-insensitively, so slightly more candidates occur twice, and drops
 near-duplicates within each document.
 
+TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan & Xiao, 2008) and PositionRank
+(Florescu & Caragea, 2017) have no published results on these datasets. They score the
+words by PageRank over one co-occurrence graph of the whole corpus, and the candidates
+by the sum of their words' scores. They come close to TF-IDF on the ACL RD-TEC (AvP
+0.671–0.681, against 0.688), but are well below it on ACTER (0.333–0.340) and GENIA
+(0.584–0.585), and the three variants differ little. On HTEC, RSDO5 and the Irish gold
+standard they rank below TF-IDF, C-value and YAKE! (AvP 0.143–0.290). Their word scores
+match pke's (Boudin, 2016) to within 1e-8 when its PageRank is run to convergence.
+
 ### Results
 
 Times are in seconds on a desktop machine (32 cores, with an RTX 4090 for token
@@ -196,6 +205,9 @@ tagging, which is done once and cached.
 | dice | 1,312 | 30% | 0.435 | 46.0 | 3.6 | 38.8 | 13.2 | 33.3 | 19.4 | 30.4 | 21.3 | 0 |
 | tscore | 1,312 | 30% | 0.531 | 49.0 | 3.9 | 40.2 | 13.7 | 35.1 | 20.4 | 30.4 | 21.3 | 0 |
 | yake | 2,764 | 34% | 0.437 | 43.0 | 3.4 | 43.6 | 14.9 | 42.1 | 24.5 | 37.1 | 33.5 | 0 |
+| textrank | 2,687 | 34% | 0.339 | 49.0 | 3.9 | 30.0 | 10.2 | 29.8 | 17.4 | 31.7 | 28.6 | 0 |
+| singlerank | 2,687 | 34% | 0.333 | 28.0 | 2.2 | 32.6 | 11.1 | 29.6 | 17.2 | 33.0 | 29.8 | 0 |
+| positionrank | 2,687 | 34% | 0.340 | 29.0 | 2.3 | 33.6 | 11.4 | 29.3 | 17.1 | 32.8 | 29.5 | 0 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
 | features | 3,490 | 38% | 0.665 | 76.0 | 5.7 | 67.6 | 22.1 | 60.4 | 34.0 | 48.6 | 42.7 | 20 |
@@ -223,6 +235,9 @@ tagging, which is done once and cached.
 | dice | 649 | 64% | 0.587 | 51.0 | 3.4 | 65.8 | 19.6 | 63.9 | 23.7 | 63.9 | 23.7 | 0 |
 | tscore | 649 | 64% | 0.731 | 78.0 | 5.3 | 67.2 | 20.0 | 63.9 | 23.7 | 63.9 | 23.7 | 0 |
 | yake | 1,523 | 52% | 0.648 | 59.0 | 4.0 | 65.8 | 19.6 | 60.0 | 31.1 | 52.1 | 36.3 | 0 |
+| textrank | 1,492 | 52% | 0.681 | 66.0 | 4.5 | 67.2 | 20.0 | 60.1 | 31.2 | 52.5 | 36.0 | 0 |
+| singlerank | 1,492 | 52% | 0.675 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
+| positionrank | 1,492 | 52% | 0.671 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
 | rake | 219 | 38% | 0.361 | 30.0 | 1.9 | 38.4 | 5.2 | 38.4 | 5.2 | 38.4 | 5.2 | 0 |
 
 #### GENIA
@@ -247,6 +262,9 @@ tagging, which is done once and cached.
 | dice | 10,548 | 54% | 0.583 | 56.0 | 0.4 | 62.8 | 2.0 | 61.3 | 3.9 | 58.2 | 7.1 | 2 |
 | tscore | 10,548 | 54% | 0.694 | 79.0 | 0.5 | 77.2 | 2.5 | 75.3 | 4.8 | 69.5 | 8.5 | 2 |
 | yake | 16,129 | 54% | 0.654 | 60.0 | 0.4 | 61.4 | 2.0 | 65.1 | 4.1 | 66.5 | 8.2 | 5 |
+| textrank | 15,740 | 53% | 0.584 | 61.0 | 0.4 | 58.2 | 1.9 | 60.3 | 3.8 | 59.9 | 7.4 | 1 |
+| singlerank | 15,740 | 53% | 0.585 | 60.0 | 0.4 | 57.4 | 1.8 | 60.8 | 3.8 | 60.9 | 7.5 | 1 |
+| positionrank | 15,740 | 53% | 0.584 | 60.0 | 0.4 | 57.0 | 1.8 | 60.5 | 3.8 | 61.1 | 7.5 | 1 |
 | rake | 4,912 | 53% | 0.582 | 61.0 | 0.4 | 59.8 | 1.9 | 58.2 | 3.6 | 56.1 | 6.7 | 0 |
 
 ## Multilingual
@@ -335,6 +353,9 @@ the task harder.
 | dice | 485 | 5% | 0.172 | 7.0 | 4.6 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 0 |
 | tscore | 485 | 5% | 0.452 | 11.0 | 7.2 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 0 |
 | yake | 1,411 | 7% | 0.240 | 14.0 | 9.1 | 8.4 | 11.9 | 6.5 | 44.4 | 11.4 | 0 |
+| textrank | 1,414 | 7% | 0.143 | 11.0 | 7.2 | 5.8 | 8.2 | 6.5 | 44.4 | 11.4 | 0 |
+| singlerank | 1,414 | 7% | 0.168 | 12.0 | 7.8 | 6.4 | 9.1 | 6.5 | 44.4 | 11.4 | 0 |
+| positionrank | 1,414 | 7% | 0.156 | 12.0 | 7.8 | 6.2 | 8.8 | 6.5 | 44.4 | 11.4 | 0 |
 | rake | 63 | 29% | 0.403 | 28.6 | 13.3 | 28.6 | 13.3 | 28.6 | 8.7 | 13.3 | 0 |
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
 | features | 50 | 30% | 0.591 | 30.0 | 11.7 | 30.0 | 11.7 | 30.0 | 7.2 | 11.7 | 25 |
@@ -439,6 +460,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | dice | 2,205 | 32% | 0.413 | 32.0 | 2.0 | 43.8 | 12.2 | 41.7 | 20.3 | 34.1 | 26.7 | 32.4 | 23.0 | 26.9 | 1 |
 | tscore | 2,205 | 32% | 0.574 | 64.0 | 4.0 | 48.0 | 13.3 | 38.5 | 18.8 | 33.8 | 26.5 | 32.4 | 23.0 | 26.9 | 1 |
 | yake | 4,033 | 32% | 0.367 | 39.0 | 2.4 | 34.6 | 9.6 | 33.3 | 16.2 | 32.8 | 25.7 | 31.9 | 41.5 | 36.0 | 7 |
+| textrank | 4,045 | 32% | 0.234 | 10.0 | 0.6 | 21.6 | 6.0 | 28.0 | 13.7 | 32.9 | 25.8 | 32.0 | 41.7 | 36.2 | 1 |
+| singlerank | 4,045 | 32% | 0.240 | 15.0 | 0.9 | 23.4 | 6.5 | 27.0 | 13.2 | 32.8 | 25.7 | 32.0 | 41.7 | 36.2 | 1 |
+| positionrank | 4,045 | 32% | 0.244 | 16.0 | 1.0 | 24.2 | 6.7 | 25.9 | 12.6 | 31.4 | 24.6 | 32.0 | 41.7 | 36.2 | 1 |
 | rake | 1,876 | 24% | 0.285 | 33.0 | 1.4 | 23.6 | 4.6 | 23.4 | 8.4 | 23.5 | 13.6 | 23.5 | 9.6 | 13.6 | 3 |
 | roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
 | features | 10,170 | 35% | 0.570 | 70.0 | 3.0 | 61.6 | 12.1 | 57.3 | 20.5 | 54.9 | 33.3 | 34.8 | 76.9 | 47.9 | 9 |
@@ -466,6 +490,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | dice | 1,941 | 38% | 0.564 | 58.0 | 3.3 | 57.6 | 14.8 | 50.0 | 22.8 | 37.8 | 27.6 | 37.8 | 21.7 | 27.6 | 1 |
 | tscore | 1,941 | 38% | 0.634 | 69.0 | 4.0 | 56.0 | 14.4 | 45.5 | 20.8 | 37.8 | 27.6 | 37.8 | 21.7 | 27.6 | 1 |
 | yake | 3,754 | 41% | 0.418 | 37.0 | 2.1 | 40.6 | 10.5 | 42.0 | 19.2 | 41.6 | 31.0 | 41.2 | 45.8 | 43.4 | 5 |
+| textrank | 3,764 | 41% | 0.277 | 13.0 | 0.7 | 22.8 | 5.9 | 27.5 | 12.6 | 38.5 | 28.6 | 41.2 | 45.9 | 43.4 | 1 |
+| singlerank | 3,764 | 41% | 0.284 | 17.0 | 1.0 | 24.0 | 6.2 | 28.7 | 13.1 | 39.5 | 29.3 | 41.2 | 45.9 | 43.4 | 1 |
+| positionrank | 3,764 | 41% | 0.275 | 17.0 | 1.0 | 23.2 | 6.0 | 27.7 | 12.6 | 38.2 | 28.4 | 41.2 | 45.9 | 43.4 | 1 |
 | rake | 998 | 35% | 0.369 | 32.0 | 1.3 | 24.2 | 4.6 | 35.4 | 12.3 | 35.4 | 12.3 | 35.4 | 7.4 | 12.3 | 1 |
 | roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
 | features | 7,500 | 43% | 0.650 | 72.0 | 3.0 | 70.2 | 13.4 | 67.5 | 23.5 | 60.7 | 36.0 | 42.8 | 67.6 | 52.4 | 8 |
@@ -493,6 +520,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | dice | 1,771 | 27% | 0.398 | 39.0 | 4.6 | 41.8 | 20.1 | 32.8 | 25.4 | 27.3 | 28.8 | 27.3 | 30.6 | 28.8 | 1 |
 | tscore | 1,771 | 27% | 0.659 | 66.0 | 7.9 | 48.8 | 23.5 | 36.2 | 28.1 | 27.3 | 28.8 | 27.3 | 30.6 | 28.8 | 1 |
 | yake | 2,941 | 29% | 0.450 | 46.0 | 5.5 | 42.2 | 20.3 | 37.4 | 29.0 | 31.6 | 35.3 | 28.7 | 53.5 | 37.4 | 5 |
+| textrank | 2,961 | 29% | 0.211 | 7.0 | 0.8 | 23.2 | 11.2 | 26.2 | 20.3 | 29.3 | 32.8 | 29.0 | 54.4 | 37.8 | 1 |
+| singlerank | 2,961 | 29% | 0.233 | 4.0 | 0.5 | 28.6 | 13.8 | 28.2 | 21.9 | 30.4 | 34.0 | 29.0 | 54.4 | 37.8 | 1 |
+| positionrank | 2,961 | 29% | 0.234 | 6.0 | 0.7 | 28.2 | 13.6 | 28.7 | 22.2 | 30.5 | 34.1 | 29.0 | 54.4 | 37.8 | 1 |
 | rake | 923 | 18% | 0.315 | 16.0 | 1.3 | 21.2 | 7.3 | 18.4 | 10.2 | 18.4 | 10.2 | 18.4 | 7.1 | 10.2 | 2 |
 | roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
 | features | 6,323 | 30% | 0.527 | 66.0 | 5.3 | 53.8 | 18.5 | 46.2 | 27.1 | 41.3 | 37.5 | 29.6 | 77.6 | 42.8 | 8 |
@@ -520,6 +550,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | dice | 1,294 | 36% | 0.535 | 54.0 | 6.4 | 51.8 | 24.7 | 41.4 | 31.9 | 36.4 | 32.6 | 36.4 | 29.5 | 32.6 | 1 |
 | tscore | 1,294 | 36% | 0.542 | 60.0 | 7.1 | 47.4 | 22.6 | 42.0 | 32.4 | 36.4 | 32.6 | 36.4 | 29.5 | 32.6 | 1 |
 | yake | 2,186 | 35% | 0.373 | 34.0 | 4.0 | 36.8 | 17.6 | 36.2 | 27.9 | 34.2 | 38.0 | 34.6 | 47.4 | 40.0 | 3 |
+| textrank | 2,202 | 35% | 0.290 | 27.0 | 3.2 | 28.4 | 13.5 | 32.4 | 25.0 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
+| singlerank | 2,202 | 35% | 0.251 | 17.0 | 2.0 | 24.6 | 11.7 | 32.9 | 25.3 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
+| positionrank | 2,202 | 35% | 0.228 | 12.0 | 1.4 | 25.2 | 12.0 | 31.0 | 23.9 | 35.9 | 39.9 | 34.8 | 48.1 | 40.4 | 1 |
 | rake | 653 | 16% | 0.209 | 21.0 | 1.7 | 15.4 | 5.5 | 16.2 | 7.1 | 16.2 | 7.1 | 16.2 | 4.6 | 7.1 | 1 |
 | roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
 | features | 4,876 | 32% | 0.564 | 66.0 | 5.5 | 56.2 | 19.9 | 52.3 | 31.5 | 44.1 | 40.8 | 32.1 | 67.5 | 43.5 | 8 |
@@ -613,6 +646,9 @@ F1 64.6.
 | dice | 188 | 20% | 0.243 | 20.0 | 5.9 | 19.7 | 9.7 | 19.7 | 6.4 | 9.7 | 0 |
 | tscore | 188 | 20% | 0.283 | 20.0 | 5.9 | 19.7 | 9.7 | 19.7 | 6.4 | 9.7 | 0 |
 | yake | 652 | 20% | 0.305 | 28.0 | 8.3 | 21.4 | 19.9 | 20.2 | 22.9 | 21.5 | 0 |
+| textrank | 638 | 20% | 0.233 | 23.0 | 6.8 | 17.6 | 16.3 | 19.9 | 22.0 | 20.9 | 0 |
+| singlerank | 638 | 20% | 0.152 | 15.0 | 4.4 | 18.2 | 16.9 | 19.9 | 22.0 | 20.9 | 0 |
+| positionrank | 638 | 20% | 0.207 | 27.0 | 8.0 | 20.2 | 18.8 | 19.9 | 22.0 | 20.9 | 0 |
 | rake | 42 | 60% | 0.759 | 59.5 | 8.1 | 59.5 | 8.1 | 59.5 | 4.3 | 8.1 | 0 |
 | roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
 | features | 1,013 | 29% | – | – | – | – | – | 29.1 | 51.1 | 37.1 | 79 |
@@ -651,9 +687,15 @@ F1 64.6.
 - Frantzi, K., Ananiadou, S., & Mima, H. (2000). Automatic recognition of multi-word
   terms: the C-value/NC-value method. *International Journal on Digital Libraries*,
   3(2), 115–130. https://doi.org/10.1007/s007999900023
+- Boudin, F. (2016). pke: an open source python-based keyphrase extraction toolkit. In
+  *Proceedings of COLING 2016: System Demonstrations*, 69–73.
+  https://aclanthology.org/C16-2015
 - Campos, R., Mangaravite, V., Pasquali, A., Jorge, A., Nunes, C., & Jatowt, A. (2020).
   YAKE! Keyword extraction from single documents using multiple local features.
   *Information Sciences*, 509, 257–289. https://doi.org/10.1016/j.ins.2019.09.013
+- Florescu, C., & Caragea, C. (2017). PositionRank: an unsupervised approach to
+  keyphrase extraction from scholarly documents. In *Proceedings of ACL 2017*,
+  1105–1115. https://aclanthology.org/P17-1102
 - Goldhahn, D., Eckart, T., & Quasthoff, U. (2012). Building large monolingual
   dictionaries at the Leipzig Corpora Collection: from 100 to 200 languages. In
   *Proceedings of LREC 2012*, 759–765.
@@ -663,6 +705,8 @@ F1 64.6.
 - McCrae, J. P., & Doyle, A. (2019). Adapting term recognition to an under-resourced
   language: the case of Irish. In *Proceedings of the Celtic Language Technology
   Workshop*, 48–57. https://aclanthology.org/W19-6907
+- Mihalcea, R., & Tarau, P. (2004). TextRank: bringing order into texts. In
+  *Proceedings of EMNLP 2004*, 404–411. https://aclanthology.org/W04-3252
 - Navigli, R., & Velardi, P. (2004). Learning domain ontologies from document
   warehouses and dedicated web sites. *Computational Linguistics*, 30(2), 151–179.
 - Tran, H. T. H., Martinc, M., Repar, A., Doucet, A., & Pollak, S. (2022). A
@@ -678,3 +722,5 @@ F1 64.6.
   https://aclanthology.org/2020.computerm-1.12
 - Vivaldi, J., Màrquez, L., & Rodríguez, H. (2001). Improving term extraction by system
   combination using boosting. In *Machine Learning: ECML 2001*, LNCS 2167, 515–526.
+- Wan, X., & Xiao, J. (2008). Single document keyphrase extraction using neighborhood
+  knowledge. In *Proceedings of AAAI 2008*, 855–860.
