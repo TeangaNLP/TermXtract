@@ -65,6 +65,7 @@ METHODS = {
     "combobasic": {},
     "domaincoherence": {},
     "yake": {},
+    "textrank": {},
     "topicmodeling": {"num_topics": 2},
     "nmf": {"n_topics": 2},
     "weirdness": {"reference_corpus": None},

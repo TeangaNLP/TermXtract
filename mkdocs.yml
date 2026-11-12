@@ -46,6 +46,7 @@ nav:
     - ComboBasic: api/unsupervised/combobasic.md
     - RAKE: api/unsupervised/rake.md
     - YAKE!: api/unsupervised/yake.md
+    - TextRank: api/unsupervised/textrank.md
     - Domain Coherence: api/unsupervised/domaincoherence.md
     - Domain Pertinence: api/unsupervised/domainpertinence.md
     - Weirdness: api/unsupervised/weirdness.md
