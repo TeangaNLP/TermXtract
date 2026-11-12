@@ -9,7 +9,8 @@ Run the multilingual benchmark of BENCHMARKS.md: every method of TermXtract on H
 The datasets are downloaded on first use (see `termxtract.datasets`), as are samples of
 Hindi and Irish Wikipedia from the Leipzig Corpora Collection, which the reference-corpus
 methods use as general-language text for HTEC and the Irish gold standard. The token-classification
-method needs the `transformers` extra, and a GPU to finish in reasonable time.
+method needs the `transformers` extra, and a GPU to finish in reasonable time, and the
+llm method a model server, as for the English benchmark.
 
 HTEC has no part-of-speech tags or lemmas, so on HTEC every method reads the words as
 written, and candidates are sequences of up to four words that neither start nor end
@@ -56,6 +57,7 @@ from english import (
     TOKEN_CLASSIFICATION,
     UNSUPERVISED,
     N,
+    llm,
     method_options,
     ranking,
     scores,
@@ -300,6 +302,8 @@ def supervised(
     """Train a supervised extractor on the training documents and extract the terms of
     the test documents, as for the English benchmark. Without tags, the features
     method's candidates are every sequence of words."""
+    if method == "llm":
+        return llm(ENCODER, stopwords).fit(train).predict(test)
     if method == "token-classification":
         extractor = SupervisedTermExtractor(
             method=method,
@@ -391,6 +395,8 @@ def rsdo5_supervised(
 ) -> ATEResults:
     """Train a supervised extractor on the training domains of RSDO5 and extract the
     terms of the test domain."""
+    if method == "llm":
+        return llm(ENCODER, "slovenian").fit(train).predict(test)
     if method == "token-classification":
         extractor = SupervisedTermExtractor(
             method=method,

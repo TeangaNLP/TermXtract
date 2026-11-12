@@ -270,7 +270,7 @@ Things to know about this method:
 - `k=0` asks the model with no demonstrations at all.
 - `n_jobs` sends several prompts at once. A local server only answers them in parallel if it is set up to, for example with `OLLAMA_NUM_PARALLEL` for Ollama.
 
-In the paper, with GPT-3.5-Turbo on ACTER, in-context learning beat fine-tuning XLM-RoBERTa by far with 5 training sentences, and by less as the training set grew: by 30 sentences the two were close. More demonstrations helped in-context learning only a little, about 2 points of F1 from 5 to 30 sentences, and kNN selection beat random selection by 1 to 2 points. So in-context learning is the method to try when only a handful of sentences are labelled, and fine-tuning when there are more.
+In the paper, with GPT-3.5-Turbo on ACTER, in-context learning beat fine-tuning XLM-RoBERTa by far with 5 training sentences, and by less as the training set grew: by 30 sentences the two were close. More demonstrations helped in-context learning only a little, about 2 points of F1 from 5 to 30 sentences, and kNN selection beat random selection by 1 to 2 points. With TermXtract and the open model `gemma4:26b`, in-context learning beat fine-tuning at every size up to 30 sentences on all four domains of ACTER, and with all of ACTER's training data it came within 4 points of F1 of token classification (see the [benchmarks](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md)). So in-context learning is the method to try when only a handful of sentences are labelled, and fine-tuning when there are many.
 
 ## Using a Teanga corpus
 

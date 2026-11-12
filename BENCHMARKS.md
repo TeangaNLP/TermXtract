@@ -10,8 +10,11 @@ It covers the English datasets and three multilingual ones: HTEC (Hindi), RSDO5
 
 To reproduce the English results, install spaCy and its `en_core_web_sm` model, and
 run `python benchmarks/english.py`; for the multilingual results, run
-`python benchmarks/multilingual.py` (see the scripts for the options). The scores below
-are from `benchmarks/english.json` and `benchmarks/multilingual.json`.
+`python benchmarks/multilingual.py`, and for the few-shot results,
+`python benchmarks/fewshot.py` (see the scripts for the options). The llm method needs
+a model server: the results here are from `gemma4:26b`, served by Ollama 0.33 on the
+same machine. The scores below are from `benchmarks/english.json`,
+`benchmarks/multilingual.json` and `benchmarks/fewshot.json`.
 
 ## English
 
@@ -76,8 +79,15 @@ methods, the candidates are those of ATR4S's candidate collector:
   with the Brown corpus as reference corpus, and it is scored on the candidates it
   classifies as terms. AdaBoost was removed (#59): it was the weakest and slowest method, a loose
   simplification of Vivaldi et al. (2001) with no published results to compare with.
-- All three are seeded (`random_state=0`), and Roger's runs and the features method's
-  trees are trained in parallel (`n_jobs=-1`).
+- **In-context learning** (llm) shows the model each test sentence with the five
+  training sentences most similar to it, by the cosine of their `all-MiniLM-L6-v2`
+  embeddings, each with its annotated terms (`k=5`), in the default template, "Find the
+  domain-specific terms in the following text." with `Input:` and `Output:`. The model
+  is `gemma4:26b`, asked at temperature 0 without reasoning. Its terms are not filtered,
+  as for token classification.
+- Roger, the features method and token classification are seeded (`random_state=0`),
+  and Roger's runs and the features method's trees are trained in parallel
+  (`n_jobs=-1`).
 - Everything else is at its default.
 
 Terms are matched to the gold standard after lowercasing, against the distinct terms of
@@ -129,6 +139,14 @@ against 130 here (99 of them part-of-speech features), and tunes its forest by g
 search, where the features method's forest weights the classes and has leaves of at
 least 5 candidates, the settings that classified best on the training domains when one
 was left out. HAMLET also used an earlier version of ACTER.
+
+In-context learning (Banerjee et al., 2024) has no published results in this setting,
+with demonstrations from other domains than the test domain; see the few-shot results
+below for the setting of the paper. With five demonstrations from corruption, dressage
+and wind energy for each sentence, it finds the terms of heart failure with precision
+43.3, recall 73.4 and F1 54.5, against 61.7, 55.0 and 58.2 for token classification
+trained on all 11,730 training sentences, and above every other method. As in the
+paper, it finds more of the terms but less precisely.
 
 **GENIA and the ACL RD-TEC.** ATR4S (Astrakhantsev, 2018, Table 5) reports AvP.
 
@@ -195,7 +213,7 @@ The weight was chosen from 0.2 and 0.5 on these test sets.
 ### Results
 
 Times are in seconds on a desktop machine (32 cores, with an RTX 4090 for token
-classification) and include training for the supervised methods. They do not include
+classification and for the model of in-context learning) and include training for the supervised methods. They do not include
 tagging, which is done once and cached.
 
 #### ACTER
@@ -230,6 +248,7 @@ tagging, which is done once and cached.
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
 | features | 3,490 | 38% | 0.665 | 76.0 | 5.7 | 67.6 | 22.1 | 60.4 | 34.0 | 48.6 | 42.7 | 20 |
 | token-classification | 2,280 | 62% | 0.716 | 78.0 | 5.9 | 72.6 | 23.8 | 67.8 | 38.1 | 61.9 | 54.3 | 305 |
+| llm | 4,331 | 43% | 0.558 | 75.0 | 5.6 | 54.8 | 17.9 | 53.8 | 30.3 | 49.5 | 43.5 | 279 |
 
 #### ACL RD-TEC 2.0
 
@@ -290,6 +309,63 @@ tagging, which is done once and cached.
 | embedrank-mmr | 15,740 | 53% | 0.726 | 82.0 | 0.5 | 80.6 | 2.6 | 78.4 | 5.0 | 75.8 | 9.3 | 11 |
 | mderank | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 85.8 | 2.8 | 80.4 | 5.1 | 76.7 | 9.4 | 73 |
 | rake | 4,912 | 53% | 0.582 | 61.0 | 0.4 | 59.8 | 1.9 | 58.2 | 3.6 | 56.1 | 6.7 | 0 |
+
+### Few-shot
+
+Banerjee, Chakravarthi & McCrae (2024) compare in-context learning with fine-tuning
+XLM-RoBERTa when only 5 to 30 sentences of a domain are labelled.
+`benchmarks/fewshot.py` follows their setup on each English domain of ACTER, with terms
+and named entities:
+
+- **Sentences.** The distinct sentences of the domain are shuffled with a fixed seed.
+  The first 150 are the test sentences and the next 10 the validation sentences, and
+  for each of five seeds the 5, 15, 25 or 30 training sentences are a random sample of
+  the rest. The paper's own split of ACTER is not published, so the test sentences
+  differ.
+- **In-context learning** shows each test sentence with all the training sentences,
+  the most similar last, with their annotated terms (`k` is the number of training
+  sentences), in the default template, with `gemma4:26b` as the model. The paper used
+  GPT-3.5-Turbo and averaged over its eight templates.
+- **Token classification** fine-tunes `xlm-roberta-base` with each domain's batch size
+  and learning rate from Banerjee (2025, Table 4.1), for 50 epochs, keeping the epoch
+  with the best F1 on the validation sentences. Stopping early instead, after 5 epochs
+  without improvement, ends training before the model tags anything on heart failure,
+  where the learning rate is lowest: F1 stays at about 8 with up to 25 sentences.
+- **Scores.** Each test sentence's terms are compared with its gold terms, and the true
+  and false positives and negatives are added up over the sentences (micro-averaged),
+  as in the paper. The table gives the mean precision, recall and F1 of the five seeds,
+  with the standard deviation of the F1.
+
+| Training sentences | Method | Corruption P / R / F1 | Dressage P / R / F1 | Heart failure P / R / F1 | Wind energy P / R / F1 |
+|---:|---|---:|---:|---:|---:|
+| 5 | llm | 51.0 / 48.2 / 49.5 (±2.3) | 74.0 / 58.0 / 65.0 (±2.0) | 64.7 / 54.2 / 58.8 (±2.7) | 57.1 / 42.2 / 48.3 (±2.9) |
+| 5 | token-classification | 58.9 / 37.6 / 44.8 (±9.1) | 69.5 / 49.1 / 57.4 (±1.8) | 59.5 / 47.3 / 52.1 (±6.7) | 69.4 / 26.1 / 37.6 (±4.1) |
+| 15 | llm | 58.9 / 54.1 / 56.4 (±1.5) | 77.4 / 62.3 / 69.0 (±1.0) | 68.0 / 59.2 / 63.2 (±1.9) | 64.8 / 50.5 / 56.6 (±2.6) |
+| 15 | token-classification | 64.2 / 44.4 / 52.3 (±3.3) | 70.2 / 61.1 / 65.1 (±1.0) | 62.5 / 52.0 / 56.5 (±3.2) | 68.7 / 33.6 / 44.8 (±4.7) |
+| 25 | llm | 62.2 / 59.8 / 60.8 (±2.1) | 78.7 / 64.2 / 70.7 (±2.0) | 69.1 / 61.9 / 65.3 (±1.2) | 66.6 / 53.2 / 59.1 (±2.9) |
+| 25 | token-classification | 65.4 / 45.5 / 53.6 (±3.5) | 69.9 / 60.5 / 64.8 (±2.9) | 67.2 / 52.9 / 59.1 (±1.9) | 54.2 / 32.3 / 40.4 (±22.7) |
+| 30 | llm | 64.3 / 61.9 / 63.0 (±2.5) | 79.7 / 65.2 / 71.7 (±1.6) | 69.4 / 62.6 / 65.8 (±1.7) | 68.0 / 53.4 / 59.7 (±3.3) |
+| 30 | token-classification | 71.8 / 45.2 / 55.3 (±3.5) | 72.7 / 61.4 / 66.5 (±1.7) | 67.2 / 51.3 / 58.1 (±2.4) | 70.0 / 39.6 / 50.5 (±0.9) |
+
+The F1 of the paper (Table 4.5), with 5 and 30 training sentences:
+
+| Method | Corruption | Dressage | Heart failure | Wind energy |
+|---|---:|---:|---:|---:|
+| GPT-3.5-Turbo | 28.9, 32.2 | 48.6, 49.4 | 53.7, 57.3 | 30.7, 32.7 |
+| XLM-RoBERTa | 14.1, 30.7 | 37.3, 48.2 | 10.0, 49.5 | 23.1, 32.2 |
+
+- **In-context learning beats fine-tuning** at every size in every domain, as in the
+  paper, by 4 to 12 points of F1 (19 on wind energy with 25 sentences, where one of
+  the five models failed to learn). As in the paper, it finds more of the terms, with
+  less precision.
+- **Both are well ahead of the paper's results**, on different test sentences. The model
+  is newer than GPT-3.5-Turbo, and terms that are not in the sentence are dropped.
+  Fine-tuning does much better with 5 sentences (37.6–57.4, against 10.0–37.3) when it
+  trains for all 50 epochs.
+- **More demonstrations help**, unlike in the paper, where F1 rose by about 2 points
+  from 5 to 30 sentences: here it rises by 7 to 14.
+- In-context learning takes 13 to 18 minutes per domain for the 20 runs (3,000 prompts),
+  and fine-tuning about 10, on the RTX 4090.
 
 ## Multilingual
 
@@ -387,6 +463,7 @@ the task harder.
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
 | features | 50 | 30% | 0.591 | 30.0 | 11.7 | 30.0 | 11.7 | 30.0 | 7.2 | 11.7 | 25 |
 | token-classification | 189 | 61% | 0.718 | 63.0 | 41.0 | 61.4 | 58.6 | 61.4 | 56.0 | 58.6 | 121 |
+| llm | 625 | 19% | 0.240 | 22.0 | 14.3 | 19.2 | 27.2 | 19.4 | 58.5 | 29.1 | 55 |
 
 #### Observations
 
@@ -407,6 +484,11 @@ the task harder.
 - **EmbedRank and MDERank**, with the multilingual encoder
   `paraphrase-multilingual-MiniLM-L12-v2`, have AvP 0.256 and 0.381, below TF-IDF.
   Re-ranking by Maximal Marginal Relevance lowers EmbedRank's to 0.205.
+- **In-context learning** (llm), with the multilingual encoder choosing the
+  demonstrations, finds as many of the gold terms as token classification (recall 58.5,
+  against 56.0), but with precision 19.4, so its F1 is 29.1. HTEC's annotations are
+  sparse and idiosyncratic, with names of people and parts of words, such as `विद्या`
+  in `विद्यालय`, as terms, which five demonstrations don't convey.
 
 ### RSDO5 1.1 (Slovenian)
 
@@ -500,6 +582,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
 | features | 10,170 | 35% | 0.570 | 70.0 | 3.0 | 61.6 | 12.1 | 57.3 | 20.5 | 54.9 | 33.3 | 34.8 | 76.9 | 47.9 | 9 |
 | token-classification | 4,431 | 69% | 0.717 | 81.0 | 3.4 | 74.2 | 14.5 | 71.6 | 25.6 | 68.2 | 41.4 | 69.0 | 66.5 | 67.7 | 491 |
+| llm | 6,681 | 54% | 0.568 | 73.0 | 3.1 | 61.0 | 12.0 | 57.7 | 20.6 | 52.7 | 31.9 | 54.4 | 79.0 | 64.5 | 726 |
 
 ##### Veterinary science
 
@@ -533,6 +616,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
 | features | 7,500 | 43% | 0.650 | 72.0 | 3.0 | 70.2 | 13.4 | 67.5 | 23.5 | 60.7 | 36.0 | 42.8 | 67.6 | 52.4 | 8 |
 | token-classification | 4,274 | 72% | 0.709 | 88.0 | 3.6 | 69.2 | 13.2 | 70.3 | 24.5 | 68.0 | 40.3 | 72.0 | 64.8 | 68.2 | 339 |
+| llm | 5,938 | 61% | 0.597 | 76.0 | 3.1 | 61.2 | 11.7 | 61.8 | 21.5 | 58.9 | 34.9 | 61.0 | 76.3 | 67.8 | 624 |
 
 ##### Chemistry
 
@@ -566,6 +650,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
 | features | 6,323 | 30% | 0.527 | 66.0 | 5.3 | 53.8 | 18.5 | 46.2 | 27.1 | 41.3 | 37.5 | 29.6 | 77.6 | 42.8 | 8 |
 | token-classification | 2,230 | 66% | 0.703 | 80.0 | 6.4 | 69.8 | 24.0 | 68.4 | 40.1 | 66.0 | 59.9 | 65.8 | 60.9 | 63.2 | 190 |
+| llm | 3,109 | 55% | 0.591 | 76.0 | 6.1 | 57.4 | 19.7 | 54.7 | 32.1 | 52.2 | 47.4 | 55.1 | 71.1 | 62.1 | 392 |
 
 ##### Biomechanics
 
@@ -599,6 +684,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
 | features | 4,876 | 32% | 0.564 | 66.0 | 5.5 | 56.2 | 19.9 | 52.3 | 31.5 | 44.1 | 40.8 | 32.1 | 67.5 | 43.5 | 8 |
 | token-classification | 1,981 | 67% | 0.656 | 73.0 | 6.0 | 63.4 | 22.5 | 63.9 | 38.5 | 66.7 | 61.5 | 66.7 | 57.0 | 61.5 | 395 |
+| llm | 3,261 | 50% | 0.454 | 48.0 | 4.0 | 34.4 | 12.2 | 48.5 | 29.2 | 47.0 | 43.5 | 49.9 | 70.2 | 58.4 | 471 |
 
 #### Observations
 
@@ -611,14 +697,18 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
   pattern, so that is the recall of the unsupervised methods over all their candidates.
 - **NC-value** is a little ahead of C-value on every domain, with AvP 0.003 to 0.019
   higher, unlike on the English datasets and HTEC.
-- **Token classification** is far ahead of every other method, as on ACTER and HTEC.
-- **The features method** is second, with F1 43–52 over the candidates it classifies as
+- **Token classification** has the best F1 on every domain, as on ACTER and HTEC, with
+  in-context learning close behind (see below).
+- **The features method** is third, with F1 43–52 over the candidates it classifies as
   terms, ahead of the 30–38 of Ljubešić et al. (2019). Its learned tag sequences cover
   more of the gold terms than the noun-phrase pattern, and its recall is 68–78.
 - **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
 - **MDERank**, with the multilingual encoder used on HTEC, is between TF-IDF and C-value
   on three domains, and ahead of both on chemistry (AvP 0.643). EmbedRank is well below
   both (0.257–0.383), with or without re-ranking by Maximal Marginal Relevance.
+- **In-context learning** (llm) comes close to token classification, with F1 58–68
+  against 62–68 and higher recall (70–79, against 57–67), from five demonstrations per
+  sentence.
 
 ### Irish Wikipedia gold standard
 
@@ -701,6 +791,7 @@ F1 64.6.
 | roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
 | features | 1,013 | 29% | – | – | – | – | – | 29.1 | 51.1 | 37.1 | 79 |
 | token-classification | 575 | 66% | – | – | – | – | – | 65.7 | 65.5 | 65.6 | 192 |
+| llm | 519 | 71% | – | – | – | – | – | 71.3 | 64.1 | 67.5 | 57 |
 
 #### Observations
 
@@ -711,15 +802,18 @@ F1 64.6.
 - **The reference corpus helps a little.** Weirdness and domain pertinence have the best
   F1@500 (22.1), against 19.3 for TF-IDF. NMF and TF-IDF have the best precision at
   the top, with P@100 of 34 and 30.
-- **Token classification** is far ahead of every other method, as on the other datasets,
-  even with only nine articles to train on.
-- **The features method** is second, with F1 37.1. Unlike the unsupervised methods, its
+- **Token classification** and in-context learning are far ahead of every other method,
+  as on the other datasets, even with only nine articles to train on.
+- **The features method** is third, with F1 37.1. Unlike the unsupervised methods, its
   candidates include those that occur once, so it finds 51% of the gold terms.
 - **Roger and RAKE** are the weakest. RAKE keeps only 42 candidates, since its phrases
   are long and must occur twice.
 - **MDERank** has AvP 0.389, after RAKE and TF-IDF, although its multilingual encoder
   was not trained on Irish. EmbedRank has 0.233, and 0.330 re-ranked by Maximal
   Marginal Relevance.
+- **In-context learning** (llm) has the best F1, 67.5, against 65.6 for token
+  classification, and the best precision (71.3), although its encoder was not trained
+  on Irish either.
 
 ## References
 
@@ -732,6 +826,9 @@ F1 64.6.
   https://aclanthology.org/2021.findings-acl.316
 - Banerjee, S. (2025). *Deep learning for automatic term extraction* [Doctoral thesis,
   University of Galway].
+- Banerjee, S., Chakravarthi, B. R., & McCrae, J. P. (2024). Large language models for
+  few-shot automatic term extraction. In *Natural Language Processing and Information
+  Systems (NLDB 2024)*, 137–150. Springer.
 - Banerjee, S., Chakravarthi, B. R., & McCrae, J. P. (2025). Benchmarking Hindi term
   extraction in education: a dataset and analysis. In *Proceedings of Language, Data
   and Knowledge (LDK 2025)*.
@@ -756,6 +853,9 @@ F1 64.6.
 - Ljubešić, N., Fišer, D., & Erjavec, T. (2019). KAS-term: extracting Slovene terms
   from doctoral theses via supervised machine learning. In *Proceedings of TSD 2019*,
   115–126.
+- Liu, J., Shen, D., Zhang, Y., Dolan, B., Carin, L., & Chen, W. (2022). What makes
+  good in-context examples for GPT-3? In *Proceedings of DeeLIO 2022*, 100–114.
+  https://aclanthology.org/2022.deelio-1.10
 - McCrae, J. P., & Doyle, A. (2019). Adapting term recognition to an under-resourced
   language: the case of Irish. In *Proceedings of the Celtic Language Technology
   Workshop*, 48–57. https://aclanthology.org/W19-6907
