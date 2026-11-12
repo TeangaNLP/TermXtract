@@ -40,6 +40,18 @@ def test_word_score():
     assert found["cat"] == pytest.approx(-word / ((1 + word) * 2))
 
 
+def test_unusual_words_are_not_context():
+    # "42" doesn't match the word pattern, so the only word seen right of "cat" is
+    # "bird". It still counts towards the mean and deviation of the frequencies.
+    texts = ["cat 42 dog. cat 42 dog. cat bird."]
+    found = scores(yake(n=1, word_pattern="[a-z]+").extract_terms_strings(texts))
+    spread = statistics.fmean([3, 2, 2, 1]) + statistics.pstdev([3, 2, 2, 1])
+    position = math.log(math.log(3 + 1))
+    relatedness = 1 + (0 + 1 / 1) * 3 / 3
+    word = relatedness * position / (0 + (3 / spread + 3 / 3) / relatedness)
+    assert found["cat"] == pytest.approx(-word / ((1 + word) * 3))
+
+
 def test_capitals_score_better():
     # "Kaggle" starts with a capital letter but not a sentence
     lower = scores(yake(n=1).extract_terms_strings(["the kaggle site. a kaggle site."]))

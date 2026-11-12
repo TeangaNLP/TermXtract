@@ -67,17 +67,18 @@ class YAKETermExtractor(BaseTermExtractor):
     features:
 
     - casing, \( T_{case} = \max(TF_U(t), TF_A(t)) / (1 + \ln TF(t)) \), where
-      \( TF_U \) counts its occurrences that start with a capital letter but don't
-      start a sentence and \( TF_A \) those in capitals;
+      \( TF_A \) counts its occurrences in capitals and \( TF_U \) those whose only
+      capital is the first letter, other than at the start of a sentence;
     - position, \( T_{pos} = \ln(\ln(3 + \mathrm{median}(S_t))) \), where \( S_t \) is
       the set of indices of the sentences it occurs in;
     - frequency, \( T_{freq} = TF(t) / (\mu + \sigma) \), where \( \mu \) and
       \( \sigma \) are the mean and standard deviation of the frequencies of the words
       that are not stopwords;
     - relatedness to its context, \( T_{rel} = 1 + (D_L + D_R) \cdot TF(t) /
-      \max TF \), where \( D_L \) is the number of different words within
-      `window_size` words on its left divided by the number of words there, and
-      \( D_R \) the same on its right;
+      \max TF \), where \( \max TF \) is the highest frequency of any word and
+      \( D_L \) is the number of different words within `window_size` words on its
+      left divided by the number of words there, and \( D_R \) the same on its right.
+      Words that don't match `word_pattern` count in no word's context;
     - the share of the sentences it occurs in, \( T_{sent} \).
 
     Together they score \( S(t) = T_{rel} T_{pos} / (T_{case} + (T_{freq} +
@@ -95,6 +96,13 @@ class YAKETermExtractor(BaseTermExtractor):
     Sentences end at the punctuation of `SENTENCE_END`, such as ".", and a candidate or
     context window does not cross other punctuation either, whether it is between the
     words or a word itself.
+
+    Given the same words, stopwords and lemmas, and a `word_pattern` that rejects the
+    numbers and the words mixing letters and digits that `yake` sets aside, the scores
+    are those of the `yake` package (version 0.7.3, with `dedup_func="levs"`), except that `lemma_layer` also
+    merges the candidates whose words share lemmas, where `yake` merges only the words.
+    `yake` reads words ending in "s" as plurals, and words of one or two letters as
+    stopwords; use `lemma_layer` and `stopwords` for that here.
     """
 
     def __init__(
@@ -291,29 +299,38 @@ class YAKETermExtractor(BaseTermExtractor):
         left: dict[str, Counter[str]] = defaultdict(Counter)
         right: dict[str, Counter[str]] = defaultdict(Counter)
         pairs: Counter[tuple[str, str]] = Counter()
+        # Words that don't match word_pattern take up their place in the windows of
+        # other words, but co-occur with none
+        usual = [
+            self.word_pattern is None or bool(self.word_pattern.fullmatch(key))
+            for key in doc.keys
+        ]
         for chunk, sentence in zip(doc.chunks, doc.chunk_sentences):
             for index, i in enumerate(chunk):
                 key, written = doc.keys[i], doc.written[i]
                 frequency[key] += 1
                 sentences[key].add(sentence)
-                if len(written) > 1 and written.isupper():
+                if written.isupper():
                     acronyms[key] += 1
-                elif written[:1].isupper() and i not in doc.sentence_starts:
+                elif (
+                    written[0].isupper()
+                    and sum(char.isupper() for char in written) == 1
+                    and i not in doc.sentence_starts
+                ):
                     capitalised[key] += 1
+                if not usual[i]:
+                    continue
                 for k in chunk[max(0, index - self.window_size) : index]:
+                    if not usual[k]:
+                        continue
                     left[key][doc.keys[k]] += 1
                     right[doc.keys[k]][key] += 1
                     pairs[doc.keys[k], key] += 1
 
-        valid = [
-            frequency[key]
-            for key in frequency
-            if key not in self.stopwords
-            and (self.word_pattern is None or self.word_pattern.fullmatch(key))
-        ]
+        valid = [tf for key, tf in frequency.items() if key not in self.stopwords]
         if not valid:
             return {}
-        max_frequency = max(valid)
+        max_frequency = max(frequency.values())
         spread = statistics.fmean(valid) + statistics.pstdev(valid)
         num_sentences = len(doc.sentence_starts)
 
