@@ -1,6 +1,6 @@
 # Supervised Methods Tutorial
 
-This tutorial shows how to train a term extractor from examples with `SupervisedTermExtractor`. It covers the format of the training labels, and the two supervised methods: **Roger** and **token classification**.
+This tutorial shows how to train a term extractor from examples with `SupervisedTermExtractor`. It covers the format of the training labels, and the three supervised methods: **Roger**, the **features** classifier and **token classification**.
 
 ## How supervised extraction works
 
@@ -32,8 +32,8 @@ A few rules apply to the labels:
 
 - **Write terms in lower case**, with single spaces between words. Plain-text input is lower-cased and split into words before candidates are generated, so `"Photosynthesis"` would never match.
 - **Multi-word terms** are only generated as candidates if `n` is at least their number of words. Use `n=2` for the labels above.
-- **Unlabelled candidates are only used by Roger, and only without non-terms.** Roger learns from the candidates you label, but if you label only terms, as with a list of gold terms, it counts every other candidate as a non-term (see [Roger](#roger)). Token classification learns only from the terms labelled `1`.
-- **Stopwords are filtered from the results, not from training.** As for the unsupervised methods, extracted terms that start or end with a stopword are dropped (see [Stopwords](tfidf_tutorial.md#stopwords)), but candidates such as `the` and `of` are still used as training examples. Pass `stopwords=None` to keep them in the results.
+- **Unlabelled candidates are only used by Roger and the features method, and only without non-terms.** They learn from the candidates you label, but if you label only terms, as with a list of gold terms, they count every other candidate as a non-term (see [Roger](#roger)). Token classification learns only from the terms labelled `1`.
+- **Stopwords are filtered from the results, not from training.** As for the unsupervised methods, extracted terms that start or end with a stopword are dropped (see [Stopwords](tfidf_tutorial.md#stopwords)), but candidates such as `the` and `of` are still used as training examples by Roger. The features method takes the candidates of the unsupervised methods, so it neither trains on them nor returns them. Pass `stopwords=None` to keep them.
 
 `extract(corpus, labels)` trains the model on the corpus and then scores the candidates in the **same** corpus. To extract terms from other documents, train with `fit` and then call `predict` (see [Training on one corpus, extracting from another](#training-on-one-corpus-extracting-from-another)). The examples below use this small biology corpus:
 
@@ -106,6 +106,52 @@ The labelled terms `light energy` and `chemical energy` come first, and the labe
 - `patience` stops a run early when its best function has not improved for that many generations.
 
 Roger's scores are only meaningful for **ranking**: their scale depends on the learned functions.
+
+## Features
+
+The features method (`method="features"`) follows HAMLET (Rigouts Terryn et al., 2021): it describes each candidate by many **features** and trains a **classifier**, a random forest by default, to tell the terms from the other candidates. The features are the scores of the unsupervised methods (TF-IDF, C-value, Basic and so on), Roger's association measures, the frequency of the candidate, its shape (length, digits, hyphens, case) and, for a Teanga corpus with part-of-speech tags, its tags. Its candidates are those of the unsupervised methods, so it takes their `min_frequency` and `word_pattern`, and it ranks single words too:
+
+```python
+terms = {term: 1 for term, label in labels.items() if label == 1}
+extractor = SupervisedTermExtractor(method="features", n=2, random_state=0)
+results = extractor.extract(corpus, terms)
+
+for term, score in corpus_ranking(results):
+    print(f"{score:.3f}  {term}")
+```
+
+```text
+0.759  light energy
+0.748  chemical energy
+0.668  photosynthesis
+0.661  mitochondria
+0.652  chloroplast
+0.620  takes place
+0.620  cellular respiration
+0.544  respiration
+0.525  glucose
+```
+
+The scores are the probability the classifier gives each candidate of being a term, and by default only the candidates it classifies as terms, with a probability of at least 0.5, are returned. Pass `threshold=None` to rank every candidate, or another threshold to trade recall for precision.
+
+`feature_importances()` shows which features the classifier relies on, here the length of the candidate and its TF-IDF and C-value scores:
+
+```python
+for name, importance in list(extractor.feature_importances().items())[:3]:
+    print(f"{importance:.3f}  {name}")
+```
+
+```text
+0.216  shape:characters
+0.124  termhood:tfidf
+0.098  termhood:cvalue
+```
+
+Some options:
+
+- `reference_corpus` adds the scores of relevance, domain pertinence and weirdness, which compare the corpus with general-language text. On ACTER, it improves both the ranking and the classification.
+- `pos_pattern="learned"`, for a Teanga corpus with part-of-speech tags, takes as candidates only the sequences of words whose tags are those of a term of the training corpus, as HAMLET does.
+- `classifier` takes any scikit-learn classifier with `predict_proba`, such as `LogisticRegression()`, in place of the random forest.
 
 ## Training on one corpus, extracting from another
 

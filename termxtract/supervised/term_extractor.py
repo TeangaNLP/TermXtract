@@ -7,7 +7,9 @@ from teanga import Corpus
 from ..datasets.base import GOLD_LAYER
 from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
+from ..unsupervised.reference_extractor import ReferenceCorpus
 from ..utils import ATEResults
+from .features import LEARNED, FeatureTermExtractor
 from .roger import RogerTermExtractor
 
 if TYPE_CHECKING:
@@ -54,6 +56,25 @@ class SupervisedTermExtractor:
                 "terms_layer",
             ),
         ),
+        "features": (
+            lambda: FeatureTermExtractor,
+            (
+                "classifier",
+                "threshold",
+                "reference_corpus",
+                "n",
+                "random_state",
+                "n_jobs",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+                "min_frequency",
+                "word_pattern",
+                "pos_pattern",
+                "pos_layer",
+                "terms_layer",
+            ),
+        ),
         # Loaded on use because torch/transformers are an optional extra
         "token-classification": (
             _load_token_classification,
@@ -76,10 +97,9 @@ class SupervisedTermExtractor:
         ),
     }
 
-    extractor: "RogerTermExtractor | TokenClassificationTermExtractor"
-
-    FILTER_PARAMS: ClassVar[tuple[str, ...]] = ("pos_pattern", "pos_layer")
-    """Parameters applied to the results by the wrapper, not passed to the extractor."""
+    extractor: (
+        "RogerTermExtractor | FeatureTermExtractor | TokenClassificationTermExtractor"
+    )
 
     def __init__(
         self,
@@ -95,6 +115,12 @@ class SupervisedTermExtractor:
         max_negatives: int | None = 10_000,
         patience: int | None = None,
         n_jobs: int | None = None,
+        # Features parameters
+        classifier: Any = "random_forest",
+        threshold: float | None = 0.5,
+        reference_corpus: ReferenceCorpus | list[ReferenceCorpus] | None = None,
+        min_frequency: int = 1,
+        word_pattern: str | None = "alphanumeric",
         # Token classification parameters
         batch_size: int = 8,
         epochs: int = 3,
@@ -114,25 +140,40 @@ class SupervisedTermExtractor:
 
         Args:
             method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
-                ('roger', 'token-classification').
+                ('roger', 'features', 'token-classification').
             model_name (str): Hugging Face model name for token classification, or the
                 directory of a model saved with `save`.
             n (Optional[int]): Maximum length of n-grams to consider, or None for the
-                method's default: 2 for 'roger' and 6 for 'token-classification'.
+                method's default: 2 for 'roger', 4 for 'features' and 6 for
+                'token-classification'.
             population_size (int): Number of parents in each generation (only for 'roger').
             offspring_size (int): Number of offspring in each generation (only for 'roger').
             generations (int): Number of generations in each run (only for 'roger').
             runs (int): Number of independent runs to combine (only for 'roger').
             random_state (Optional[int]): Seed for reproducible scores, or for
-                'token-classification' for reproducible training.
+                'features' and 'token-classification' for reproducible training.
             max_negatives (Optional[int]): Train on at most this many candidates
                 labelled 0, sampled for each run (only for 'roger').
             patience (Optional[int]): For 'roger', stop a run when it has not improved
                 for this many generations; for 'token-classification', stop training
                 when the F1 on the validation set has not improved for this many
                 epochs.
-            n_jobs (Optional[int]): Number of runs trained in parallel, -1 for one per
-                CPU (only for 'roger').
+            n_jobs (Optional[int]): Number of runs of 'roger', or trees of the random
+                forest of 'features', trained in parallel, -1 for one per CPU.
+            classifier (Union[str, Any]): "random_forest" (the default) or an unfitted
+                scikit-learn classifier with `predict_proba` (only for 'features').
+            threshold (Optional[float]): Keep the candidates that the classifier gives
+                at least this probability of being a term, or None to rank every
+                candidate (only for 'features'; 0.5 by default).
+            reference_corpus (Optional[Union[Corpus, List[str], List[...]]]): A
+                general-language reference corpus, of the same type as the corpora,
+                whose comparison with them by relevance, domain pertinence and weirdness
+                adds features (only for 'features').
+            min_frequency (int): Drop candidates that occur fewer times in the corpus
+                (only for 'features').
+            word_pattern (Optional[str]): Drop candidates with a word that does not fully
+                match this regular expression or named pattern, as for `TermExtractor`
+                (only for 'features').
             batch_size (int): Training batch size (only for 'token-classification').
             epochs (int): Number of training epochs (only for 'token-classification').
             learning_rate (float): Learning rate (only for 'token-classification').
@@ -165,13 +206,17 @@ class SupervisedTermExtractor:
                 part-of-speech tags match this pattern in at least one occurrence. Tags are
                 written in angle brackets, as in `"<ADJ|NOUN>*<NOUN>"`, or use the name of a
                 pattern in `termxtract.pos.POS_PATTERNS`, such as `"noun_phrase"`. None (the
-                default) keeps every term. Scores are unchanged.
+                default) keeps every term. Scores are unchanged, except for 'features',
+                whose candidates are only the occurrences that match, as for
+                `TermExtractor`, and which also takes "learned" for the tag sequences of
+                the terms of the training corpus.
             pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`, based
                 on the words layer: None (the default) for `upos` or, if the corpus has no
                 `upos` layer, `pos`.
 
         Raises:
-            ValueError: If the method is unknown.
+            ValueError: If the method is unknown, or `pos_pattern` is "learned" for a
+                method other than 'features'.
             ImportError: If the method is 'token-classification' and the optional
                 'transformers' dependencies are not installed.
         """
@@ -192,6 +237,11 @@ class SupervisedTermExtractor:
             "max_negatives": max_negatives,
             "patience": patience,
             "n_jobs": n_jobs,
+            "classifier": classifier,
+            "threshold": threshold,
+            "reference_corpus": reference_corpus,
+            "min_frequency": min_frequency,
+            "word_pattern": word_pattern,
             "batch_size": batch_size,
             "epochs": epochs,
             "learning_rate": learning_rate,
@@ -202,14 +252,23 @@ class SupervisedTermExtractor:
             "lemma_layer": lemma_layer,
             "terms_layer": terms_layer,
             "sentences_layer": sentences_layer,
+            "pos_pattern": pos_pattern,
+            "pos_layer": pos_layer,
         }
         self.method = method
         self.words_layer = words_layer
         self.lemma_layer = lemma_layer
+        if pos_pattern == LEARNED and method != "features":
+            raise ValueError(
+                "pos_pattern=\"learned\" is only for the 'features' method."
+            )
         self.pos_pattern = (
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
         self.pos_layer = pos_layer
+        # Methods that take pos_pattern count only the matching occurrences; the terms
+        # of the others are filtered after extraction
+        self.filters_by_pos = "pos_pattern" not in param_names
         # Leave out n when it is None, so the extractor uses its own default
         self.extractor = load_extractor_class()(
             **{
@@ -288,7 +347,7 @@ class SupervisedTermExtractor:
         if not self._is_teanga(corpus):
             return self.extractor.predict_strings(corpus)
         results = self.extractor.predict_teanga(corpus)
-        if self.pos_pattern is None:
+        if self.pos_pattern is None or not self.filters_by_pos:
             return results
         return filter_by_pos(
             results,
@@ -317,6 +376,23 @@ class SupervisedTermExtractor:
             ATEResults: Object containing extracted terms with scores.
         """
         return self.fit(corpus, labels).predict(corpus)
+
+    def feature_importances(self) -> dict[str, float]:
+        """
+        Get the importance of each feature to a trained 'features' classifier, to see
+        which scores matter for a domain.
+
+        Returns:
+            Dict[str, float]: The importance of each feature, from the most to the
+            least important, as `FeatureTermExtractor.feature_importances` gives them.
+
+        Raises:
+            ValueError: If the method is not 'features', or its classifier has not been
+                trained or has no feature importances.
+        """
+        if self.method != "features":
+            raise ValueError(f"The {self.method!r} method has no feature importances.")
+        return self.extractor.feature_importances()  # type: ignore[union-attr]
 
     def save(self, directory: str | Path) -> None:
         """

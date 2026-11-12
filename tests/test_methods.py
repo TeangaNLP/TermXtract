@@ -14,11 +14,7 @@ HAS_TRANSFORMERS = all(
 
 
 def wrapper_params(wrapper):
-    return set(inspect.signature(wrapper.__init__).parameters) - {
-        "self",
-        "method",
-        *getattr(wrapper, "FILTER_PARAMS", ()),
-    }
+    return set(inspect.signature(wrapper.__init__).parameters) - {"self", "method"}
 
 
 @pytest.mark.parametrize("method", list(TermExtractor.METHODS))
