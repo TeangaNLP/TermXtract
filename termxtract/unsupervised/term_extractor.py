@@ -27,6 +27,7 @@ from .unithood import (
     TScoreTermExtractor,
 )
 from .weirdness import WeirdnessTermExtractor
+from .yake import YAKETermExtractor
 
 CANDIDATE_PARAMS = (
     "threshold",
@@ -71,6 +72,10 @@ class TermExtractor:
         ),
         "nmf": (NMFTermExtractor, ("n_topics", "max_features", *CANDIDATE_PARAMS)),
         "rake": (RAKETermExtractor, ("stoplist", "phrase_delimiters", "threshold")),
+        "yake": (
+            YAKETermExtractor,
+            ("window_size", "dedup_threshold", "corpus_aggregation", *CANDIDATE_PARAMS),
+        ),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
             ("reference_corpus", "tie_break", *CANDIDATE_PARAMS),
@@ -92,7 +97,7 @@ class TermExtractor:
         n: int | None = None,
         num_topics: int = 20,
         top_words: int = 200,
-        window_size: int = 5,
+        window_size: int | None = None,
         seed_terms: int = 200,
         context_words: int = 50,
         top_terms: int = 200,
@@ -104,6 +109,8 @@ class TermExtractor:
         n_topics: int = 10,
         max_features: int | None = None,
         aggregation: str = "min",
+        dedup_threshold: float | None = 0.9,
+        corpus_aggregation: str | None = "max",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -126,12 +133,14 @@ class TermExtractor:
             n (Optional[int]): Maximum length of n-grams to consider (all methods except
                 'rake'), or None for the method's default: 2 for the unithood methods
                 ('pmi', 'llr', 'chi2', 'dice' and 'tscore'), which rank only multi-word
-                terms, and 1 for the others.
+                terms, 3 for 'yake', and 1 for the others.
             num_topics (int): Number of LDA topics ('topicmodeling').
             top_words (int): Number of most probable words of each topic that count
                 towards the scores ('topicmodeling').
-            window_size (int): The number of words on either side of a candidate that
-                count as its context ('domaincoherence' and 'ncvalue').
+            window_size (Optional[int]): The number of words on either side of a
+                candidate that count as its context ('domaincoherence', 'ncvalue' and
+                'yake'), or None for the method's default: 1 for 'yake' and 5 for the
+                others.
             seed_terms (int): The number of best candidates by Basic used to choose the
                 context words ('domaincoherence').
             context_words (int): The number of context words that candidates are scored
@@ -154,6 +163,11 @@ class TermExtractor:
             aggregation (str): How the unithood methods combine the scores of the
                 splits of a candidate of three or more words into two parts: "min"
                 (the default) for its weakest split, or "mean".
+            dedup_threshold (Optional[float]): Drop a candidate that is more similar than
+                this to a better one in the same document ('yake'), or None.
+            corpus_aggregation (Optional[str]): How a term's scores in each document are
+                combined ('yake'): "max" (the default) for its best, "mean", or None to
+                keep the score of each document.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
                 stopword (all methods except 'rake', which uses `stoplist`): the name of a
                 built-in list in `termxtract.stopwords.STOPWORD_LISTS`, such as "english"
@@ -215,6 +229,8 @@ class TermExtractor:
             "n_topics": n_topics,
             "max_features": max_features,
             "aggregation": aggregation,
+            "dedup_threshold": dedup_threshold,
+            "corpus_aggregation": corpus_aggregation,
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,
@@ -232,12 +248,13 @@ class TermExtractor:
         # Methods that take pos_pattern count only the matching occurrences; the terms
         # of the others are filtered after extraction
         self.filters_by_pos = "pos_pattern" not in param_names
-        # Leave out n when it is None, so the extractor uses its own default
+        # Leave out n and window_size when they are None, so the extractor uses its
+        # own default
         self.extractor: BaseTermExtractor = extractor_class(
             **{
                 name: params[name]
                 for name in param_names
-                if name != "n" or n is not None
+                if name not in ("n", "window_size") or params[name] is not None
             }
         )
 

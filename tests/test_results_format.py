@@ -35,6 +35,7 @@ METHODS = {
     "topicmodeling": {"n": 2, "num_topics": 3},
     "nmf": {"n": 2, "n_topics": 2},
     "rake": {"stoplist": STOPLIST, "phrase_delimiters": [".", ","]},
+    "yake": {"n": 2},
     "domainpertinence": {"n": 2, "reference_corpus": "REF"},
     "weirdness": {"n": 2, "reference_corpus": "REF"},
     "relevance": {"n": 2, "reference_corpus": "REF"},
@@ -117,9 +118,10 @@ class TestResultsFormat(unittest.TestCase):
                     for occurrence in doc_offsets["offsets"]:
                         start, end = occurrence["offset"]
                         span = text[start:end]
-                        # RAKE matches lower-cased text; the n-gram extractors keep the words as written
+                        # RAKE and YAKE! report terms in lower case; the other n-gram
+                        # extractors keep the words as written
                         self.assertEqual(
-                            span.lower() if method == "rake" else span,
+                            span.lower() if method in ("rake", "yake") else span,
                             occurrence["term"],
                         )
                         found.add(occurrence["term"])
