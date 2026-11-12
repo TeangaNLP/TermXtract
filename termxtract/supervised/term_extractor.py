@@ -5,11 +5,14 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from teanga import Corpus
 
 from ..datasets.base import GOLD_LAYER
+from ..embeddings import Encoder
+from ..llm import LLMClient
 from ..pos import compile_pos_pattern, filter_by_pos
 from ..stopwords import Stopwords
 from ..unsupervised.reference_extractor import ReferenceCorpus
 from ..utils import ATEResults
 from .features import LEARNED, FeatureTermExtractor
+from .llm import LLMTermExtractor
 from .roger import RogerTermExtractor
 
 if TYPE_CHECKING:
@@ -95,10 +98,29 @@ class SupervisedTermExtractor:
                 "sentences_layer",
             ),
         ),
+        "llm": (
+            lambda: LLMTermExtractor,
+            (
+                "client",
+                "k",
+                "template",
+                "selection",
+                "encoder",
+                "n",
+                "random_state",
+                "n_jobs",
+                "stopwords",
+                "words_layer",
+                "lemma_layer",
+                "terms_layer",
+                "sentences_layer",
+            ),
+        ),
     }
 
     extractor: (
-        "RogerTermExtractor | FeatureTermExtractor | TokenClassificationTermExtractor"
+        "RogerTermExtractor | FeatureTermExtractor | TokenClassificationTermExtractor "
+        "| LLMTermExtractor"
     )
 
     def __init__(
@@ -127,6 +149,12 @@ class SupervisedTermExtractor:
         learning_rate: float = 2e-5,
         max_length: int = 512,
         language: str = "en",
+        # LLM parameters
+        client: LLMClient | str | None = None,
+        k: int = 5,
+        template: int | tuple[str, str, str] = 5,
+        selection: str = "knn",
+        encoder: Encoder | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -140,18 +168,19 @@ class SupervisedTermExtractor:
 
         Args:
             method (str): The term extraction method, one of the keys of `SupervisedTermExtractor.METHODS`
-                ('roger', 'features', 'token-classification').
+                ('roger', 'features', 'token-classification', 'llm').
             model_name (str): Hugging Face model name for token classification, or the
                 directory of a model saved with `save`.
             n (Optional[int]): Maximum length of n-grams to consider, or None for the
-                method's default: 2 for 'roger', 4 for 'features' and 6 for
-                'token-classification'.
+                method's default: 2 for 'roger', 4 for 'features', 6 for
+                'token-classification' and 10 for 'llm', which drops longer terms.
             population_size (int): Number of parents in each generation (only for 'roger').
             offspring_size (int): Number of offspring in each generation (only for 'roger').
             generations (int): Number of generations in each run (only for 'roger').
             runs (int): Number of independent runs to combine (only for 'roger').
             random_state (Optional[int]): Seed for reproducible scores, or for
-                'features' and 'token-classification' for reproducible training.
+                'features' and 'token-classification' for reproducible training, or for
+                'llm' for the random selection of demonstrations.
             max_negatives (Optional[int]): Train on at most this many candidates
                 labelled 0, sampled for each run (only for 'roger').
             patience (Optional[int]): For 'roger', stop a run when it has not improved
@@ -159,7 +188,8 @@ class SupervisedTermExtractor:
                 when the F1 on the validation set has not improved for this many
                 epochs.
             n_jobs (Optional[int]): Number of runs of 'roger', or trees of the random
-                forest of 'features', trained in parallel, -1 for one per CPU.
+                forest of 'features', trained in parallel, or of prompts of 'llm' sent
+                at once, -1 for one per CPU.
             classifier (Union[str, Any]): "random_forest" (the default) or an unfitted
                 scikit-learn classifier with `predict_proba` (only for 'features').
             threshold (Optional[float]): Keep the candidates that the classifier gives
@@ -179,6 +209,18 @@ class SupervisedTermExtractor:
             learning_rate (float): Learning rate (only for 'token-classification').
             max_length (int): Maximum sequence length (only for 'token-classification').
             language (str): Language code for tokenization (only for 'token-classification').
+            client (Union[LLMClient, str, None]): The large language model of 'llm': an
+                `LLMClient`, such as a `termxtract.llm.OpenAIClient`, or the name of a
+                model served at the `OPENAI_BASE_URL` environment variable.
+            k (int): The number of demonstrations, training sentences with their terms,
+                in each prompt (only for 'llm').
+            template (Union[int, Tuple[str, str, str]]): The number of a prompt template
+                of `termxtract.supervised.llm.TEMPLATES`, from 1 to 8, or an
+                (instruction, input marker, output marker) tuple (only for 'llm').
+            selection (str): "knn" (the default) for the demonstrations most similar to
+                each sentence, or "random" (only for 'llm').
+            encoder (Optional[Encoder]): The sentence encoder of the "knn" selection, or
+                None for `termxtract.embeddings.Encoder()` (only for 'llm').
             stopwords (Union[str, Iterable[str], None]): Drop extracted terms that start or end
                 with a stopword: the name of a built-in list in
                 `termxtract.stopwords.STOPWORD_LISTS`, such as "english" (the default) or
@@ -247,6 +289,11 @@ class SupervisedTermExtractor:
             "learning_rate": learning_rate,
             "max_length": max_length,
             "language": language,
+            "client": client,
+            "k": k,
+            "template": template,
+            "selection": selection,
+            "encoder": encoder,
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,
@@ -293,7 +340,8 @@ class SupervisedTermExtractor:
                 labels {0, 1}. Roger needs examples of both; given only terms, it counts
                 every other candidate of the corpus as a non-term. None, for a Teanga
                 corpus, trains on the gold terms of `terms_layer`: token classification
-                tags each occurrence of them, and Roger takes them as the terms.
+                tags each occurrence of them, Roger takes them as the terms, and 'llm'
+                gives each training sentence with its gold terms as a demonstration.
             validation (Optional[Union[Corpus, List[str]]]): For 'token-classification',
                 a corpus of the same kind, labelled in the same way, to compute the F1
                 of the tagged terms on after each epoch. The model of the best epoch is

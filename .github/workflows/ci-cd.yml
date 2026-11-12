@@ -57,7 +57,7 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12"]
         include:
-          # One leg installs the transformers extra, reports coverage and builds the docs
+          # One leg installs the extras, reports coverage and builds the docs
           - os: ubuntu-latest
             python-version: "3.11"
             full: true
@@ -78,7 +78,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install "poetry>=2,<3"
-          poetry install --with dev ${{ matrix.full && '--extras transformers' || '' }}
+          poetry install --with dev ${{ matrix.full && '--extras "transformers llm"' || '' }}
 
       - name: Run tests with coverage
         run: poetry run pytest --cov

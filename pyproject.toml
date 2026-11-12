@@ -38,6 +38,8 @@ transformers = [
     "accelerate>=1.5.2",
     "sacremoses>=0.0.53",
 ]
+# 1.55.3 is the first that works with httpx 0.28
+llm = ["openai>=1.55.3"]
 
 [project.urls]
 Homepage = "https://teanga.io/TermXtract/"

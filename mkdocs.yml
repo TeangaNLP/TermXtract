@@ -37,6 +37,7 @@ nav:
   - Datasets: api/datasets.md
   - Filters and Layers: api/filters.md
   - Embeddings: api/embeddings.md
+  - LLM Clients: api/llm.md
   - Unsupervised Extractors:
     - BaseTermExtractor: api/unsupervised/base.md
     - TF-IDF: api/unsupervised/tfidf.md
@@ -60,3 +61,4 @@ nav:
     - Roger: api/supervised/roger.md
     - Features: api/supervised/features.md
     - Token Classification: api/supervised/token_classification.md
+    - In-Context Learning: api/supervised/llm.md
