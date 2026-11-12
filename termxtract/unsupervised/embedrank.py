@@ -52,8 +52,7 @@ class EmbedRankTermExtractor(BaseTermExtractor):
     the other methods, set by `n`, `stopwords`, `word_pattern`, `pos_pattern` and
     `min_frequency`. Documents are embedded from their words as written, and candidates
     from their words, or with `lemma_layer` their lemmas. EmbedRank++'s diversification
-    by Maximal Marginal Relevance is not done, since it ranks down the nested and
-    related terms that term extraction looks for.
+    by Maximal Marginal Relevance is not done.
     """
 
     def __init__(

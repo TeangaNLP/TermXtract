@@ -178,6 +178,17 @@ standard they rank below TF-IDF, C-value and YAKE! (AvP 0.143–0.290). On the s
 words and tags, their scores match those of pke 2.0.0 (Boudin, 2016) to within 1e-8
 once pke's PageRank is run to convergence.
 
+EmbedRank (Bennani-Smires et al., 2018) and MDERank (Zhang et al., 2022) have no
+published results on these datasets either. With the sentence encoder
+`all-MiniLM-L6-v2`, they score a candidate by the cosine similarity of its embedding to
+the document's (EmbedRank), or by how far the document's embedding moves when the
+candidate is masked (MDERank), and keep each term's best score over the documents.
+EmbedRank has the best AvP of the unsupervised methods on the ACL RD-TEC (0.757,
+against 0.752 for C-value). MDERank ties weirdness for the best on GENIA (0.736), and is
+just ahead of TF-IDF on ACTER (0.556, against 0.550), where weirdness and domain
+pertinence lead with 0.636. MDERank encodes each chunk of a document once for each
+candidate in it, so it is the slower: 73 seconds on GENIA, on the GPU.
+
 ### Results
 
 Times are in seconds on a desktop machine (32 cores, with an RTX 4090 for token
@@ -209,6 +220,8 @@ tagging, which is done once and cached.
 | textrank | 2,687 | 34% | 0.339 | 49.0 | 3.9 | 30.0 | 10.2 | 29.8 | 17.4 | 31.7 | 28.6 | 0 |
 | singlerank | 2,687 | 34% | 0.333 | 28.0 | 2.2 | 32.6 | 11.1 | 29.6 | 17.2 | 33.0 | 29.8 | 0 |
 | positionrank | 2,687 | 34% | 0.340 | 29.0 | 2.3 | 33.6 | 11.4 | 29.3 | 17.1 | 32.8 | 29.5 | 0 |
+| embedrank | 2,687 | 34% | 0.470 | 41.0 | 3.2 | 49.6 | 16.9 | 46.3 | 27.0 | 40.2 | 36.3 | 2 |
+| mderank | 2,687 | 34% | 0.556 | 63.0 | 5.0 | 51.6 | 17.6 | 47.2 | 27.5 | 38.0 | 34.3 | 8 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
 | features | 3,490 | 38% | 0.665 | 76.0 | 5.7 | 67.6 | 22.1 | 60.4 | 34.0 | 48.6 | 42.7 | 20 |
@@ -239,6 +252,8 @@ tagging, which is done once and cached.
 | textrank | 1,492 | 52% | 0.681 | 66.0 | 4.5 | 67.2 | 20.0 | 60.1 | 31.2 | 52.5 | 36.0 | 0 |
 | singlerank | 1,492 | 52% | 0.675 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
 | positionrank | 1,492 | 52% | 0.671 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
+| embedrank | 1,492 | 52% | 0.757 | 83.0 | 5.6 | 72.4 | 21.6 | 65.0 | 33.7 | 52.5 | 36.0 | 1 |
+| mderank | 1,492 | 52% | 0.741 | 80.0 | 5.4 | 71.4 | 21.3 | 61.9 | 32.1 | 52.5 | 36.0 | 4 |
 | rake | 219 | 38% | 0.361 | 30.0 | 1.9 | 38.4 | 5.2 | 38.4 | 5.2 | 38.4 | 5.2 | 0 |
 
 #### GENIA
@@ -266,6 +281,8 @@ tagging, which is done once and cached.
 | textrank | 15,740 | 53% | 0.584 | 61.0 | 0.4 | 58.2 | 1.9 | 60.3 | 3.8 | 59.9 | 7.4 | 1 |
 | singlerank | 15,740 | 53% | 0.585 | 60.0 | 0.4 | 57.4 | 1.8 | 60.8 | 3.8 | 60.9 | 7.5 | 1 |
 | positionrank | 15,740 | 53% | 0.584 | 60.0 | 0.4 | 57.0 | 1.8 | 60.5 | 3.8 | 61.1 | 7.5 | 1 |
+| embedrank | 15,740 | 53% | 0.707 | 75.0 | 0.5 | 80.0 | 2.6 | 78.0 | 4.9 | 73.3 | 9.0 | 6 |
+| mderank | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 85.8 | 2.8 | 80.4 | 5.1 | 76.7 | 9.4 | 73 |
 | rake | 4,912 | 53% | 0.582 | 61.0 | 0.4 | 59.8 | 1.9 | 58.2 | 3.6 | 56.1 | 6.7 | 0 |
 
 ## Multilingual
@@ -357,6 +374,8 @@ the task harder.
 | textrank | 1,414 | 7% | 0.143 | 11.0 | 7.2 | 5.8 | 8.2 | 6.5 | 44.4 | 11.4 | 0 |
 | singlerank | 1,414 | 7% | 0.168 | 12.0 | 7.8 | 6.4 | 9.1 | 6.5 | 44.4 | 11.4 | 0 |
 | positionrank | 1,414 | 7% | 0.156 | 12.0 | 7.8 | 6.2 | 8.8 | 6.5 | 44.4 | 11.4 | 0 |
+| embedrank | 1,414 | 7% | 0.256 | 9.0 | 5.9 | 10.0 | 14.1 | 6.5 | 44.4 | 11.4 | 3 |
+| mderank | 1,414 | 7% | 0.381 | 13.0 | 8.5 | 8.6 | 12.2 | 6.5 | 44.4 | 11.4 | 6 |
 | rake | 63 | 29% | 0.403 | 28.6 | 13.3 | 28.6 | 13.3 | 28.6 | 8.7 | 13.3 | 0 |
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
 | features | 50 | 30% | 0.591 | 30.0 | 11.7 | 30.0 | 11.7 | 30.0 | 7.2 | 11.7 | 25 |
@@ -378,6 +397,8 @@ the task harder.
 - **The features method** ranks well (AvP 0.591, second to token classification), but
   classifies only 50 candidates as terms, so its F1 is 11.7.
 - **RAKE** keeps only 63 candidates, since its phrases are long and must occur twice.
+- **EmbedRank and MDERank**, with the multilingual encoder
+  `paraphrase-multilingual-MiniLM-L12-v2`, have AvP 0.256 and 0.381, below TF-IDF.
 
 ### RSDO5 1.1 (Slovenian)
 
@@ -464,6 +485,8 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | textrank | 4,045 | 32% | 0.234 | 10.0 | 0.6 | 21.6 | 6.0 | 28.0 | 13.7 | 32.9 | 25.8 | 32.0 | 41.7 | 36.2 | 1 |
 | singlerank | 4,045 | 32% | 0.240 | 15.0 | 0.9 | 23.4 | 6.5 | 27.0 | 13.2 | 32.8 | 25.7 | 32.0 | 41.7 | 36.2 | 1 |
 | positionrank | 4,045 | 32% | 0.244 | 16.0 | 1.0 | 24.2 | 6.7 | 25.9 | 12.6 | 31.4 | 24.6 | 32.0 | 41.7 | 36.2 | 1 |
+| embedrank | 4,045 | 32% | 0.320 | 32.0 | 2.0 | 32.0 | 8.9 | 33.3 | 16.2 | 32.4 | 25.4 | 32.0 | 41.7 | 36.2 | 4 |
+| mderank | 4,045 | 32% | 0.487 | 63.0 | 3.9 | 47.0 | 13.0 | 39.4 | 19.2 | 35.6 | 27.9 | 32.0 | 41.7 | 36.2 | 23 |
 | rake | 1,876 | 24% | 0.285 | 33.0 | 1.4 | 23.6 | 4.6 | 23.4 | 8.4 | 23.5 | 13.6 | 23.5 | 9.6 | 13.6 | 3 |
 | roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
 | features | 10,170 | 35% | 0.570 | 70.0 | 3.0 | 61.6 | 12.1 | 57.3 | 20.5 | 54.9 | 33.3 | 34.8 | 76.9 | 47.9 | 9 |
@@ -494,6 +517,8 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | textrank | 3,764 | 41% | 0.277 | 13.0 | 0.7 | 22.8 | 5.9 | 27.5 | 12.6 | 38.5 | 28.6 | 41.2 | 45.9 | 43.4 | 1 |
 | singlerank | 3,764 | 41% | 0.284 | 17.0 | 1.0 | 24.0 | 6.2 | 28.7 | 13.1 | 39.5 | 29.3 | 41.2 | 45.9 | 43.4 | 1 |
 | positionrank | 3,764 | 41% | 0.275 | 17.0 | 1.0 | 23.2 | 6.0 | 27.7 | 12.6 | 38.2 | 28.4 | 41.2 | 45.9 | 43.4 | 1 |
+| embedrank | 3,764 | 41% | 0.383 | 17.0 | 1.0 | 34.8 | 9.0 | 42.5 | 19.4 | 45.5 | 33.8 | 41.2 | 45.9 | 43.4 | 4 |
+| mderank | 3,764 | 41% | 0.564 | 74.0 | 4.3 | 53.8 | 13.9 | 50.8 | 23.2 | 44.8 | 33.3 | 41.2 | 45.9 | 43.4 | 18 |
 | rake | 998 | 35% | 0.369 | 32.0 | 1.3 | 24.2 | 4.6 | 35.4 | 12.3 | 35.4 | 12.3 | 35.4 | 7.4 | 12.3 | 1 |
 | roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
 | features | 7,500 | 43% | 0.650 | 72.0 | 3.0 | 70.2 | 13.4 | 67.5 | 23.5 | 60.7 | 36.0 | 42.8 | 67.6 | 52.4 | 8 |
@@ -524,6 +549,8 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | textrank | 2,961 | 29% | 0.211 | 7.0 | 0.8 | 23.2 | 11.2 | 26.2 | 20.3 | 29.3 | 32.8 | 29.0 | 54.4 | 37.8 | 1 |
 | singlerank | 2,961 | 29% | 0.233 | 4.0 | 0.5 | 28.6 | 13.8 | 28.2 | 21.9 | 30.4 | 34.0 | 29.0 | 54.4 | 37.8 | 1 |
 | positionrank | 2,961 | 29% | 0.234 | 6.0 | 0.7 | 28.2 | 13.6 | 28.7 | 22.2 | 30.5 | 34.1 | 29.0 | 54.4 | 37.8 | 1 |
+| embedrank | 2,961 | 29% | 0.257 | 18.0 | 2.1 | 27.0 | 13.0 | 30.4 | 23.6 | 30.9 | 34.6 | 29.0 | 54.4 | 37.8 | 4 |
+| mderank | 2,961 | 29% | 0.643 | 74.0 | 8.8 | 57.8 | 27.8 | 47.1 | 36.5 | 35.0 | 39.1 | 29.0 | 54.4 | 37.8 | 16 |
 | rake | 923 | 18% | 0.315 | 16.0 | 1.3 | 21.2 | 7.3 | 18.4 | 10.2 | 18.4 | 10.2 | 18.4 | 7.1 | 10.2 | 2 |
 | roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
 | features | 6,323 | 30% | 0.527 | 66.0 | 5.3 | 53.8 | 18.5 | 46.2 | 27.1 | 41.3 | 37.5 | 29.6 | 77.6 | 42.8 | 8 |
@@ -554,6 +581,8 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | textrank | 2,202 | 35% | 0.290 | 27.0 | 3.2 | 28.4 | 13.5 | 32.4 | 25.0 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
 | singlerank | 2,202 | 35% | 0.251 | 17.0 | 2.0 | 24.6 | 11.7 | 32.9 | 25.3 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
 | positionrank | 2,202 | 35% | 0.228 | 12.0 | 1.4 | 25.2 | 12.0 | 31.0 | 23.9 | 35.9 | 39.9 | 34.8 | 48.1 | 40.4 | 1 |
+| embedrank | 2,202 | 35% | 0.342 | 31.0 | 3.7 | 34.6 | 16.5 | 37.2 | 28.7 | 35.5 | 39.5 | 34.8 | 48.1 | 40.4 | 3 |
+| mderank | 2,202 | 35% | 0.491 | 48.0 | 5.7 | 47.2 | 22.5 | 45.1 | 34.7 | 36.4 | 40.5 | 34.8 | 48.1 | 40.4 | 14 |
 | rake | 653 | 16% | 0.209 | 21.0 | 1.7 | 15.4 | 5.5 | 16.2 | 7.1 | 16.2 | 7.1 | 16.2 | 4.6 | 7.1 | 1 |
 | roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
 | features | 4,876 | 32% | 0.564 | 66.0 | 5.5 | 56.2 | 19.9 | 52.3 | 31.5 | 44.1 | 40.8 | 32.1 | 67.5 | 43.5 | 8 |
@@ -575,6 +604,9 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
   terms, ahead of the 30–38 of Ljubešić et al. (2019). Its learned tag sequences cover
   more of the gold terms than the noun-phrase pattern, and its recall is 68–78.
 - **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
+- **MDERank**, with the multilingual encoder used on HTEC, is between TF-IDF and C-value
+  on three domains, and ahead of both on chemistry (AvP 0.643). EmbedRank is well below
+  both (0.257–0.383).
 
 ### Irish Wikipedia gold standard
 
@@ -650,6 +682,8 @@ F1 64.6.
 | textrank | 638 | 20% | 0.233 | 23.0 | 6.8 | 17.6 | 16.3 | 19.9 | 22.0 | 20.9 | 0 |
 | singlerank | 638 | 20% | 0.152 | 15.0 | 4.4 | 18.2 | 16.9 | 19.9 | 22.0 | 20.9 | 0 |
 | positionrank | 638 | 20% | 0.207 | 27.0 | 8.0 | 20.2 | 18.8 | 19.9 | 22.0 | 20.9 | 0 |
+| embedrank | 638 | 20% | 0.233 | 24.0 | 7.1 | 18.6 | 17.3 | 19.9 | 22.0 | 20.9 | 1 |
+| mderank | 638 | 20% | 0.389 | 27.0 | 8.0 | 20.8 | 19.3 | 19.9 | 22.0 | 20.9 | 2 |
 | rake | 42 | 60% | 0.759 | 59.5 | 8.1 | 59.5 | 8.1 | 59.5 | 4.3 | 8.1 | 0 |
 | roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
 | features | 1,013 | 29% | – | – | – | – | – | 29.1 | 51.1 | 37.1 | 79 |
@@ -670,6 +704,8 @@ F1 64.6.
   candidates include those that occur once, so it finds 51% of the gold terms.
 - **Roger and RAKE** are the weakest. RAKE keeps only 42 candidates, since its phrases
   are long and must occur twice.
+- **MDERank** has AvP 0.389, after RAKE and TF-IDF, although its multilingual encoder
+  was not trained on Irish. EmbedRank has 0.233.
 
 ## References
 
@@ -691,6 +727,9 @@ F1 64.6.
 - Boudin, F. (2016). pke: an open source python-based keyphrase extraction toolkit. In
   *Proceedings of COLING 2016: System Demonstrations*, 69–73.
   https://aclanthology.org/C16-2015
+- Bennani-Smires, K., Musat, C., Hossmann, A., Baeriswyl, M., & Jaggi, M. (2018).
+  Simple unsupervised keyphrase extraction using sentence embeddings. In *Proceedings
+  of CoNLL 2018*, 221–229. https://aclanthology.org/K18-1022
 - Campos, R., Mangaravite, V., Pasquali, A., Jorge, A., Nunes, C., & Jatowt, A. (2020).
   YAKE! Keyword extraction from single documents using multiple local features.
   *Information Sciences*, 509, 257–289. https://doi.org/10.1016/j.ins.2019.09.013
@@ -706,7 +745,7 @@ F1 64.6.
 - McCrae, J. P., & Doyle, A. (2019). Adapting term recognition to an under-resourced
   language: the case of Irish. In *Proceedings of the Celtic Language Technology
   Workshop*, 48–57. https://aclanthology.org/W19-6907
-- Mihalcea, R., & Tarau, P. (2004). TextRank: bringing order into texts. In
+- Mihalcea, R., & Tarau, P. (2004). TextRank: bringing order into text. In
   *Proceedings of EMNLP 2004*, 404–411. https://aclanthology.org/W04-3252
 - Navigli, R., & Velardi, P. (2004). Learning domain ontologies from document
   warehouses and dedicated web sites. *Computational Linguistics*, 30(2), 151–179.
@@ -725,3 +764,7 @@ F1 64.6.
   combination using boosting. In *Machine Learning: ECML 2001*, LNCS 2167, 515–526.
 - Wan, X., & Xiao, J. (2008). Single document keyphrase extraction using neighborhood
   knowledge. In *Proceedings of AAAI 2008*, 855–860.
+- Zhang, L., Chen, Q., Wang, W., Deng, C., Zhang, S., Li, B., Wang, W., & Cao, X.
+  (2022). MDERank: a masked document embedding rank approach for unsupervised keyphrase
+  extraction. In *Findings of ACL 2022*, 396–409.
+  https://aclanthology.org/2022.findings-acl.34
