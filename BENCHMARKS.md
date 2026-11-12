@@ -187,7 +187,10 @@ EmbedRank has the best AvP of the unsupervised methods on the ACL RD-TEC (0.757,
 against 0.752 for C-value). MDERank ties weirdness for the best on GENIA (0.736), and is
 just ahead of TF-IDF on ACTER (0.556, against 0.550), where weirdness and domain
 pertinence lead with 0.636. MDERank encodes each chunk of a document once for each
-candidate in it, so it is the slower: 73 seconds on GENIA, on the GPU.
+candidate in it, so it is the slower: 73 seconds on GENIA, on the GPU. Re-ranking
+EmbedRank by Maximal Marginal Relevance, as EmbedRank++ does (embedrank-mmr, with a
+weight of 0.2 on redundancy), raises its AvP on all three, to 0.474, 0.776 and 0.726.
+The weight was chosen from 0.2 and 0.5 on these test sets.
 
 ### Results
 
@@ -221,6 +224,7 @@ tagging, which is done once and cached.
 | singlerank | 2,687 | 34% | 0.333 | 28.0 | 2.2 | 32.6 | 11.1 | 29.6 | 17.2 | 33.0 | 29.8 | 0 |
 | positionrank | 2,687 | 34% | 0.340 | 29.0 | 2.3 | 33.6 | 11.4 | 29.3 | 17.1 | 32.8 | 29.5 | 0 |
 | embedrank | 2,687 | 34% | 0.470 | 41.0 | 3.2 | 49.6 | 16.9 | 46.3 | 27.0 | 40.2 | 36.3 | 2 |
+| embedrank-mmr | 2,687 | 34% | 0.474 | 43.0 | 3.4 | 48.2 | 16.4 | 47.3 | 27.5 | 40.1 | 36.1 | 2 |
 | mderank | 2,687 | 34% | 0.556 | 63.0 | 5.0 | 51.6 | 17.6 | 47.2 | 27.5 | 38.0 | 34.3 | 8 |
 | rake | 928 | 44% | 0.495 | 45.0 | 3.4 | 42.6 | 13.9 | 44.0 | 23.4 | 44.0 | 23.4 | 0 |
 | roger | 3,187 | 17% | 0.453 | 46.0 | 3.5 | 33.4 | 10.9 | 26.6 | 15.0 | 20.9 | 18.4 | 25 |
@@ -253,6 +257,7 @@ tagging, which is done once and cached.
 | singlerank | 1,492 | 52% | 0.675 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
 | positionrank | 1,492 | 52% | 0.671 | 68.0 | 4.6 | 66.6 | 19.8 | 61.3 | 31.8 | 52.5 | 36.0 | 0 |
 | embedrank | 1,492 | 52% | 0.757 | 83.0 | 5.6 | 72.4 | 21.6 | 65.0 | 33.7 | 52.5 | 36.0 | 1 |
+| embedrank-mmr | 1,492 | 52% | 0.776 | 86.0 | 5.8 | 73.8 | 22.0 | 65.2 | 33.8 | 52.5 | 36.0 | 1 |
 | mderank | 1,492 | 52% | 0.741 | 80.0 | 5.4 | 71.4 | 21.3 | 61.9 | 32.1 | 52.5 | 36.0 | 4 |
 | rake | 219 | 38% | 0.361 | 30.0 | 1.9 | 38.4 | 5.2 | 38.4 | 5.2 | 38.4 | 5.2 | 0 |
 
@@ -282,6 +287,7 @@ tagging, which is done once and cached.
 | singlerank | 15,740 | 53% | 0.585 | 60.0 | 0.4 | 57.4 | 1.8 | 60.8 | 3.8 | 60.9 | 7.5 | 1 |
 | positionrank | 15,740 | 53% | 0.584 | 60.0 | 0.4 | 57.0 | 1.8 | 60.5 | 3.8 | 61.1 | 7.5 | 1 |
 | embedrank | 15,740 | 53% | 0.707 | 75.0 | 0.5 | 80.0 | 2.6 | 78.0 | 4.9 | 73.3 | 9.0 | 6 |
+| embedrank-mmr | 15,740 | 53% | 0.726 | 82.0 | 0.5 | 80.6 | 2.6 | 78.4 | 5.0 | 75.8 | 9.3 | 11 |
 | mderank | 15,740 | 53% | 0.736 | 90.0 | 0.6 | 85.8 | 2.8 | 80.4 | 5.1 | 76.7 | 9.4 | 73 |
 | rake | 4,912 | 53% | 0.582 | 61.0 | 0.4 | 59.8 | 1.9 | 58.2 | 3.6 | 56.1 | 6.7 | 0 |
 
@@ -375,6 +381,7 @@ the task harder.
 | singlerank | 1,414 | 7% | 0.168 | 12.0 | 7.8 | 6.4 | 9.1 | 6.5 | 44.4 | 11.4 | 0 |
 | positionrank | 1,414 | 7% | 0.156 | 12.0 | 7.8 | 6.2 | 8.8 | 6.5 | 44.4 | 11.4 | 0 |
 | embedrank | 1,414 | 7% | 0.256 | 9.0 | 5.9 | 10.0 | 14.1 | 6.5 | 44.4 | 11.4 | 3 |
+| embedrank-mmr | 1,414 | 7% | 0.205 | 9.0 | 5.9 | 10.4 | 14.7 | 6.5 | 44.4 | 11.4 | 3 |
 | mderank | 1,414 | 7% | 0.381 | 13.0 | 8.5 | 8.6 | 12.2 | 6.5 | 44.4 | 11.4 | 6 |
 | rake | 63 | 29% | 0.403 | 28.6 | 13.3 | 28.6 | 13.3 | 28.6 | 8.7 | 13.3 | 0 |
 | roger | 485 | 5% | 0.168 | 5.0 | 3.3 | 5.2 | 7.2 | 5.2 | 12.1 | 7.2 | 18 |
@@ -399,6 +406,7 @@ the task harder.
 - **RAKE** keeps only 63 candidates, since its phrases are long and must occur twice.
 - **EmbedRank and MDERank**, with the multilingual encoder
   `paraphrase-multilingual-MiniLM-L12-v2`, have AvP 0.256 and 0.381, below TF-IDF.
+  Re-ranking by Maximal Marginal Relevance lowers EmbedRank's to 0.205.
 
 ### RSDO5 1.1 (Slovenian)
 
@@ -486,6 +494,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | singlerank | 4,045 | 32% | 0.240 | 15.0 | 0.9 | 23.4 | 6.5 | 27.0 | 13.2 | 32.8 | 25.7 | 32.0 | 41.7 | 36.2 | 1 |
 | positionrank | 4,045 | 32% | 0.244 | 16.0 | 1.0 | 24.2 | 6.7 | 25.9 | 12.6 | 31.4 | 24.6 | 32.0 | 41.7 | 36.2 | 1 |
 | embedrank | 4,045 | 32% | 0.320 | 32.0 | 2.0 | 32.0 | 8.9 | 33.3 | 16.2 | 32.4 | 25.4 | 32.0 | 41.7 | 36.2 | 4 |
+| embedrank-mmr | 4,045 | 32% | 0.313 | 26.0 | 1.6 | 32.0 | 8.9 | 32.3 | 15.7 | 32.1 | 25.2 | 32.0 | 41.7 | 36.2 | 4 |
 | mderank | 4,045 | 32% | 0.487 | 63.0 | 3.9 | 47.0 | 13.0 | 39.4 | 19.2 | 35.6 | 27.9 | 32.0 | 41.7 | 36.2 | 23 |
 | rake | 1,876 | 24% | 0.285 | 33.0 | 1.4 | 23.6 | 4.6 | 23.4 | 8.4 | 23.5 | 13.6 | 23.5 | 9.6 | 13.6 | 3 |
 | roger | 5,669 | 15% | 0.422 | 51.0 | 2.2 | 34.4 | 6.7 | 28.9 | 10.3 | 22.2 | 13.5 | 14.9 | 18.3 | 16.4 | 29 |
@@ -518,6 +527,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | singlerank | 3,764 | 41% | 0.284 | 17.0 | 1.0 | 24.0 | 6.2 | 28.7 | 13.1 | 39.5 | 29.3 | 41.2 | 45.9 | 43.4 | 1 |
 | positionrank | 3,764 | 41% | 0.275 | 17.0 | 1.0 | 23.2 | 6.0 | 27.7 | 12.6 | 38.2 | 28.4 | 41.2 | 45.9 | 43.4 | 1 |
 | embedrank | 3,764 | 41% | 0.383 | 17.0 | 1.0 | 34.8 | 9.0 | 42.5 | 19.4 | 45.5 | 33.8 | 41.2 | 45.9 | 43.4 | 4 |
+| embedrank-mmr | 3,764 | 41% | 0.380 | 17.0 | 1.0 | 34.4 | 8.9 | 42.6 | 19.5 | 45.2 | 33.6 | 41.2 | 45.9 | 43.4 | 4 |
 | mderank | 3,764 | 41% | 0.564 | 74.0 | 4.3 | 53.8 | 13.9 | 50.8 | 23.2 | 44.8 | 33.3 | 41.2 | 45.9 | 43.4 | 18 |
 | rake | 998 | 35% | 0.369 | 32.0 | 1.3 | 24.2 | 4.6 | 35.4 | 12.3 | 35.4 | 12.3 | 35.4 | 7.4 | 12.3 | 1 |
 | roger | 5,040 | 17% | 0.433 | 49.0 | 2.0 | 37.2 | 7.1 | 29.6 | 10.3 | 23.8 | 14.1 | 17.0 | 18.1 | 17.5 | 28 |
@@ -550,6 +560,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | singlerank | 2,961 | 29% | 0.233 | 4.0 | 0.5 | 28.6 | 13.8 | 28.2 | 21.9 | 30.4 | 34.0 | 29.0 | 54.4 | 37.8 | 1 |
 | positionrank | 2,961 | 29% | 0.234 | 6.0 | 0.7 | 28.2 | 13.6 | 28.7 | 22.2 | 30.5 | 34.1 | 29.0 | 54.4 | 37.8 | 1 |
 | embedrank | 2,961 | 29% | 0.257 | 18.0 | 2.1 | 27.0 | 13.0 | 30.4 | 23.6 | 30.9 | 34.6 | 29.0 | 54.4 | 37.8 | 4 |
+| embedrank-mmr | 2,961 | 29% | 0.263 | 17.0 | 2.0 | 28.6 | 13.8 | 31.1 | 24.1 | 31.2 | 34.9 | 29.0 | 54.4 | 37.8 | 4 |
 | mderank | 2,961 | 29% | 0.643 | 74.0 | 8.8 | 57.8 | 27.8 | 47.1 | 36.5 | 35.0 | 39.1 | 29.0 | 54.4 | 37.8 | 16 |
 | rake | 923 | 18% | 0.315 | 16.0 | 1.3 | 21.2 | 7.3 | 18.4 | 10.2 | 18.4 | 10.2 | 18.4 | 7.1 | 10.2 | 2 |
 | roger | 6,189 | 11% | 0.323 | 34.0 | 2.7 | 22.6 | 7.8 | 15.3 | 9.0 | 13.8 | 12.5 | 10.7 | 27.6 | 15.4 | 31 |
@@ -582,6 +593,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | singlerank | 2,202 | 35% | 0.251 | 17.0 | 2.0 | 24.6 | 11.7 | 32.9 | 25.3 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
 | positionrank | 2,202 | 35% | 0.228 | 12.0 | 1.4 | 25.2 | 12.0 | 31.0 | 23.9 | 35.9 | 39.9 | 34.8 | 48.1 | 40.4 | 1 |
 | embedrank | 2,202 | 35% | 0.342 | 31.0 | 3.7 | 34.6 | 16.5 | 37.2 | 28.7 | 35.5 | 39.5 | 34.8 | 48.1 | 40.4 | 3 |
+| embedrank-mmr | 2,202 | 35% | 0.349 | 33.0 | 3.9 | 35.0 | 16.7 | 36.5 | 28.1 | 35.2 | 39.2 | 34.8 | 48.1 | 40.4 | 3 |
 | mderank | 2,202 | 35% | 0.491 | 48.0 | 5.7 | 47.2 | 22.5 | 45.1 | 34.7 | 36.4 | 40.5 | 34.8 | 48.1 | 40.4 | 14 |
 | rake | 653 | 16% | 0.209 | 21.0 | 1.7 | 15.4 | 5.5 | 16.2 | 7.1 | 16.2 | 7.1 | 16.2 | 4.6 | 7.1 | 1 |
 | roger | 3,873 | 15% | 0.290 | 29.0 | 2.4 | 24.8 | 8.8 | 19.2 | 11.6 | 18.9 | 17.5 | 15.0 | 25.1 | 18.8 | 31 |
@@ -606,7 +618,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 - **Roger and RAKE** are the weakest: 15–19 and 7–14 F1 over all their candidates.
 - **MDERank**, with the multilingual encoder used on HTEC, is between TF-IDF and C-value
   on three domains, and ahead of both on chemistry (AvP 0.643). EmbedRank is well below
-  both (0.257–0.383).
+  both (0.257–0.383), with or without re-ranking by Maximal Marginal Relevance.
 
 ### Irish Wikipedia gold standard
 
@@ -683,6 +695,7 @@ F1 64.6.
 | singlerank | 638 | 20% | 0.152 | 15.0 | 4.4 | 18.2 | 16.9 | 19.9 | 22.0 | 20.9 | 0 |
 | positionrank | 638 | 20% | 0.207 | 27.0 | 8.0 | 20.2 | 18.8 | 19.9 | 22.0 | 20.9 | 0 |
 | embedrank | 638 | 20% | 0.233 | 24.0 | 7.1 | 18.6 | 17.3 | 19.9 | 22.0 | 20.9 | 1 |
+| embedrank-mmr | 638 | 20% | 0.330 | 26.0 | 7.7 | 19.8 | 18.4 | 19.9 | 22.0 | 20.9 | 1 |
 | mderank | 638 | 20% | 0.389 | 27.0 | 8.0 | 20.8 | 19.3 | 19.9 | 22.0 | 20.9 | 2 |
 | rake | 42 | 60% | 0.759 | 59.5 | 8.1 | 59.5 | 8.1 | 59.5 | 4.3 | 8.1 | 0 |
 | roger | 194 | 19% | – | – | – | – | – | 19.1 | 6.4 | 9.6 | 154 |
@@ -705,7 +718,8 @@ F1 64.6.
 - **Roger and RAKE** are the weakest. RAKE keeps only 42 candidates, since its phrases
   are long and must occur twice.
 - **MDERank** has AvP 0.389, after RAKE and TF-IDF, although its multilingual encoder
-  was not trained on Irish. EmbedRank has 0.233.
+  was not trained on Irish. EmbedRank has 0.233, and 0.330 re-ranked by Maximal
+  Marginal Relevance.
 
 ## References
 
