@@ -157,6 +157,11 @@ C-value. Counting every occurrence and filtering the results instead gives C-val
 AvP of 0.66 on GENIA and 0.70 on the ACL RD-TEC: candidates nested in many rare or
 ill-formed n-grams lose little of their frequency.
 
+NC-value (Frantzi et al., 2000) has no published results on these datasets. It re-ranks
+C-value by the context words of the 200 best candidates, and ranks below C-value on all
+three: AvP 0.460, 0.730 and 0.683 on ACTER, the ACL RD-TEC and GENIA, against 0.504,
+0.752 and 0.714.
+
 ### Results
 
 Times are in seconds on a desktop machine (32 cores, with an RTX 4090 for token
@@ -170,6 +175,7 @@ tagging, which is done once and cached.
 | tfidf | 2,687 | 34% | 0.550 | 62.0 | 4.9 | 52.2 | 17.8 | 42.7 | 24.9 | 35.9 | 32.3 | 0 |
 | ridf | 2,687 | 34% | 0.577 | 68.0 | 5.4 | 50.6 | 17.2 | 40.2 | 23.4 | 36.6 | 33.1 | 0 |
 | cvalue | 2,687 | 34% | 0.504 | 59.0 | 4.7 | 42.6 | 14.5 | 37.0 | 21.5 | 38.4 | 34.6 | 0 |
+| ncvalue | 2,687 | 34% | 0.460 | 47.0 | 3.7 | 42.6 | 14.5 | 39.8 | 23.2 | 37.0 | 33.4 | 0 |
 | basic | 2,687 | 34% | 0.446 | 53.0 | 4.2 | 38.4 | 13.1 | 34.7 | 20.2 | 33.4 | 30.1 | 0 |
 | combobasic | 2,687 | 34% | 0.437 | 52.0 | 4.1 | 38.0 | 12.9 | 32.5 | 18.9 | 33.2 | 30.0 | 0 |
 | domaincoherence | 2,687 | 34% | 0.394 | 35.0 | 2.8 | 39.8 | 13.6 | 37.5 | 21.8 | 34.5 | 31.2 | 0 |
@@ -195,6 +201,7 @@ tagging, which is done once and cached.
 | tfidf | 1,492 | 52% | 0.688 | 73.0 | 4.9 | 65.2 | 19.4 | 57.0 | 29.6 | 52.5 | 36.0 | 0 |
 | ridf | 1,492 | 52% | 0.657 | 70.0 | 4.7 | 59.0 | 17.6 | 58.8 | 30.5 | 52.5 | 36.0 | 0 |
 | cvalue | 1,492 | 52% | 0.752 | 76.0 | 5.1 | 74.0 | 22.0 | 64.8 | 33.6 | 52.5 | 36.0 | 0 |
+| ncvalue | 1,492 | 52% | 0.730 | 73.0 | 4.9 | 72.0 | 21.4 | 64.0 | 33.2 | 52.5 | 36.0 | 0 |
 | basic | 1,492 | 52% | 0.680 | 72.0 | 4.9 | 64.6 | 19.2 | 58.0 | 30.1 | 52.5 | 36.0 | 0 |
 | combobasic | 1,492 | 52% | 0.699 | 73.0 | 4.9 | 65.0 | 19.4 | 61.8 | 32.0 | 52.5 | 36.0 | 0 |
 | domaincoherence | 1,492 | 52% | 0.587 | 66.0 | 4.5 | 56.2 | 16.7 | 53.1 | 27.5 | 52.5 | 36.0 | 0 |
@@ -217,6 +224,7 @@ tagging, which is done once and cached.
 | tfidf | 15,740 | 53% | 0.718 | 93.0 | 0.6 | 84.6 | 2.7 | 82.2 | 5.2 | 75.6 | 9.3 | 1 |
 | ridf | 15,740 | 53% | 0.696 | 89.0 | 0.6 | 80.4 | 2.6 | 77.6 | 4.9 | 74.6 | 9.2 | 1 |
 | cvalue | 15,740 | 53% | 0.714 | 77.0 | 0.5 | 76.2 | 2.5 | 76.1 | 4.8 | 74.8 | 9.2 | 1 |
+| ncvalue | 15,740 | 53% | 0.683 | 76.0 | 0.5 | 70.6 | 2.3 | 70.4 | 4.5 | 70.2 | 8.6 | 1 |
 | basic | 15,740 | 53% | 0.640 | 75.0 | 0.5 | 75.4 | 2.4 | 70.7 | 4.5 | 67.6 | 8.3 | 1 |
 | combobasic | 15,740 | 53% | 0.641 | 71.0 | 0.5 | 74.2 | 2.4 | 72.2 | 4.6 | 66.9 | 8.2 | 1 |
 | domaincoherence | 15,740 | 53% | 0.631 | 70.0 | 0.5 | 71.2 | 2.3 | 68.6 | 4.3 | 66.1 | 8.1 | 1 |
@@ -303,6 +311,7 @@ the task harder.
 | tfidf | 1,414 | 7% | 0.504 | 16.0 | 10.4 | 7.8 | 11.0 | 6.5 | 44.4 | 11.4 | 0 |
 | ridf | 1,414 | 7% | 0.436 | 13.0 | 8.5 | 7.2 | 10.2 | 6.5 | 44.4 | 11.4 | 0 |
 | cvalue | 1,414 | 7% | 0.459 | 8.0 | 5.2 | 7.8 | 11.0 | 6.5 | 44.4 | 11.4 | 0 |
+| ncvalue | 1,414 | 7% | 0.403 | 9.0 | 5.9 | 8.0 | 11.3 | 6.5 | 44.4 | 11.4 | 0 |
 | basic | 1,414 | 7% | 0.382 | 12.0 | 7.8 | 6.2 | 8.8 | 6.5 | 44.4 | 11.4 | 0 |
 | combobasic | 1,414 | 7% | 0.252 | 5.0 | 3.3 | 5.6 | 7.9 | 6.5 | 44.4 | 11.4 | 0 |
 | domaincoherence | 1,414 | 7% | 0.220 | 13.0 | 8.5 | 8.4 | 11.9 | 6.5 | 44.4 | 11.4 | 0 |
@@ -405,6 +414,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tfidf | 4,045 | 32% | 0.427 | 54.0 | 3.4 | 40.8 | 11.3 | 36.4 | 17.7 | 33.5 | 26.3 | 32.0 | 41.7 | 36.2 | 1 |
 | ridf | 4,045 | 32% | 0.530 | 69.0 | 4.3 | 51.4 | 14.3 | 42.6 | 20.8 | 36.5 | 28.6 | 32.0 | 41.7 | 36.2 | 1 |
 | cvalue | 4,045 | 32% | 0.524 | 67.0 | 4.2 | 47.4 | 13.2 | 38.2 | 18.6 | 37.9 | 29.7 | 32.0 | 41.7 | 36.2 | 1 |
+| ncvalue | 4,045 | 32% | 0.538 | 67.0 | 4.2 | 50.2 | 13.9 | 40.8 | 19.9 | 36.1 | 28.3 | 32.0 | 41.7 | 36.2 | 1 |
 | basic | 4,045 | 32% | 0.473 | 57.0 | 3.6 | 45.2 | 12.5 | 41.3 | 20.1 | 35.0 | 27.5 | 32.0 | 41.7 | 36.2 | 1 |
 | combobasic | 4,045 | 32% | 0.374 | 42.0 | 2.6 | 36.0 | 10.0 | 35.3 | 17.2 | 33.4 | 26.1 | 32.0 | 41.7 | 36.2 | 1 |
 | domaincoherence | 4,045 | 32% | 0.482 | 58.0 | 3.6 | 46.8 | 13.0 | 40.4 | 19.7 | 32.9 | 25.8 | 32.0 | 41.7 | 36.2 | 1 |
@@ -430,6 +440,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tfidf | 3,764 | 41% | 0.584 | 69.0 | 4.0 | 58.4 | 15.1 | 53.6 | 24.5 | 44.9 | 33.3 | 41.2 | 45.9 | 43.4 | 1 |
 | ridf | 3,764 | 41% | 0.632 | 76.0 | 4.4 | 64.4 | 16.6 | 54.6 | 24.9 | 48.0 | 35.7 | 41.2 | 45.9 | 43.4 | 1 |
 | cvalue | 3,764 | 41% | 0.549 | 66.0 | 3.8 | 54.8 | 14.1 | 45.0 | 20.5 | 45.8 | 34.0 | 41.2 | 45.9 | 43.4 | 1 |
+| ncvalue | 3,764 | 41% | 0.568 | 70.0 | 4.0 | 59.0 | 15.2 | 47.0 | 21.5 | 45.6 | 33.9 | 41.2 | 45.9 | 43.4 | 1 |
 | basic | 3,764 | 41% | 0.489 | 52.0 | 3.0 | 48.8 | 12.6 | 46.4 | 21.2 | 41.6 | 31.0 | 41.2 | 45.9 | 43.4 | 1 |
 | combobasic | 3,764 | 41% | 0.375 | 37.0 | 2.1 | 34.6 | 8.9 | 38.9 | 17.8 | 39.6 | 29.4 | 41.2 | 45.9 | 43.4 | 1 |
 | domaincoherence | 3,764 | 41% | 0.472 | 59.0 | 3.4 | 45.8 | 11.8 | 41.0 | 18.7 | 40.3 | 30.0 | 41.2 | 45.9 | 43.4 | 1 |
@@ -455,6 +466,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tfidf | 2,961 | 29% | 0.609 | 74.0 | 8.8 | 52.0 | 25.0 | 42.7 | 33.1 | 31.8 | 35.5 | 29.0 | 54.4 | 37.8 | 1 |
 | ridf | 2,961 | 29% | 0.572 | 70.0 | 8.3 | 47.4 | 22.8 | 38.6 | 29.9 | 32.3 | 36.1 | 29.0 | 54.4 | 37.8 | 1 |
 | cvalue | 2,961 | 29% | 0.615 | 71.0 | 8.5 | 49.2 | 23.7 | 35.3 | 27.4 | 33.2 | 37.2 | 29.0 | 54.4 | 37.8 | 1 |
+| ncvalue | 2,961 | 29% | 0.618 | 71.0 | 8.5 | 51.0 | 24.5 | 38.5 | 29.8 | 32.5 | 36.3 | 29.0 | 54.4 | 37.8 | 1 |
 | basic | 2,961 | 29% | 0.534 | 54.0 | 6.4 | 49.4 | 23.8 | 37.9 | 29.4 | 31.4 | 35.1 | 29.0 | 54.4 | 37.8 | 1 |
 | combobasic | 2,961 | 29% | 0.420 | 50.0 | 6.0 | 35.4 | 17.0 | 32.8 | 25.4 | 30.1 | 33.7 | 29.0 | 54.4 | 37.8 | 1 |
 | domaincoherence | 2,961 | 29% | 0.532 | 67.0 | 8.0 | 43.4 | 20.9 | 34.9 | 27.1 | 30.7 | 34.3 | 29.0 | 54.4 | 37.8 | 1 |
@@ -480,6 +492,7 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 | tfidf | 2,202 | 35% | 0.465 | 45.0 | 5.3 | 47.6 | 22.7 | 43.9 | 33.8 | 35.0 | 39.0 | 34.8 | 48.1 | 40.4 | 1 |
 | ridf | 2,202 | 35% | 0.489 | 58.0 | 6.8 | 43.2 | 20.6 | 38.5 | 29.7 | 35.4 | 39.4 | 34.8 | 48.1 | 40.4 | 1 |
 | cvalue | 2,202 | 35% | 0.526 | 56.0 | 6.6 | 50.0 | 23.9 | 42.9 | 33.1 | 37.6 | 41.9 | 34.8 | 48.1 | 40.4 | 1 |
+| ncvalue | 2,202 | 35% | 0.532 | 60.0 | 7.1 | 48.6 | 23.2 | 41.4 | 31.9 | 36.2 | 40.3 | 34.8 | 48.1 | 40.4 | 1 |
 | basic | 2,202 | 35% | 0.438 | 44.0 | 5.2 | 43.6 | 20.8 | 38.4 | 29.6 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
 | combobasic | 2,202 | 35% | 0.343 | 34.0 | 4.0 | 34.2 | 16.3 | 36.5 | 28.1 | 36.0 | 40.1 | 34.8 | 48.1 | 40.4 | 1 |
 | domaincoherence | 2,202 | 35% | 0.463 | 58.0 | 6.8 | 36.8 | 17.6 | 33.8 | 26.0 | 34.3 | 38.2 | 34.8 | 48.1 | 40.4 | 2 |
@@ -507,6 +520,8 @@ on veterinary science, 37.8 on chemistry and 40.4 on biomechanics).
 - **Only 42–54% of the lemmatised gold terms are candidates.** RSDO5 annotates every
   term, including single occurrences and terms that don't match the noun-phrase
   pattern, so that is the recall of the unsupervised methods over all their candidates.
+- **NC-value** is a little ahead of C-value on every domain, with AvP 0.003 to 0.019
+  higher, unlike on the English datasets and HTEC.
 - **Token classification** is far ahead of every other method, as on ACTER and HTEC.
 - **The features method** is second, with F1 43–52 over the candidates it classifies as
   terms, ahead of the 30–38 of Ljubešić et al. (2019). Its learned tag sequences cover
@@ -569,6 +584,7 @@ F1 64.6.
 | tfidf | 638 | 20% | 0.424 | 30.0 | 8.9 | 20.8 | 19.3 | 19.9 | 22.0 | 20.9 | 0 |
 | ridf | 638 | 20% | 0.313 | 29.0 | 8.6 | 23.2 | 21.5 | 19.9 | 22.0 | 20.9 | 0 |
 | cvalue | 638 | 20% | 0.238 | 24.0 | 7.1 | 23.6 | 21.9 | 19.9 | 22.0 | 20.9 | 0 |
+| ncvalue | 638 | 20% | 0.247 | 22.0 | 6.5 | 23.0 | 21.4 | 19.9 | 22.0 | 20.9 | 0 |
 | basic | 638 | 20% | 0.206 | 15.0 | 4.4 | 19.8 | 18.4 | 19.9 | 22.0 | 20.9 | 0 |
 | combobasic | 638 | 20% | 0.168 | 15.0 | 4.4 | 19.8 | 18.4 | 19.9 | 22.0 | 20.9 | 0 |
 | domaincoherence | 638 | 20% | 0.217 | 19.0 | 5.6 | 21.4 | 19.9 | 19.9 | 22.0 | 20.9 | 0 |
@@ -617,6 +633,9 @@ F1 64.6.
 - Banerjee, S., Chakravarthi, B. R., & McCrae, J. P. (2025). Benchmarking Hindi term
   extraction in education: a dataset and analysis. In *Proceedings of Language, Data
   and Knowledge (LDK 2025)*.
+- Frantzi, K., Ananiadou, S., & Mima, H. (2000). Automatic recognition of multi-word
+  terms: the C-value/NC-value method. *International Journal on Digital Libraries*,
+  3(2), 115–130. https://doi.org/10.1007/s007999900023
 - Goldhahn, D., Eckart, T., & Quasthoff, U. (2012). Building large monolingual
   dictionaries at the Leipzig Corpora Collection: from 100 to 200 languages. In
   *Proceedings of LREC 2012*, 759–765.
