@@ -21,8 +21,10 @@ The unsupervised methods use the candidates of ATR4S (Astrakhantsev, 2018), whos
 results BENCHMARKS.md compares with: sequences of up to four lemmas, counting only the
 occurrences that neither start nor end with a stopword, match `POS_PATTERN`, and pass
 ATR4S's noise filter (`word_pattern="atr4s"`), and that occur at least twice. The
-supervised methods read the words as written, and keep the candidates that
-occur at least twice and consist of words with a letter or digit.
+supervised methods read the words as written. Roger keeps the candidates that occur
+at least twice and consist of words with a letter or digit; the features method's
+candidates have the tag sequences of the training terms, as in HAMLET (Rigouts Terryn
+et al., 2021), and it keeps those it classifies as terms.
 """
 
 import argparse
@@ -107,7 +109,7 @@ UNSUPERVISED = [
     "rake",
 ]
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
-SUPERVISED = ["roger", "token-classification"]
+SUPERVISED = ["roger", "features", "token-classification"]
 
 SKIP: dict[tuple[str, str], str] = {}
 """Methods that are not run on a dataset, as (dataset, method), with the reason."""
@@ -284,10 +286,13 @@ def unsupervised(method: str, reference: Corpus | None):
     return TermExtractor(method=method, n=N, words_layer="tokens", **options)
 
 
-def supervised(dataset: str, method: str, train: Corpus, test: Corpus) -> ATEResults:
+def supervised(
+    dataset: str, method: str, train: Corpus, test: Corpus, reference: Corpus
+) -> ATEResults:
     """Train a supervised extractor on the gold terms of the training corpus and
-    extract the terms of the test corpus. Roger takes every other candidate as a
-    non-term, and token classification learns from each annotated occurrence."""
+    extract the terms of the test corpus. Roger and the features method take every
+    other candidate as a non-term, and token classification learns from each
+    annotated occurrence."""
     if method == "token-classification":
         train_options = DATASETS[dataset][1]
         assert train_options is not None
@@ -299,6 +304,22 @@ def supervised(dataset: str, method: str, train: Corpus, test: Corpus) -> ATERes
             datasets.load(dataset, **train_options, **train_extra),
             validation=datasets.load(dataset, **train_options, **validation_extra),
         ).predict(test)
+    if method == "features":
+        # As in HAMLET, the candidates have the tag sequences of the training terms
+        return (
+            SupervisedTermExtractor(
+                method=method,
+                n=N,
+                words_layer="tokens",
+                pos_pattern="learned",
+                pos_layer="pos",
+                reference_corpus=reference,
+                random_state=0,
+                n_jobs=-1,
+            )
+            .fit(tag(train, f"{dataset}-train"))
+            .predict(test)
+        )
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
     # Roger's evolutionary search is random, so fix its seed; its runs are independent
     extractor = SupervisedTermExtractor(
@@ -335,13 +356,12 @@ def run(
         start = time.perf_counter()
         if method in SUPERVISED:
             assert train is not None
-            results = supervised(dataset, method, train, test)
+            results = supervised(dataset, method, train, test, reference)
             gold = written_gold
             # Token classification tags terms rather than ranking candidates, so its
-            # terms are not filtered, as in Lang et al. (2021)
-            ranked = ranking(
-                results, bool if method == "token-classification" else keep_written
-            )
+            # terms are not filtered, as in Lang et al. (2021), and the features
+            # method keeps the candidates it classifies as terms
+            ranked = ranking(results, keep_written if method == "roger" else bool)
         elif method == "rake":
             results = unsupervised(method, reference).extract(test)
             gold = written_gold

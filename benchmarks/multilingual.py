@@ -287,10 +287,12 @@ def supervised(
     train: Corpus,
     validation: Corpus,
     test: Corpus,
+    reference: Corpus,
     stopwords: str = "hindi",
 ) -> ATEResults:
     """Train a supervised extractor on the training documents and extract the terms of
-    the test documents, as for the English benchmark."""
+    the test documents, as for the English benchmark. Without tags, the features
+    method's candidates are every sequence of words."""
     if method == "token-classification":
         extractor = SupervisedTermExtractor(
             method=method,
@@ -299,6 +301,7 @@ def supervised(
             **TOKEN_CLASSIFICATION,
         )
         return extractor.fit(train, validation=validation).predict(test)
+    options = {"reference_corpus": reference} if method == "features" else {}
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
     extractor = SupervisedTermExtractor(
         method=method,
@@ -307,6 +310,7 @@ def supervised(
         stopwords=stopwords,
         random_state=0,
         n_jobs=-1,
+        **options,
     )
     return extractor.fit(train, dict.fromkeys(gold, 1)).predict(test)
 
@@ -335,9 +339,9 @@ def run_htec(methods: Iterable[str], out: dict, save) -> None:
     for method in methods:
         start = time.perf_counter()
         if method in SUPERVISED:
-            results = supervised(method, train, validation, test)
-            # As for English, token classification's tagged terms are not filtered
-            keep = bool if method == "token-classification" else keep_written
+            results = supervised(method, train, validation, test, reference)
+            # As for English, only Roger's terms are filtered
+            keep = keep_written if method == "roger" else bool
         else:
             results = unsupervised(method, reference).extract(test)
             keep = keep_written if method == "rake" else bool
@@ -386,6 +390,11 @@ def rsdo5_supervised(
             **TOKEN_CLASSIFICATION,
         )
         return extractor.fit(train, validation=validation).predict(test)
+    # The other domains are the reference corpus of the unsupervised methods, but
+    # include the training domains, so the features method has none
+    options = (
+        {"pos_pattern": "learned", "pos_layer": "upos"} if method == "features" else {}
+    )
     gold = {normalize_term(t) for t in datasets.gold_terms(train)}
     extractor = SupervisedTermExtractor(
         method=method,
@@ -394,6 +403,7 @@ def rsdo5_supervised(
         stopwords="slovenian",
         random_state=0,
         n_jobs=-1,
+        **options,
     )
     return extractor.fit(train, dict.fromkeys(gold, 1)).predict(test)
 
@@ -425,7 +435,7 @@ def run_rsdo5(methods: Iterable[str], results: dict, save) -> None:
                     test,
                 )
                 gold = written_gold
-                keep = bool if method == "token-classification" else keep_written
+                keep = keep_written if method == "roger" else bool
             else:
                 reference = [datasets.load("rsdo5", domains=d) for d in others]
                 results_ = rsdo5_unsupervised(method, reference).extract(test)
@@ -478,10 +488,11 @@ def run_irish(methods: Iterable[str], out: dict, save) -> None:
                 subset(corpus, train_ids),
                 subset(corpus, [validation_id]),
                 subset(corpus, [test_id]),
+                reference,
                 stopwords="ga",
             )
-            # As for English, token classification's tagged terms are not filtered
-            keep = bool if method == "token-classification" else keep_written
+            # As for English, only Roger's terms are filtered
+            keep = keep_written if method == "roger" else bool
             terms |= {t["term"] for t in ranking(results, keep).terms[0]["terms"]}
             if method == "token-classification":
                 found |= found_occurrences(results)
