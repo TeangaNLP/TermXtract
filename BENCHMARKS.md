@@ -174,8 +174,9 @@ words by PageRank over one co-occurrence graph of the whole corpus, and the cand
 by the sum of their words' scores. They come close to TF-IDF on the ACL RD-TEC (AvP
 0.671–0.681, against 0.688), but are well below it on ACTER (0.333–0.340) and GENIA
 (0.584–0.585), and the three variants differ little. On HTEC, RSDO5 and the Irish gold
-standard they rank below TF-IDF, C-value and YAKE! (AvP 0.143–0.290). Their word scores
-match pke's (Boudin, 2016) to within 1e-8 when its PageRank is run to convergence.
+standard they rank below TF-IDF, C-value and YAKE! (AvP 0.143–0.290). On the same
+words and tags, their scores match those of pke 2.0.0 (Boudin, 2016) to within 1e-8
+once pke's PageRank is run to convergence.
 
 ### Results
 
