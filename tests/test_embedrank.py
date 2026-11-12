@@ -9,7 +9,10 @@ from teanga import Corpus
 
 from termxtract import TermExtractor
 from termxtract.embeddings import Encoder
-from termxtract.unsupervised.embedrank import EmbedRankTermExtractor
+from termxtract.unsupervised.embedrank import (
+    EmbedRankTermExtractor,
+    marginal_relevance,
+)
 
 HAS_TRANSFORMERS = all(
     importlib.util.find_spec(module) is not None for module in ("torch", "transformers")
@@ -133,6 +136,42 @@ def test_centroid():
     )
 
 
+def test_marginal_relevance():
+    # "b" is almost "a", so it drops below the less relevant but different "c"
+    vectors = np.array([[1, 0], [0.99, np.sqrt(1 - 0.99**2)], [0, 1]])
+    found = marginal_relevance(np.array([1.0, 0.9, 0.5]), vectors, 0.5)
+    assert found == pytest.approx([0.5, 0.45 - 0.495, 0.25])
+    assert marginal_relevance(np.array([1.0, 0.9, 0.5]), vectors, 0) == pytest.approx(
+        [1, 0.9, 0.5]
+    )
+
+
+def test_diversity():
+    encoder = FakeEncoder()
+    texts = ["heart failure", "heart attack heart rate"]
+    found = extract(texts, encoder, diversity=0.3)
+    best = scores(extract(texts, encoder))
+    terms = list(best)
+    expected = marginal_relevance(
+        np.array([best[t] for t in terms]),
+        encoder.encode([t.split(" ") for t in terms]),
+        0.3,
+    )
+    assert scores(found) == pytest.approx(dict(zip(terms, expected)))
+    # Without a corpus aggregation, each document is re-ranked on its own
+    by_doc = extract(texts, encoder, corpus_aggregation=None)
+    found = extract(texts, encoder, corpus_aggregation=None, diversity=0.3)
+    for k in range(2):
+        doc = scores(by_doc, k)
+        terms = list(doc)
+        expected = marginal_relevance(
+            np.array([doc[t] for t in terms]),
+            encoder.encode([t.split(" ") for t in terms]),
+            0.3,
+        )
+        assert scores(found, k) == pytest.approx(dict(zip(terms, expected)))
+
+
 def test_documents_as_written_and_candidates_as_lemmas():
     encoder = FakeEncoder()
     tagged = corpus(["Hearts failed"], ["heart fail"])
@@ -161,6 +200,10 @@ def test_invalid_parameters():
         EmbedRankTermExtractor(
             encoder=encoder, variant="mderank", corpus_aggregation="centroid"
         )
+    with pytest.raises(ValueError, match="diversity"):
+        EmbedRankTermExtractor(encoder=encoder, diversity=1.5)
+    with pytest.raises(ValueError, match="diversity"):
+        EmbedRankTermExtractor(encoder=encoder, variant="mderank", diversity=0.2)
     with pytest.raises(ValueError, match="mask token"):
         EmbedRankTermExtractor(
             encoder=FakeEncoder(mask_token_id=None), variant="mderank"

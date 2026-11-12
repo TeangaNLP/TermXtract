@@ -90,6 +90,7 @@ class TermExtractor:
                 "corpus_aggregation",
                 "model_name",
                 "encoder",
+                "diversity",
                 *CANDIDATE_PARAMS,
             ),
         ),
@@ -132,6 +133,7 @@ class TermExtractor:
         graph: str = "corpus",
         model_name: str = DEFAULT_MODEL,
         encoder: Encoder | None = None,
+        diversity: float | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -202,6 +204,10 @@ class TermExtractor:
                 ('embedrank'), by default `all-MiniLM-L6-v2`.
             encoder (Optional[Encoder]): A loaded `termxtract.embeddings.Encoder`, used
                 instead of `model_name` ('embedrank').
+            diversity (Optional[float]): Re-rank the candidates by Maximal Marginal
+                Relevance, as in EmbedRank++, with this weight from 0 to 1 on their
+                similarity to better candidates ('embedrank' with the "embedrank"
+                variant), or None.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
                 stopword (all methods except 'rake', which uses `stoplist`): the name of a
                 built-in list in `termxtract.stopwords.STOPWORD_LISTS`, such as "english"
@@ -269,6 +275,7 @@ class TermExtractor:
             "graph": graph,
             "model_name": model_name,
             "encoder": encoder,
+            "diversity": diversity,
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,

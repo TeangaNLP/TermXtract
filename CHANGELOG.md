@@ -86,7 +86,8 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   cosine similarity of its embedding to the document's, and MDERank by how far the
   document's embedding moves when the candidate is masked. Long documents are split
   into chunks. `corpus_aggregation` combines a term's scores over the documents, or
-  with `"centroid"` compares it with the mean document. The encoder,
+  with `"centroid"` compares it with the mean document. `diversity` re-ranks
+  EmbedRank's candidates by Maximal Marginal Relevance, as in EmbedRank++. The encoder,
   `termxtract.embeddings.Encoder` (by default `all-MiniLM-L6-v2`), caches the
   embeddings of candidates and can be shared between extractors. `n` defaults to 3.
   `TermExtractor`'s `variant` now defaults to None, the method's own default.

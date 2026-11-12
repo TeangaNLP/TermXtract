@@ -133,7 +133,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `rake`             | Rapid Automatic Keyword Extraction                  | `stoplist`, `phrase_delimiters` (required) |
 | `yake`             | YAKE! (local features of each document's words)     | `window_size`, `dedup_threshold`, `corpus_aggregation` |
 | `textrank`         | TextRank, SingleRank or PositionRank (PageRank over a word graph) | `variant`, `window_size`, `graph` |
-| `embedrank`        | EmbedRank or MDERank (sentence embeddings; needs the `transformers` extra) | `variant`, `corpus_aggregation`, `model_name`, `encoder` |
+| `embedrank`        | EmbedRank or MDERank (sentence embeddings; needs the `transformers` extra) | `variant`, `corpus_aggregation`, `model_name`, `encoder`, `diversity` |
 | `domaincoherence`  | Domain coherence                                    | `window_size`, `seed_terms`, `context_words` |
 | `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required), `tie_break` |
 | `weirdness`        | Weirdness                                           | `reference_corpus` (required)         |

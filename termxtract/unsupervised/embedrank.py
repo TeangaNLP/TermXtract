@@ -23,6 +23,41 @@ def normalize(vector: np.ndarray) -> np.ndarray:
     return vector / norm if norm > 0 else vector
 
 
+def marginal_relevance(
+    relevance: np.ndarray, vectors: np.ndarray, diversity: float
+) -> np.ndarray:
+    r"""
+    Re-rank items by Maximal Marginal Relevance (Carbonell & Goldstein, 1998).
+
+    The items are taken greedily, each time the one with the highest
+    \( (1 - \lambda) \cdot relevance - \lambda \cdot redundancy \), where
+    \( \lambda \) is `diversity` and the redundancy of an item is its highest cosine
+    similarity to the items already taken, or 0 if that is negative.
+
+    Args:
+        relevance (np.ndarray): The relevance of each item.
+        vectors (np.ndarray): The unit-length embedding of each item, one per row.
+        diversity (float): \( \lambda \), from 0, which keeps the order by
+            relevance, to 1, which ignores relevance after the first item.
+
+    Returns:
+        np.ndarray: The score of each item: the value it was taken at. The values do
+        not increase from one item to the next, so they rank the items in the order
+        they were taken.
+    """
+    redundancy = np.zeros(len(relevance))
+    taken = np.zeros(len(relevance), dtype=bool)
+    scores = np.empty(len(relevance))
+    for _ in range(len(relevance)):
+        values = (1 - diversity) * relevance - diversity * redundancy
+        values[taken] = -np.inf
+        best = int(np.argmax(values))
+        scores[best] = values[best]
+        taken[best] = True
+        redundancy = np.maximum(redundancy, vectors @ vectors[best])
+    return scores
+
+
 class EmbedRankTermExtractor(BaseTermExtractor):
     r"""
     Embedding-based ranking: EmbedRank (Bennani-Smires et al., 2018) and MDERank (Zhang
@@ -51,8 +86,16 @@ class EmbedRankTermExtractor(BaseTermExtractor):
     and doc2vec for EmbedRank, and BERT for MDERank. Here the candidates are those of
     the other methods, set by `n`, `stopwords`, `word_pattern`, `pos_pattern` and
     `min_frequency`. Documents are embedded from their words as written, and candidates
-    from their words, or with `lemma_layer` their lemmas. EmbedRank++'s diversification
-    by Maximal Marginal Relevance is not done.
+    from their words, or with `lemma_layer` their lemmas.
+
+    With `diversity`, "embedrank" re-ranks the candidates by Maximal Marginal Relevance,
+    as in EmbedRank++, so that a candidate similar to better ones ranks lower (see
+    `marginal_relevance`). "mderank" does not, since its scores are on another scale
+    from the similarities: in long documents, masking a candidate changes few chunks,
+    and its scores can all be below 0.03, so the similarities would decide the ranking. The candidates of each document are re-ranked by their scores
+    in it, or with a `corpus_aggregation` all candidates together by their combined
+    scores. It compares each candidate with every other, so it takes time quadratic in
+    their number: about 20 seconds for 16,000 candidates.
     """
 
     def __init__(
@@ -63,6 +106,7 @@ class EmbedRankTermExtractor(BaseTermExtractor):
         corpus_aggregation: str | None = "max",
         model_name: str = DEFAULT_MODEL,
         encoder: Encoder | None = None,
+        diversity: float | None = None,
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -88,6 +132,9 @@ class EmbedRankTermExtractor(BaseTermExtractor):
             encoder (Optional[Encoder]): A loaded encoder, to share one between
                 extractors or set its batch size, maximum length or device, or None to
                 load `model_name`.
+            diversity (Optional[float]): Re-rank the candidates by Maximal Marginal
+                Relevance with this weight on their redundancy, from 0 to 1
+                ("embedrank" only), or None to keep the ranking by score.
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end
                 with a stopword: a name in `STOPWORD_LISTS`, a list of words, or None.
             words_layer (Optional[str]): For Teanga input, the span layer holding the
@@ -106,6 +153,7 @@ class EmbedRankTermExtractor(BaseTermExtractor):
 
         Raises:
             ValueError: If `variant` or `corpus_aggregation` is unknown, if
+                `diversity` is outside 0 to 1 or set for "mderank", if
                 `corpus_aggregation` is "centroid" for "mderank", or if the encoder's
                 tokenizer has no mask token for "mderank".
             ImportError: If an encoder is to be loaded and the optional 'transformers'
@@ -122,6 +170,10 @@ class EmbedRankTermExtractor(BaseTermExtractor):
                 f"Unknown corpus_aggregation: {corpus_aggregation!r}. "
                 "Use 'max', 'mean', 'centroid' or None."
             )
+        if diversity is not None and not 0 <= diversity <= 1:
+            raise ValueError(f"diversity must be from 0 to 1, not {diversity}")
+        if variant == "mderank" and diversity is not None:
+            raise ValueError("diversity needs variant='embedrank'")
         if variant == "mderank" and corpus_aggregation == "centroid":
             raise ValueError("corpus_aggregation='centroid' needs variant='embedrank'")
         super().__init__(
@@ -137,6 +189,7 @@ class EmbedRankTermExtractor(BaseTermExtractor):
         )
         self.variant = variant
         self.corpus_aggregation = corpus_aggregation
+        self.diversity = diversity
         self.encoder = Encoder(model_name) if encoder is None else encoder
         if variant == "mderank" and self.encoder.tokenizer.mask_token_id is None:
             raise ValueError("variant='mderank' needs a tokenizer with a mask token")
@@ -200,7 +253,8 @@ class EmbedRankTermExtractor(BaseTermExtractor):
         occurrences: list[list[tuple[str, int, int]]],
     ) -> list[dict[str, float]]:
         """
-        Score the candidates of each document, combined by `corpus_aggregation`.
+        Score the candidates of each document, combined by `corpus_aggregation` and
+        re-ranked by `diversity`.
 
         Args:
             docs (List[List[str]]): The words of each document as written.
@@ -248,7 +302,37 @@ class EmbedRankTermExtractor(BaseTermExtractor):
             combine = max if self.corpus_aggregation == "max" else statistics.fmean
             combined = {term: combine(values) for term, values in by_term.items()}
             scores = [{term: combined[term] for term in doc} for doc in scores]
-        return scores
+
+        if self.diversity is None:
+            return scores
+        if self.corpus_aggregation is None:
+            return [self.diversify(doc_scores) for doc_scores in scores]
+        # With a corpus aggregation, a term has the same score in every document, so
+        # all the terms are re-ranked together
+        reranked = self.diversify(
+            {term: score for doc_scores in scores for term, score in doc_scores.items()}
+        )
+        return [{term: reranked[term] for term in doc_scores} for doc_scores in scores]
+
+    def diversify(self, scores: dict[str, float]) -> dict[str, float]:
+        """
+        Re-rank candidates by Maximal Marginal Relevance, with `diversity` as the weight
+        on their redundancy.
+
+        Args:
+            scores (Dict[str, float]): The score of each candidate.
+
+        Returns:
+            Dict[str, float]: The score of each candidate after re-ranking.
+        """
+        assert self.diversity is not None
+        terms = list(scores)
+        reranked = marginal_relevance(
+            np.array([scores[term] for term in terms]),
+            self.encoder.encode([term.split(" ") for term in terms]),
+            self.diversity,
+        )
+        return dict(zip(terms, reranked.tolist()))
 
     def masked_scores(
         self,
