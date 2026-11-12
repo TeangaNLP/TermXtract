@@ -79,6 +79,9 @@ def corpus_with_layer(layer):
 
 @pytest.mark.parametrize("method", [m for m in TermExtractor.METHODS if m != "rake"])
 def test_unsupervised_words_layer(method):
+    if method == "embedrank" and not HAS_TRANSFORMERS:
+        pytest.skip("requires the optional 'transformers' extra")
+
     def extract(layer, **params):
         corpus = corpus_with_layer(layer)
         if method in ("weirdness", "domainpertinence", "relevance"):
