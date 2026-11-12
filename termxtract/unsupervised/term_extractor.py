@@ -12,6 +12,7 @@ from .cvalue import CValueTermExtractor
 from .domaincoherence import DomainCoherenceTermExtractor
 from .domainpertinence import DomainPertinenceTermExtractor
 from .ldaextractor import TopicModelingTermExtractor
+from .ncvalue import NCValueTermExtractor
 from .nmfextractor import NMFTermExtractor
 from .rake import RAKETermExtractor
 from .reference_extractor import ReferenceCorpus
@@ -53,6 +54,10 @@ class TermExtractor:
         "tfidf": (TFIDFTermExtractor, CANDIDATE_PARAMS),
         "ridf": (RIDFTermExtractor, CANDIDATE_PARAMS),
         "cvalue": (CValueTermExtractor, CANDIDATE_PARAMS),
+        "ncvalue": (
+            NCValueTermExtractor,
+            ("window_size", "top_terms", "cvalue_weight", *CANDIDATE_PARAMS),
+        ),
         "basic": (BasicTermExtractor, ("alpha", *CANDIDATE_PARAMS)),
         "combobasic": (ComboBasicTermExtractor, ("alpha", "beta", *CANDIDATE_PARAMS)),
         "domaincoherence": (
@@ -90,6 +95,8 @@ class TermExtractor:
         window_size: int = 5,
         seed_terms: int = 200,
         context_words: int = 50,
+        top_terms: int = 200,
+        cvalue_weight: float = 0.8,
         stoplist: list[str] | None = None,
         phrase_delimiters: list[str] | None = None,
         reference_corpus: ReferenceCorpus | list[ReferenceCorpus] | None = None,
@@ -124,11 +131,15 @@ class TermExtractor:
             top_words (int): Number of most probable words of each topic that count
                 towards the scores ('topicmodeling').
             window_size (int): The number of words on either side of a candidate that
-                count as its context ('domaincoherence').
+                count as its context ('domaincoherence' and 'ncvalue').
             seed_terms (int): The number of best candidates by Basic used to choose the
                 context words ('domaincoherence').
             context_words (int): The number of context words that candidates are scored
                 against ('domaincoherence').
+            top_terms (int): The number of best candidates by C-value whose context
+                words are weighted ('ncvalue').
+            cvalue_weight (float): The weight of the C-value against the context factor
+                ('ncvalue'), 0.8 in Frantzi et al. (2000).
             stoplist (Optional[List[str]]): List of stop words (required by 'rake').
             phrase_delimiters (Optional[List[str]]): List of phrase delimiters (required by 'rake').
             reference_corpus (Optional[Union[Corpus, List[str], List[Union[Corpus, List[str]]]]]):
@@ -195,6 +206,8 @@ class TermExtractor:
             "window_size": window_size,
             "seed_terms": seed_terms,
             "context_words": context_words,
+            "top_terms": top_terms,
+            "cvalue_weight": cvalue_weight,
             "stoplist": stoplist,
             "phrase_delimiters": phrase_delimiters,
             "reference_corpus": reference_corpus,

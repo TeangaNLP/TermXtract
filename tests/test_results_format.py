@@ -28,6 +28,7 @@ METHODS = {
     "tfidf": {"n": 2},
     "ridf": {"n": 2},
     "cvalue": {"n": 2},
+    "ncvalue": {"n": 2},
     "basic": {"n": 2},
     "combobasic": {"n": 2},
     "domaincoherence": {"n": 1},
