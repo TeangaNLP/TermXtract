@@ -50,6 +50,7 @@ nav:
     - Relevance: api/unsupervised/relevance.md
     - Topic Modeling (LDA): api/unsupervised/topicmodeling.md
     - NMF: api/unsupervised/nmf.md
+    - Unithood Measures: api/unsupervised/unithood.md
   - Supervised Extractors:
     - Roger: api/supervised/roger.md
     - Token Classification: api/supervised/token_classification.md
