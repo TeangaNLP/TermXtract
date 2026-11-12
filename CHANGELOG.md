@@ -80,6 +80,16 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   keeps each document's own. Terms are reported in lower case, and `n` defaults to 3.
   `TermExtractor`'s `window_size` now defaults to None, the method's own default: 1
   for YAKE! and 5, as before, for domain coherence and NC-value.
+- Embedding-based ranking (#50): EmbedRank (Bennani-Smires et al., 2018) and MDERank
+  (Zhang et al., 2022), as `TermExtractor(method="embedrank", variant="embedrank" |
+  "mderank")`, with the `transformers` extra. EmbedRank scores a candidate by the
+  cosine similarity of its embedding to the document's, and MDERank by how far the
+  document's embedding moves when the candidate is masked. Long documents are split
+  into chunks. `corpus_aggregation` combines a term's scores over the documents, or
+  with `"centroid"` compares it with the mean document. The encoder,
+  `termxtract.embeddings.Encoder` (by default `all-MiniLM-L6-v2`), caches the
+  embeddings of candidates and can be shared between extractors. `n` defaults to 3.
+  `TermExtractor`'s `variant` now defaults to None, the method's own default.
 - Graph-based ranking (#49): TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan &
   Xiao, 2008) and PositionRank (Florescu & Caragea, 2017), as
   `TermExtractor(method="textrank", variant="plain" | "single" | "position")`. Words
