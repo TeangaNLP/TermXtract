@@ -80,6 +80,13 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   keeps each document's own. Terms are reported in lower case, and `n` defaults to 3.
   `TermExtractor`'s `window_size` now defaults to None, the method's own default: 1
   for YAKE! and 5, as before, for domain coherence and NC-value.
+- Graph-based ranking (#49): TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan &
+  Xiao, 2008) and PositionRank (Florescu & Caragea, 2017), as
+  `TermExtractor(method="textrank", variant="plain" | "single" | "position")`. Words
+  are scored by PageRank over a graph of the nouns and adjectives, or the words that
+  aren't stopwords, that co-occur within `window_size` words, and candidates by the
+  sum of their words' scores. The graph covers the whole corpus, or each document
+  with `graph="document"`. `n` defaults to 3.
 - `min_frequency` and `word_pattern` parameters for every unsupervised method except
   RAKE (#67). `min_frequency` drops candidates that occur fewer times in the corpus
   (default 1). `word_pattern` drops candidates with a word that does not match a

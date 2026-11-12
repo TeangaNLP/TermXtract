@@ -36,6 +36,7 @@ METHODS = {
     "nmf": {"n": 2, "n_topics": 2},
     "rake": {"stoplist": STOPLIST, "phrase_delimiters": [".", ","]},
     "yake": {"n": 2},
+    "textrank": {"n": 2},
     "domainpertinence": {"n": 2, "reference_corpus": "REF"},
     "weirdness": {"n": 2, "reference_corpus": "REF"},
     "relevance": {"n": 2, "reference_corpus": "REF"},

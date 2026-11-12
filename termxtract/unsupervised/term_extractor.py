@@ -18,6 +18,7 @@ from .rake import RAKETermExtractor
 from .reference_extractor import ReferenceCorpus
 from .relevance import RelevanceTermExtractor
 from .ridf import RIDFTermExtractor
+from .textrank import TextRankTermExtractor
 from .tfidf import TFIDFTermExtractor
 from .unithood import (
     Chi2TermExtractor,
@@ -76,6 +77,10 @@ class TermExtractor:
             YAKETermExtractor,
             ("window_size", "dedup_threshold", "corpus_aggregation", *CANDIDATE_PARAMS),
         ),
+        "textrank": (
+            TextRankTermExtractor,
+            ("variant", "window_size", "graph", *CANDIDATE_PARAMS),
+        ),
         "domainpertinence": (
             DomainPertinenceTermExtractor,
             ("reference_corpus", "tie_break", *CANDIDATE_PARAMS),
@@ -111,6 +116,8 @@ class TermExtractor:
         aggregation: str = "min",
         dedup_threshold: float | None = 0.9,
         corpus_aggregation: str | None = "max",
+        variant: str = "plain",
+        graph: str = "corpus",
         stopwords: Stopwords = "english",
         words_layer: str | None = None,
         lemma_layer: str | None = None,
@@ -133,14 +140,15 @@ class TermExtractor:
             n (Optional[int]): Maximum length of n-grams to consider (all methods except
                 'rake'), or None for the method's default: 2 for the unithood methods
                 ('pmi', 'llr', 'chi2', 'dice' and 'tscore'), which rank only multi-word
-                terms, 3 for 'yake', and 1 for the others.
+                terms, 3 for 'yake' and 'textrank', and 1 for the others.
             num_topics (int): Number of LDA topics ('topicmodeling').
             top_words (int): Number of most probable words of each topic that count
                 towards the scores ('topicmodeling').
             window_size (Optional[int]): The number of words on either side of a
                 candidate that count as its context ('domaincoherence', 'ncvalue' and
-                'yake'), or None for the method's default: 1 for 'yake' and 5 for the
-                others.
+                'yake'), or of a word that it is linked to in the graph ('textrank'),
+                or None for the method's default: 1 for 'yake' and TextRank, 9 for
+                SingleRank and PositionRank, and 5 for the others.
             seed_terms (int): The number of best candidates by Basic used to choose the
                 context words ('domaincoherence').
             context_words (int): The number of context words that candidates are scored
@@ -168,6 +176,10 @@ class TermExtractor:
             corpus_aggregation (Optional[str]): How a term's scores in each document are
                 combined ('yake'): "max" (the default) for its best, "mean", or None to
                 keep the score of each document.
+            variant (str): The graph-based method ('textrank'): "plain" for TextRank,
+                "single" for SingleRank or "position" for PositionRank.
+            graph (str): Build one graph over the whole corpus ("corpus", the default)
+                or one for each document ("document") ('textrank').
             stopwords (Union[str, Iterable[str], None]): Drop candidates that start or end with a
                 stopword (all methods except 'rake', which uses `stoplist`): the name of a
                 built-in list in `termxtract.stopwords.STOPWORD_LISTS`, such as "english"
@@ -231,6 +243,8 @@ class TermExtractor:
             "aggregation": aggregation,
             "dedup_threshold": dedup_threshold,
             "corpus_aggregation": corpus_aggregation,
+            "variant": variant,
+            "graph": graph,
             "stopwords": stopwords,
             "words_layer": words_layer,
             "lemma_layer": lemma_layer,

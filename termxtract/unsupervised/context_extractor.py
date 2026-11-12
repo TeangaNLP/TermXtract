@@ -20,13 +20,17 @@ verbs, as Universal Dependencies or Penn Treebank tags.
 class ContextTermExtractor(BaseTermExtractor):
     """
     Base class for extractors that score candidates by the words around their
-    occurrences: Domain coherence and NC-value.
+    occurrences: Domain coherence, NC-value and TextRank.
 
-    Subclasses implement `corpus_scores`. The context of an occurrence is the content
-    words within `window_size` words on either side of it. Content words are those that
-    are not stopwords, that match `word_pattern` and, for a Teanga corpus with a
-    part-of-speech layer, whose tag is in `CONTENT_TAGS`.
+    Subclasses implement `corpus_scores`, or `document_scores` to score the candidates
+    of each document differently. The context of an occurrence is the content words
+    within `window_size` words on either side of it. Content words are those that are
+    not stopwords, that match `word_pattern` and, for a Teanga corpus with a
+    part-of-speech layer, whose tag is in `content_tags`.
     """
+
+    content_tags: re.Pattern[str] = CONTENT_TAGS
+    """The part-of-speech tags of the content words."""
 
     def __init__(
         self,
@@ -94,11 +98,33 @@ class ContextTermExtractor(BaseTermExtractor):
             occurrences (List[List[Tuple[str, int, int]]]): The occurrences of the
                 candidates in each document, from `candidate_occurrences`.
             tags (Optional[List[List[str]]]): The part-of-speech tag of each word of each
-                document, to restrict the context words to `CONTENT_TAGS`, or None.
+                document, to restrict the context words to `content_tags`, or None.
 
         Returns:
             Dict[str, float]: The score of each candidate.
         """
+
+    def document_scores(
+        self,
+        docs: list[list[str]],
+        occurrences: list[list[tuple[str, int, int]]],
+        tags: list[list[str]] | None = None,
+    ) -> list[dict[str, float]]:
+        """
+        Score the candidates of each document, by default with `corpus_scores`, so that
+        a candidate has the same score in every document.
+
+        Args:
+            docs (List[List[str]]): The words of each document.
+            occurrences (List[List[Tuple[str, int, int]]]): The occurrences of the
+                candidates in each document, from `candidate_occurrences`.
+            tags (Optional[List[List[str]]]): The part-of-speech tag of each word of each
+                document, to restrict the context words to `content_tags`, or None.
+
+        Returns:
+            List[Dict[str, float]]: The score of each candidate of each document.
+        """
+        return [self.corpus_scores(docs, occurrences, tags)] * len(docs)
 
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """Extract terms from a Teanga corpus."""
@@ -117,12 +143,12 @@ class ContextTermExtractor(BaseTermExtractor):
         occurrences = self.candidate_occurrences(
             docs, None if self.pos_pattern is None else tags
         )
-        scores = self.corpus_scores(docs, occurrences, tags)
+        scores_by_doc = self.document_scores(docs, occurrences, tags)
 
         terms_by_doc = []
         offsets_by_doc = []
-        for doc_id, words, doc_occurrences in zip(
-            corpus.doc_ids, words_by_doc, occurrences
+        for doc_id, words, doc_occurrences, scores in zip(
+            corpus.doc_ids, words_by_doc, occurrences, scores_by_doc
         ):
             doc_terms = self.doc_terms(
                 doc_id, {ngram: scores[ngram] for ngram, _, _ in doc_occurrences}
@@ -145,13 +171,15 @@ class ContextTermExtractor(BaseTermExtractor):
         """Extract terms from a plain list of strings."""
         docs = [split_words(doc) for doc in corpus]
         occurrences = self.candidate_occurrences(docs)
-        scores = self.corpus_scores(docs, occurrences)
+        scores_by_doc = self.document_scores(docs, occurrences)
 
         terms_by_doc = [
             self.doc_terms(
                 f"doc_{idx}", {ngram: scores[ngram] for ngram, _, _ in doc_occurrences}
             )
-            for idx, doc_occurrences in enumerate(occurrences)
+            for idx, (doc_occurrences, scores) in enumerate(
+                zip(occurrences, scores_by_doc)
+            )
         ]
         processed_corpus = [
             {"doc_id": f"doc_{idx}", "text": doc} for idx, doc in enumerate(corpus)
@@ -179,7 +207,7 @@ class ContextTermExtractor(BaseTermExtractor):
                 and (
                     self.word_pattern is None or bool(self.word_pattern.fullmatch(word))
                 )
-                and (tags is None or bool(CONTENT_TAGS.fullmatch(tags[k][i])))
+                and (tags is None or bool(self.content_tags.fullmatch(tags[k][i])))
                 for i, word in enumerate(words)
             ]
             for k, words in enumerate(docs)
