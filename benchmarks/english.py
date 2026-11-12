@@ -107,6 +107,7 @@ UNSUPERVISED = [
     "chi2",
     "dice",
     "tscore",
+    "yake",
     "rake",
 ]
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
