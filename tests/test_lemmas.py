@@ -60,6 +60,7 @@ METHODS = {
     "tfidf": {},
     "ridf": {},
     "cvalue": {},
+    "ncvalue": {},
     "basic": {},
     "combobasic": {},
     "domaincoherence": {},

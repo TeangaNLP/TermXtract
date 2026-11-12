@@ -41,6 +41,7 @@ nav:
     - TF-IDF: api/unsupervised/tfidf.md
     - Residual IDF: api/unsupervised/ridf.md
     - C-Value: api/unsupervised/cvalue.md
+    - NC-Value: api/unsupervised/ncvalue.md
     - Basic: api/unsupervised/basic.md
     - ComboBasic: api/unsupervised/combobasic.md
     - RAKE: api/unsupervised/rake.md

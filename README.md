@@ -127,6 +127,7 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 | `tfidf`            | Term frequency–inverse document frequency           |                                       |
 | `ridf`             | Residual IDF                                        |                                       |
 | `cvalue`           | C-Value (frequent terms not nested in longer ones)  |                                       |
+| `ncvalue`          | NC-Value (C-Value re-ranked by context words)       | `window_size`, `top_terms`, `cvalue_weight` |
 | `basic`            | Basic                                               | `alpha`                               |
 | `combobasic`       | ComboBasic                                          | `alpha`, `beta`                       |
 | `rake`             | Rapid Automatic Keyword Extraction                  | `stoplist`, `phrase_delimiters` (required) |

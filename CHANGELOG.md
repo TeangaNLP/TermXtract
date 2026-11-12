@@ -68,6 +68,11 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   `aggregation="mean"` by the mean of its splits. Their `n` defaults to 2, so
   `TermExtractor`'s `n` now defaults to None, the method's own default. The measures,
   which Roger uses as features, are in the new `termxtract.association` module.
+- NC-value (Frantzi, Ananiadou & Mima, 2000), as `TermExtractor(method="ncvalue")`
+  (#46). It re-ranks the C-value list by the context words of its `top_terms` best
+  candidates: nouns, adjectives and verbs within `window_size` words, or every word
+  that is not a stopword when there are no part-of-speech tags. `cvalue_weight` sets
+  the 0.8/0.2 balance of the paper.
 - `min_frequency` and `word_pattern` parameters for every unsupervised method except
   RAKE (#67). `min_frequency` drops candidates that occur fewer times in the corpus
   (default 1). `word_pattern` drops candidates with a word that does not match a
