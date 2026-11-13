@@ -102,6 +102,106 @@ def string_sentences(text: str) -> list[Sentence]:
     return sentences
 
 
+def split_teanga(
+    corpus: Corpus,
+    words_layer: str | None = None,
+    sentences_layer: str | None = None,
+    lemma_layer: str | None = None,
+) -> list[list[Sentence]]:
+    """
+    Split each document of a Teanga corpus into sentences.
+
+    Args:
+        corpus (Corpus): The Teanga corpus.
+        words_layer (Optional[str]): The span layer holding the words, or None for
+            `words` or, failing that, `tokens`.
+        sentences_layer (Optional[str]): The span layer of the sentences, or None for
+            `sentences` or, if there is none, splitting after each word that is ".",
+            "!" or "?".
+        lemma_layer (Optional[str]): A sequence layer holding the lemma of each word,
+            or None.
+
+    Returns:
+        List[List[Sentence]]: The sentences of each document.
+    """
+    documents = teanga_sentences(corpus, words_layer, sentences_layer)
+    lemmas = teanga_lemmas(corpus, documents, lemma_layer, words_layer)
+    sentences = []
+    for k, (doc_id, doc) in enumerate(zip(corpus.doc_ids, documents)):
+        text = corpus.doc_by_id(doc_id).text
+        doc_sentences = []
+        for s, (_, spans) in enumerate(doc):
+            start = spans[0][0]
+            doc_sentences.append(
+                Sentence(
+                    text[start : spans[-1][1]],
+                    [(a - start, b - start) for a, b in spans],
+                    None if lemmas is None else lemmas[k][s],
+                    start,
+                )
+            )
+        sentences.append(doc_sentences)
+    return sentences
+
+
+def gold_spans(
+    corpus: Corpus, documents: list[list[Sentence]], terms_layer: str = GOLD_LAYER
+) -> list[list[list[tuple[int, int]]]]:
+    """
+    Get the gold terms of each sentence from `split_teanga`.
+
+    Args:
+        corpus (Corpus): The Teanga corpus.
+        documents (List[List[Sentence]]): Its sentences, from `split_teanga`.
+        terms_layer (str): The span layer of the gold terms.
+
+    Returns:
+        List[List[List[Tuple[int, int]]]]: For each sentence of each document, the
+        offsets within it of the gold terms that start in it, in order.
+    """
+    layer = find_layer(corpus.meta, terms_layer, (), "terms_layer")
+    spans = []
+    for doc_id, doc in zip(corpus.doc_ids, documents):
+        terms = sorted(
+            (span[0], span[1])
+            for span in corpus.doc_by_id(doc_id)[layer].indexes("text")
+        )
+        spans.append(
+            [
+                [
+                    (start - sentence.offset, stop - sentence.offset)
+                    for start, stop in terms
+                    if sentence.offset <= start < sentence.offset + len(sentence.text)
+                ]
+                for sentence in doc
+            ]
+        )
+    return spans
+
+
+def labelled_spans(
+    sentence: Sentence, terms: set[str], n: int
+) -> list[tuple[int, int]]:
+    """
+    Find the labelled terms in a sentence.
+
+    Args:
+        sentence (Sentence): The sentence.
+        terms (Set[str]): The terms, normalised as by `Sentence.term`.
+        n (int): The maximum number of words of a term.
+
+    Returns:
+        List[Tuple[int, int]]: The offsets within the sentence of each run of up to `n`
+        words that is a term.
+    """
+    spans = []
+    for first in range(len(sentence.words)):
+        for last in range(first + 1, min(first + n, len(sentence.words)) + 1):
+            if sentence.term(first, last) in terms:
+                spans.append((sentence.words[first][0], sentence.words[last - 1][1]))
+    return spans
+
+
 def make_prompt(
     template: tuple[str, str, str],
     demonstrations: Iterable[tuple[str, list[str]]],
@@ -328,24 +428,21 @@ class LLMTermExtractor:
             labels (Optional[Dict[str, int]]): Dictionary with terms as keys and binary
                 labels as values, or None for the gold terms of `terms_layer`.
         """
-        documents = self._teanga_sentences(corpus)
+        documents = split_teanga(
+            corpus, self.words_layer, self.sentences_layer, self.lemma_layer
+        )
         sentences = [s for doc in documents for s in doc]
         if labels is not None:
             self._fit(sentences, self._labelled(labels))
             return
-        layer = find_layer(corpus.meta, self.terms_layer, (), "terms_layer")
         gold = []
-        for doc_id, doc in zip(corpus.doc_ids, documents):
-            document = corpus.doc_by_id(doc_id)
-            spans = sorted(
-                (span[0], span[1]) for span in document[layer].indexes("text")
-            )
-            for sentence in doc:
-                end = sentence.offset + len(sentence.text)
+        for doc, spans in zip(
+            documents, gold_spans(corpus, documents, self.terms_layer)
+        ):
+            for sentence, sentence_spans in zip(doc, spans):
                 terms = {
-                    document.text[start:stop].lower(): document.text[start:stop]
-                    for start, stop in spans
-                    if sentence.offset <= start < end
+                    sentence.text[start:stop].lower(): sentence.text[start:stop]
+                    for start, stop in sentence_spans
                 }
                 gold.append((sentence.text, list(terms.values())))
         self._set_demonstrations(sentences, gold)
@@ -379,7 +476,12 @@ class LLMTermExtractor:
             offsets of each occurrence the model found.
         """
         return self._predict(
-            corpus, list(corpus.doc_ids), self._teanga_sentences(corpus), offsets=True
+            corpus,
+            list(corpus.doc_ids),
+            split_teanga(
+                corpus, self.words_layer, self.sentences_layer, self.lemma_layer
+            ),
+            offsets=True,
         )
 
     def prompts(self, sentences: list[Sentence]) -> list[str]:
@@ -430,27 +532,6 @@ class LLMTermExtractor:
             )
         return prompts
 
-    def _teanga_sentences(self, corpus: Corpus) -> list[list[Sentence]]:
-        """The sentences of each document of a Teanga corpus."""
-        documents = teanga_sentences(corpus, self.words_layer, self.sentences_layer)
-        lemmas = teanga_lemmas(corpus, documents, self.lemma_layer, self.words_layer)
-        sentences = []
-        for k, (doc_id, doc) in enumerate(zip(corpus.doc_ids, documents)):
-            text = corpus.doc_by_id(doc_id).text
-            doc_sentences = []
-            for s, (_, spans) in enumerate(doc):
-                start = spans[0][0]
-                doc_sentences.append(
-                    Sentence(
-                        text[start : spans[-1][1]],
-                        [(a - start, b - start) for a, b in spans],
-                        None if lemmas is None else lemmas[k][s],
-                        start,
-                    )
-                )
-            sentences.append(doc_sentences)
-        return sentences
-
     def _labelled(self, labels: dict[str, int]) -> set[str]:
         """The terms labelled 1, normalised."""
         return {normalize_term(term) for term, label in labels.items() if label == 1}
@@ -460,15 +541,9 @@ class LLMTermExtractor:
         gold = []
         for sentence in sentences:
             found: dict[str, str] = {}
-            for first in range(len(sentence.words)):
-                for last in range(
-                    first + 1, min(first + self.n, len(sentence.words)) + 1
-                ):
-                    if sentence.term(first, last) in terms:
-                        text = sentence.text[
-                            sentence.words[first][0] : sentence.words[last - 1][1]
-                        ]
-                        found.setdefault(text.lower(), text)
+            for start, stop in labelled_spans(sentence, terms, self.n):
+                text = sentence.text[start:stop]
+                found.setdefault(text.lower(), text)
             gold.append((sentence.text, list(found.values())))
         self._set_demonstrations(sentences, gold)
 
