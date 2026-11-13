@@ -107,6 +107,15 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   the answer are kept where they occur in the sentence. `termxtract.llm.OpenAIClient`
   reaches the OpenAI API or a compatible server such as Ollama, at temperature 0 and
   with an optional cache of answers on disk; it needs the new `llm` extra.
+- Synthetic training data (#44), as `termxtract.augmentation.augment(corpus, labels,
+  method=...)`, following Banerjee (2025, ch. 5). From a sample of the training
+  sentences, chosen to cover the most distinct terms or at random, a large language
+  model writes new sentences with other terms (`"term"`), new sentences with the same
+  terms (`"context"`) or both (`"combined"`), in the thesis's prompts; or `"wiki"`
+  replaces each term with a similar one from a lexicon. `termxtract.wikipedia` builds
+  such lexicons as in the thesis's Algorithm 1, from the links of the articles in the
+  categories of a domain's article, read from Wikipedia's SQL dumps (`WikipediaDump`)
+  or its API (`WikipediaAPI`).
 - Graph-based ranking (#49): TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan &
   Xiao, 2008) and PositionRank (Florescu & Caragea, 2017), as
   `TermExtractor(method="textrank", variant="plain" | "single" | "position")`. Words

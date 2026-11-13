@@ -157,6 +157,8 @@ Any method's ranking can be re-ranked by semantic relatedness to some seed terms
 
 All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger`, 4 for `features`, 6 for `token-classification` and 10 for `llm`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates (except for `features`, which filters both), and `words_layer`, `lemma_layer` and `pos_layer` for Teanga input.
 
+`termxtract.augmentation.augment()` adds synthetic training sentences for any supervised method, written by a large language model from the training sentences or by replacing their terms with similar ones from Wikipedia, as in Banerjee (2025, ch. 5).
+
 ## Results
 
 `extract()` returns an `ATEResults` object with:

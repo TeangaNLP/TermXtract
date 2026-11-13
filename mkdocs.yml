@@ -39,6 +39,8 @@ nav:
   - Embeddings: api/embeddings.md
   - Re-ranking: api/rerank.md
   - LLM Clients: api/llm.md
+  - Data Augmentation: api/augmentation.md
+  - Wikipedia: api/wikipedia.md
   - Unsupervised Extractors:
     - BaseTermExtractor: api/unsupervised/base.md
     - TF-IDF: api/unsupervised/tfidf.md
