@@ -142,20 +142,26 @@ LLM = {"k": 5, "n_jobs": 4}
 """The options of in-context learning: five demonstrations, the most similar."""
 
 
+def llm_client(**options: Any) -> OpenAIClient:
+    """The client of `LLM_MODEL`, with its answers cached and `options` for the
+    client."""
+    return OpenAIClient(
+        LLM_MODEL,
+        base_url=os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1"),
+        cache_dir=base.data_home() / "benchmark-llm",
+        reasoning_effort="none",
+        **options,
+    )
+
+
 def llm(
     encoder: str = ENCODER, stopwords: str = "english", **options: Any
 ) -> SupervisedTermExtractor:
     """An in-context learning extractor with the benchmark settings, choosing its
     demonstrations with `encoder`, and `options` in place of those of `LLM`."""
-    client = OpenAIClient(
-        LLM_MODEL,
-        base_url=os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1"),
-        cache_dir=base.data_home() / "benchmark-llm",
-        reasoning_effort="none",
-    )
     return SupervisedTermExtractor(
         method="llm",
-        client=client,
+        client=llm_client(),
         encoder=Encoder(encoder),
         words_layer="tokens",
         stopwords=stopwords,
