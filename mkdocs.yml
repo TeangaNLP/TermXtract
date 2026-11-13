@@ -36,6 +36,7 @@ nav:
   - Evaluation: api/evaluation.md
   - Datasets: api/datasets.md
   - Filters and Layers: api/filters.md
+  - Embeddings: api/embeddings.md
   - Unsupervised Extractors:
     - BaseTermExtractor: api/unsupervised/base.md
     - TF-IDF: api/unsupervised/tfidf.md
@@ -47,6 +48,7 @@ nav:
     - RAKE: api/unsupervised/rake.md
     - YAKE!: api/unsupervised/yake.md
     - TextRank: api/unsupervised/textrank.md
+    - EmbedRank: api/unsupervised/embedrank.md
     - Domain Coherence: api/unsupervised/domaincoherence.md
     - Domain Pertinence: api/unsupervised/domainpertinence.md
     - Weirdness: api/unsupervised/weirdness.md

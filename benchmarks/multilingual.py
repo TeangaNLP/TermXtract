@@ -85,6 +85,10 @@ RSDO5_FOLDS = {
 """For each test domain of RSDO5, the training domains and the validation domain: for
 each, the first of the combinations in Table 3 of Tran et al. (2022)."""
 
+ENCODER = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+"""The sentence encoder of EmbedRank and MDERank, trained on 50 languages including
+Hindi and Slovenian, but not Irish."""
+
 TITLES = {
     "htec": "HTEC 2.0",
     "rsdo5-bim": "RSDO5, biomechanics",
@@ -280,7 +284,9 @@ def unsupervised(
         options["phrase_delimiters"] = RAKE_DELIMITERS
     else:
         options.update(min_frequency=MIN_FREQUENCY, stopwords=stopwords)
-    return TermExtractor(**method_options(method), n=N, words_layer="tokens", **options)
+    return TermExtractor(
+        **method_options(method, ENCODER), n=N, words_layer="tokens", **options
+    )
 
 
 def supervised(
@@ -375,7 +381,9 @@ def rsdo5_unsupervised(method: str, reference: list[Corpus]) -> TermExtractor:
             pos_layer="upos",
             stopwords="slovenian",
         )
-    return TermExtractor(**method_options(method), n=N, words_layer="tokens", **options)
+    return TermExtractor(
+        **method_options(method, ENCODER), n=N, words_layer="tokens", **options
+    )
 
 
 def rsdo5_supervised(

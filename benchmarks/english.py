@@ -111,19 +111,34 @@ UNSUPERVISED = [
     "textrank",
     "singlerank",
     "positionrank",
+    "embedrank",
+    "embedrank-mmr",
+    "mderank",
     "rake",
 ]
-VARIANTS = {"textrank": "plain", "singlerank": "single", "positionrank": "position"}
-"""The benchmark names of the variants of `method="textrank"`."""
+VARIANTS = {
+    "textrank": {"method": "textrank", "variant": "plain"},
+    "singlerank": {"method": "textrank", "variant": "single"},
+    "positionrank": {"method": "textrank", "variant": "position"},
+    "embedrank": {"method": "embedrank", "variant": "embedrank"},
+    "embedrank-mmr": {"method": "embedrank", "variant": "embedrank", "diversity": 0.2},
+    "mderank": {"method": "embedrank", "variant": "mderank"},
+}
+"""The `TermExtractor` options of each benchmark name that is a variant of a method.
+"embedrank-mmr" re-ranks by Maximal Marginal Relevance, as in EmbedRank++."""
+ENCODER = "sentence-transformers/all-MiniLM-L6-v2"
+"""The sentence encoder of EmbedRank and MDERank."""
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
 SUPERVISED = ["roger", "features", "token-classification"]
 
 
-def method_options(method: str) -> dict:
-    """The `TermExtractor` options that pick a method by its benchmark name."""
-    if method in VARIANTS:
-        return {"method": "textrank", "variant": VARIANTS[method]}
-    return {"method": method}
+def method_options(method: str, encoder: str = ENCODER) -> dict:
+    """The `TermExtractor` options that pick a method by its benchmark name, with
+    `encoder` as the sentence encoder of EmbedRank and MDERank."""
+    options = VARIANTS.get(method, {"method": method})
+    if options["method"] == "embedrank":
+        return {**options, "model_name": encoder}
+    return options
 
 
 SKIP: dict[tuple[str, str], str] = {}
