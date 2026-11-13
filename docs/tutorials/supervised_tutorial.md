@@ -313,7 +313,9 @@ replacements = lexicon(WikipediaAPI(cache_dir="wiki-cache"), "Heart failure", te
 texts, augmented_labels = augment(corpus, labels, method="wiki", lexicon=replacements)
 ```
 
-`WikipediaAPI` sends a few dozen requests for a domain, and the result changes as Wikipedia does. `WikipediaDump` reads a fixed snapshot from the SQL dumps of a Wikipedia, about 14 GB for English, which `download()` fetches. It reads each dump several times for each call to `candidates`, so pass every domain's article to one call; the results are cached.
+`WikipediaAPI` sends 10 to 20 requests for a domain, and the result changes as Wikipedia does. `WikipediaDump` reads a fixed snapshot from the SQL dumps of a Wikipedia, about 14 GB for English, which `download()` fetches. It reads each dump several times for each call to `candidates`, so pass every domain's article to one call; the results are cached.
+
+In the thesis, with GPT-4 on ACTER, every method improved on fine-tuning XLM-RoBERTa alone, by 18 to 32 points of F1 with 5 training sentences. With TermXtract, `gemma4:26b` and token classification trained for 50 epochs, which alone does 30 to 36 points better than the thesis's baseline, augmentation did not reliably help: each method was between 1.5 points worse and 0.7 better on average over 5 to 30 training sentences, though on wind energy, where recall is low, it added 5 to 7 points of F1 with 5 and 15 sentences. Asking for 10 or for 50 sentences in each prompt made little difference, and in-context learning stayed ahead of every method (see the [benchmarks](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md)). So try augmentation when a fine-tuned model misses many terms, and check it on held-out sentences.
 
 ## Using a Teanga corpus
 

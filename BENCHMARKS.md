@@ -367,6 +367,92 @@ The F1 of the paper (Table 4.5), with 5 and 30 training sentences:
 - In-context learning takes 13 to 18 minutes per domain for the 20 runs (3,000 prompts),
   and fine-tuning about 10, on the RTX 4090.
 
+#### Data augmentation
+
+Banerjee (2025, ch. 5) fine-tunes XLM-RoBERTa on the training sentences and 50 synthetic
+ones. The other methods here do the same, with token classification trained as above on
+the training sentences and the output of `termxtract.augmentation.augment`:
+
+- **LLM augmentation** asks `gemma4:26b` for sentences in the prompts of the thesis
+  (Table 5.1), from 40 training sentences chosen to cover as many terms as possible
+  (all of them here, as there are at most 30). TermDA keeps each sentence and replaces
+  its terms, ContextDA writes new sentences with the same terms, and CombinedDA new
+  sentences with new terms. The thesis asked GPT-4 for all 50 sentences in one prompt;
+  `term-50` and so on do the same, and `term-10` and so on ask for 10 at a time,
+  shuffling the training sentences for each prompt.
+- **Wiki-TermDA** (`wiki`) replaces the terms of the training sentences with the links
+  of the articles in the categories of the domain's Wikipedia article (Corruption,
+  Dressage, Heart failure and Wind power) whose `all-MiniLM-L6-v2` embeddings have a
+  cosine above 0.75 with theirs. The links are from the
+  English Wikipedia dumps of 1 November 2026. Few terms have such a link, so it writes
+  fewer than 50 sentences unless there are many training sentences or, as in dressage,
+  the domain is well covered: with 5 training sentences, 0 to 4 in corruption, 2 to 6
+  in heart failure, 0 to 7 in wind energy and 17 to 50 in dressage.
+
+| Training sentences | Method | Corruption P / R / F1 | Dressage P / R / F1 | Heart failure P / R / F1 | Wind energy P / R / F1 |
+|---:|---|---:|---:|---:|---:|
+| 5 | token-classification | 58.9 / 37.6 / 44.8 (±9.1) | 69.5 / 49.1 / 57.4 (±1.8) | 59.5 / 47.3 / 52.1 (±6.7) | 69.4 / 26.1 / 37.6 (±4.1) |
+| 5 | term-10 | 46.7 / 40.4 / 42.3 (±4.8) | 56.3 / 42.3 / 44.0 (±23.8) | 53.5 / 43.6 / 47.6 (±6.8) | 60.3 / 33.8 / 42.9 (±4.8) |
+| 5 | term-50 | 49.1 / 42.2 / 45.2 (±5.7) | 56.2 / 43.9 / 48.9 (±6.7) | 53.4 / 49.0 / 50.8 (±8.3) | 57.9 / 32.7 / 41.3 (±4.8) |
+| 5 | context-10 | 59.1 / 34.2 / 42.0 (±13.6) | 71.8 / 43.9 / 54.2 (±4.9) | 61.4 / 49.2 / 54.4 (±5.4) | 52.4 / 20.1 / 27.0 (±19.4) |
+| 5 | context-50 | 52.1 / 35.3 / 41.5 (±14.1) | 67.2 / 47.1 / 55.0 (±4.4) | 61.9 / 46.4 / 52.7 (±5.8) | 68.4 / 19.9 / 29.0 (±9.5) |
+| 5 | combined-10 | 55.9 / 35.9 / 43.2 (±5.8) | 66.9 / 59.8 / 63.0 (±2.0) | 60.6 / 40.8 / 48.7 (±4.0) | 65.8 / 33.6 / 44.4 (±1.5) |
+| 5 | combined-50 | 50.0 / 40.8 / 44.8 (±3.8) | 62.3 / 55.3 / 57.9 (±4.9) | 58.5 / 42.9 / 49.3 (±3.8) | 61.6 / 32.8 / 42.0 (±3.0) |
+| 5 | wiki | 59.0 / 35.5 / 43.1 (±9.1) | 64.3 / 49.6 / 55.9 (±3.0) | 58.7 / 46.1 / 51.0 (±5.3) | 68.8 / 27.6 / 38.9 (±4.6) |
+| 15 | token-classification | 64.2 / 44.4 / 52.3 (±3.3) | 70.2 / 61.1 / 65.1 (±1.0) | 62.5 / 52.0 / 56.5 (±3.2) | 68.7 / 33.6 / 44.8 (±4.7) |
+| 15 | term-10 | 56.7 / 47.0 / 51.2 (±3.4) | 63.3 / 55.7 / 59.2 (±1.8) | 58.4 / 49.8 / 53.5 (±5.6) | 62.5 / 38.4 / 47.4 (±2.4) |
+| 15 | term-50 | 58.1 / 45.9 / 51.2 (±5.3) | 63.4 / 58.1 / 60.4 (±3.5) | 59.3 / 53.5 / 56.1 (±3.6) | 59.5 / 40.2 / 47.9 (±1.9) |
+| 15 | context-10 | 62.9 / 44.9 / 52.2 (±6.1) | 73.9 / 54.6 / 62.2 (±3.7) | 64.9 / 50.6 / 56.8 (±2.6) | 65.5 / 37.0 / 46.9 (±3.9) |
+| 15 | context-50 | 62.1 / 38.3 / 46.4 (±5.0) | 70.3 / 56.4 / 62.4 (±2.3) | 65.7 / 49.8 / 56.4 (±2.3) | 65.2 / 33.0 / 43.7 (±2.4) |
+| 15 | combined-10 | 66.6 / 41.4 / 50.9 (±3.8) | 68.4 / 60.9 / 64.4 (±2.6) | 65.0 / 46.2 / 53.9 (±3.5) | 67.0 / 39.6 / 49.5 (±3.4) |
+| 15 | combined-50 | 61.9 / 41.2 / 49.4 (±3.2) | 67.5 / 61.6 / 64.1 (±2.1) | 62.4 / 46.4 / 53.1 (±3.0) | 66.1 / 39.6 / 49.4 (±2.4) |
+| 15 | wiki | 64.5 / 44.9 / 52.8 (±2.9) | 67.5 / 57.4 / 61.9 (±2.0) | 64.6 / 47.7 / 54.8 (±3.5) | 65.3 / 35.8 / 45.9 (±6.3) |
+| 25 | token-classification | 65.4 / 45.5 / 53.6 (±3.5) | 69.9 / 60.5 / 64.8 (±2.9) | 67.2 / 52.9 / 59.1 (±1.9) | 54.2 / 32.3 / 40.4 (±22.7) |
+| 25 | term-10 | 65.1 / 47.8 / 55.1 (±1.8) | 69.7 / 57.7 / 63.0 (±2.7) | 62.9 / 53.0 / 57.4 (±1.4) | 62.5 / 39.2 / 48.1 (±3.2) |
+| 25 | term-50 | 61.6 / 47.7 / 53.6 (±3.2) | 66.7 / 59.3 / 62.8 (±1.2) | 64.1 / 50.6 / 56.4 (±1.8) | 67.8 / 39.2 / 49.6 (±2.8) |
+| 25 | context-10 | 71.7 / 44.9 / 55.1 (±3.5) | 71.8 / 59.2 / 64.5 (±2.5) | 67.7 / 51.5 / 58.4 (±1.3) | 66.9 / 40.8 / 50.6 (±1.2) |
+| 25 | context-50 | 68.2 / 47.9 / 56.1 (±1.5) | 74.6 / 54.8 / 63.0 (±2.7) | 68.8 / 52.6 / 59.5 (±1.5) | 69.3 / 38.0 / 48.9 (±2.7) |
+| 25 | combined-10 | 65.5 / 45.4 / 53.5 (±2.8) | 69.7 / 62.0 / 65.4 (±1.3) | 66.4 / 47.4 / 55.2 (±3.7) | 66.8 / 39.4 / 49.5 (±2.7) |
+| 25 | combined-50 | 65.2 / 43.2 / 51.9 (±5.8) | 69.5 / 61.1 / 65.0 (±1.4) | 65.2 / 50.3 / 56.7 (±1.9) | 65.3 / 42.4 / 51.3 (±1.9) |
+| 25 | wiki | 67.7 / 44.3 / 53.2 (±4.0) | 70.2 / 54.3 / 61.2 (±1.1) | 64.8 / 51.3 / 57.2 (±1.5) | 68.5 / 38.9 / 49.6 (±0.8) |
+| 30 | token-classification | 71.8 / 45.2 / 55.3 (±3.5) | 72.7 / 61.4 / 66.5 (±1.7) | 67.2 / 51.3 / 58.1 (±2.4) | 70.0 / 39.6 / 50.5 (±0.9) |
+| 30 | term-10 | 61.4 / 46.9 / 53.1 (±3.8) | 67.3 / 59.2 / 62.8 (±0.6) | 63.6 / 50.7 / 56.4 (±1.5) | 66.1 / 41.4 / 50.6 (±1.6) |
+| 30 | term-50 | 65.1 / 46.1 / 53.6 (±2.7) | 70.4 / 58.2 / 63.7 (±1.8) | 65.3 / 48.6 / 55.6 (±3.5) | 65.0 / 41.5 / 50.5 (±2.8) |
+| 30 | context-10 | 72.5 / 43.2 / 53.9 (±3.3) | 74.1 / 58.5 / 65.3 (±2.5) | 67.2 / 51.6 / 58.4 (±1.2) | 69.7 / 39.3 / 50.1 (±1.6) |
+| 30 | context-50 | 69.0 / 43.1 / 52.5 (±4.9) | 74.5 / 57.5 / 64.8 (±2.3) | 68.5 / 51.7 / 58.9 (±1.2) | 66.8 / 38.4 / 48.3 (±4.7) |
+| 30 | combined-10 | 71.4 / 45.3 / 55.4 (±2.3) | 72.5 / 61.5 / 66.5 (±2.0) | 66.4 / 49.3 / 56.6 (±1.8) | 68.6 / 39.8 / 49.8 (±3.9) |
+| 30 | combined-50 | 70.5 / 42.4 / 52.8 (±4.7) | 70.9 / 61.5 / 65.7 (±2.3) | 65.3 / 50.8 / 57.1 (±1.8) | 69.7 / 38.5 / 49.2 (±3.0) |
+| 30 | wiki | 64.5 / 47.9 / 54.7 (±2.5) | 71.9 / 56.3 / 63.1 (±1.6) | 65.8 / 49.8 / 56.7 (±2.2) | 70.2 / 38.5 / 49.4 (±3.9) |
+
+The F1 of the thesis (Table 5.4) with 5 training sentences, from GPT-4 and on other test
+sentences, and of the same methods here (with 50 sentences in each prompt):
+
+| Method | Corruption | Dressage | Heart failure | Wind energy |
+|---|---:|---:|---:|---:|
+| XLM-RoBERTa | 14.7, 44.8 | 21.6, 57.4 | 21.0, 52.1 | 7.9, 37.6 |
+| LLM-TermDA | 34.0, 45.2 | 39.3, 48.9 | 41.9, 50.8 | 40.0, 41.3 |
+| LLM-ContextDA | 37.4, 41.5 | 29.6, 55.0 | 41.7, 52.7 | 35.8, 29.0 |
+| LLM-CombinedDA | 22.8, 44.8 | 22.4, 57.9 | 35.3, 49.3 | 33.2, 42.0 |
+| Wiki-TermDA | 34.9, 43.1 | 35.7, 55.9 | 37.9, 51.0 | 28.1, 38.9 |
+
+- **Augmentation does not reliably help** a model fine-tuned for 50 epochs. Each method
+  beats token classification alone in 4 to 7 of the 16 domains and sizes, and is
+  between 1.5 points worse and 0.7 better on average, within the spread of the five
+  seeds. The thesis's gains of 18 to 32 points with 5 sentences are over a baseline
+  that is 30 to 36 points below the one here.
+- **Wind energy gains the most.** Token classification alone finds only a quarter to
+  two fifths of its terms, and synthetic sentences raise the recall: with 5 training
+  sentences, CombinedDA reaches 44.4 F1 against 37.6, and with 15, 49.5 against 44.8.
+  The largest losses, of TermDA in dressage and ContextDA in wind energy with 5
+  sentences, are from one or two seeds that failed to learn (±23.8 and ±19.4).
+- **10 or 50 sentences per prompt makes little difference**: on average 0.8 points
+  better with 10 for ContextDA, 0.6 for CombinedDA, and 0.8 worse for TermDA.
+- **In-context learning stays ahead** of every augmentation at every size and in every
+  domain.
+- Reading the Wikipedia dumps for the four domains takes 17 minutes, once; the
+  MediaWiki API (`WikipediaAPI`) gives the same links in 2 to 4 seconds per domain,
+  but for those edited since the dumps.
+
 ## Multilingual
 
 ### HTEC 2.0 (Hindi)
