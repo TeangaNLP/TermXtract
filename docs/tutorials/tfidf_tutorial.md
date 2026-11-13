@@ -243,6 +243,24 @@ Like `pos_pattern`, these filters are applied before scoring: only the occurrenc
 
 By default, `cell` and `cells` are different candidates, each with its own frequency. If your corpus has a lemma layer, such as the `lemma` layer of Teanga's spaCy service or of the ACL RD-TEC dataset, pass `lemma_layer="lemma"` to read every word as its lemma. Inflected forms are then counted together, and each term is returned as its lemmas, such as `cell` or `degree of freedom`, while `results.offsets` still gives the position of every form in the text. The lemma layer must be a sequence layer based on the words layer, and `pos_pattern` matches the lemmas' tags as before. To compare with gold terms, read those by their lemmas too, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
 
+## Re-ranking with related words
+
+Any method's ranking can be revised with a re-ranker from `termxtract.rerank`, passed as `rerank`. It raises the terms whose words are related to some seed terms that you know belong to the domain, in a graph of the corpus's words:
+
+```python
+from termxtract.rerank import SemReRank
+
+seeds = ["photosynthesis", "neural network", "gravity"]
+extractor = TermExtractor(method="tfidf", n=2, rerank=SemReRank(seeds=seeds))
+results = extractor.extract(corpus)
+```
+
+- `SemReRank` (Zhang, Gao & Ciravegna, 2018) links each document's words to the words most similar to them, and scores them by PageRank, jumping to the words of the seeds.
+- `AdaText` (Zhang, Petrak & Maynard, 2018) runs TextRank over the words of the corpus that are similar to a seed, so its seeds can be any phrases of the domain, such as the entries of a glossary, even if they do not occur in the corpus.
+- With `seeds=200`, the seeds are the 200 most frequent terms, so no seeds are needed, but then the most frequent non-terms are seeds too.
+
+Words are compared by the embeddings of a sentence encoder, so re-rankers need the optional `transformers` dependencies. On the ACL RD-TEC and GENIA, with seeds picked from the most frequent candidates, they raised the precision of most methods by up to 4 points, and lowered a few by up to 1.5 (see the [benchmarks](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md)).
+
 ## Limitations and tips
 
 - **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, use a [part-of-speech pattern](#part-of-speech-patterns), or try a method that compares with a reference corpus.

@@ -35,7 +35,8 @@ def test_supervised_registry_params(method):
 
 def test_every_wrapper_param_is_used():
     used = {name for _, names in TermExtractor.METHODS.values() for name in names}
-    assert used == wrapper_params(TermExtractor)
+    # rerank is applied by the wrapper itself, to the results of every method
+    assert used == wrapper_params(TermExtractor) - {"rerank"}
     used = {
         name for _, names in SupervisedTermExtractor.METHODS.values() for name in names
     }

@@ -55,6 +55,48 @@ def pagerank(weights: csr_matrix, personalization: np.ndarray) -> np.ndarray:
             return scores
 
 
+def window_graph(
+    docs: list[list[str]], is_node: list[list[bool]], window_size: int
+) -> tuple[dict[str, int], np.ndarray, csr_matrix]:
+    """
+    Build the graph of the words that occur within `window_size` words of each other.
+
+    Windows do not cross documents, and the words that are not nodes take up places in
+    them.
+
+    Args:
+        docs (List[List[str]]): The words of each document.
+        is_node (List[List[bool]]): For each word of each document, whether it is a
+            node.
+        window_size (int): Link the nodes that occur within this many words of each
+            other.
+
+    Returns:
+        Tuple[Dict[str, int], np.ndarray, csr_matrix]: The index of each node; the
+        node of each place, -1 for the words that are not nodes and for `window_size`
+        places after each document; and the symmetric matrix of how often each pair of
+        nodes occurs within a window.
+    """
+    vocabulary: dict[str, int] = {}
+    nodes: list[int] = []
+    for doc, keep in zip(docs, is_node):
+        nodes.extend(
+            vocabulary.setdefault(word, len(vocabulary)) if node else -1
+            for word, node in zip(doc, keep)
+        )
+        nodes.extend([-1] * window_size)
+    ids = np.array(nodes, dtype=int)
+    pairs = [
+        (ids[:-distance], ids[distance:]) for distance in range(1, window_size + 1)
+    ]
+    linked = [(a >= 0) & (b >= 0) & (a != b) for a, b in pairs]
+    rows = np.concatenate([a[keep] for (a, _), keep in zip(pairs, linked)])
+    cols = np.concatenate([b[keep] for (_, b), keep in zip(pairs, linked)])
+    size = len(vocabulary)
+    counts = coo_matrix((np.ones(len(rows)), (rows, cols)), shape=(size, size)).tocsr()
+    return vocabulary, ids, counts + counts.T
+
+
 class TextRankTermExtractor(ContextTermExtractor):
     r"""
     Graph-based ranking: TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan & Xiao,
@@ -218,40 +260,22 @@ class TextRankTermExtractor(ContextTermExtractor):
         Returns:
             Dict[str, float]: The score of each candidate.
         """
-        vocabulary: dict[str, int] = {}
-        # The node of each word, or -1 if it isn't one, with window_size places of -1
-        # after each document so that no window crosses into the next
-        nodes: list[int] = []
-        # The inverse position of each occurrence of a node, for PositionRank
-        positions: list[float] = []
-        for doc, is_node in zip(docs, self.content_words(docs, tags)):
-            for position, (word, keep) in enumerate(zip(doc, is_node), start=1):
-                if keep:
-                    nodes.append(vocabulary.setdefault(word, len(vocabulary)))
-                    positions.append(1 / position)
-                else:
-                    nodes.append(-1)
-            nodes.extend([-1] * self.window_size)
+        is_node = self.content_words(docs, tags)
+        vocabulary, ids, weights = window_graph(docs, is_node, self.window_size)
         if not vocabulary:
             return {term: 0.0 for doc in occurrences for term, _, _ in doc}
-
-        ids = np.array(nodes)
-        pairs = [
-            (ids[:-distance], ids[distance:])
-            for distance in range(1, self.window_size + 1)
-        ]
-        linked = [(a >= 0) & (b >= 0) & (a != b) for a, b in pairs]
-        rows = np.concatenate([a[keep] for (a, _), keep in zip(pairs, linked)])
-        cols = np.concatenate([b[keep] for (_, b), keep in zip(pairs, linked)])
         size = len(vocabulary)
-        counts = coo_matrix(
-            (np.ones(len(rows)), (rows, cols)), shape=(size, size)
-        ).tocsr()
-        weights = counts + counts.T
         if self.variant == "plain":
             weights.data[:] = 1.0
 
         if self.variant == "position":
+            # The inverse position of each occurrence of a node, in the order of ids
+            positions = [
+                1 / position
+                for keep in is_node
+                for position, node in enumerate(keep, start=1)
+                if node
+            ]
             inverse_positions = np.bincount(
                 ids[ids >= 0], weights=positions, minlength=size
             )

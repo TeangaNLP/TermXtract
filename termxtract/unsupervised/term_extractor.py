@@ -2,8 +2,10 @@ from typing import Any, ClassVar
 
 from teanga import Corpus
 
+from ..candidates import split_words
 from ..embeddings import DEFAULT_MODEL, Encoder
 from ..pos import compile_pos_pattern, filter_by_pos
+from ..rerank import Reranker
 from ..stopwords import Stopwords
 from ..utils import ATEResults
 from .base_extractor import BaseTermExtractor
@@ -141,6 +143,7 @@ class TermExtractor:
         word_pattern: str | None = "alphanumeric",
         pos_pattern: str | None = None,
         pos_layer: str | None = None,
+        rerank: Reranker | None = None,
     ):
         r"""
         Initialize the TermExtractor with the desired method and parameters.
@@ -240,6 +243,10 @@ class TermExtractor:
             pos_layer (Optional[str]): The part-of-speech layer used by `pos_pattern`, based
                 on the words layer: None (the default) for `upos` or, if the corpus has no
                 `upos` layer, `pos`.
+            rerank (Optional[Reranker]): Revise the scores of the terms by their
+                words' place in a graph of semantically related words (all methods):
+                a `termxtract.rerank.AdaText` or `termxtract.rerank.SemReRank`, or None
+                (the default) to keep the method's scores.
 
         Raises:
             ValueError: If the method is unknown, or a parameter it requires is missing.
@@ -290,6 +297,7 @@ class TermExtractor:
             None if pos_pattern is None else compile_pos_pattern(pos_pattern)
         )
         self.pos_layer = pos_layer
+        self.rerank = rerank
         # Methods that take pos_pattern count only the matching occurrences; the terms
         # of the others are filtered after extraction
         self.filters_by_pos = "pos_pattern" not in param_names
@@ -322,22 +330,34 @@ class TermExtractor:
         """
         if isinstance(corpus, Corpus):
             results = self.extractor.extract_terms_teanga(corpus)
-            if self.pos_pattern is None or not self.filters_by_pos:
+            if self.pos_pattern is not None and self.filters_by_pos:
+                results = filter_by_pos(
+                    results,
+                    corpus,
+                    self.pos_pattern,
+                    self.pos_layer,
+                    self.words_layer,
+                    self.lemma_layer,
+                )
+            if self.rerank is None:
                 return results
-            return filter_by_pos(
-                results,
-                corpus,
-                self.pos_pattern,
-                self.pos_layer,
-                self.words_layer,
-                self.lemma_layer,
-            )
+            docs = [
+                [
+                    text
+                    for _, _, text in self.extractor.teanga_words(corpus.doc_by_id(d))
+                ]
+                for d in corpus.doc_ids
+            ]
+            return self.rerank.rerank(results, docs)
         elif isinstance(corpus, list) and all(isinstance(doc, str) for doc in corpus):
             if self.pos_pattern is not None:
                 raise ValueError(
                     "pos_pattern needs part-of-speech tags, so it only works with a "
                     "Teanga corpus with a part-of-speech layer."
                 )
-            return self.extractor.extract_terms_strings(corpus)
+            results = self.extractor.extract_terms_strings(corpus)
+            if self.rerank is None:
+                return results
+            return self.rerank.rerank(results, [split_words(doc) for doc in corpus])
         else:
             raise ValueError("The corpus must be a Teanga Corpus or a list of strings.")

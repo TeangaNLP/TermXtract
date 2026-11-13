@@ -37,6 +37,7 @@ nav:
   - Datasets: api/datasets.md
   - Filters and Layers: api/filters.md
   - Embeddings: api/embeddings.md
+  - Re-ranking: api/rerank.md
   - LLM Clients: api/llm.md
   - Unsupervised Extractors:
     - BaseTermExtractor: api/unsupervised/base.md
