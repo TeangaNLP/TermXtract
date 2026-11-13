@@ -91,6 +91,14 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   `termxtract.embeddings.Encoder` (by default `all-MiniLM-L6-v2`), caches the
   embeddings of candidates and can be shared between extractors. `n` defaults to 3.
   `TermExtractor`'s `variant` now defaults to None, the method's own default.
+- Semantic re-ranking of any unsupervised method (#51), as `TermExtractor(...,
+  rerank=AdaText(seeds=...))` or `rerank=SemReRank(seeds=...)`, with the
+  `transformers` extra. AdaText (Zhang, Petrak & Maynard, 2018) runs TextRank over the
+  words similar to the seeds, and SemRe-Rank (Zhang, Gao & Ciravegna, 2018)
+  personalised PageRank over each document's graph of semantically related words; both
+  multiply each term's score by one plus the mean score of its words. `seeds` is a list
+  of terms or the number of most frequent terms to take. `window_graph`, TextRank's
+  co-occurrence graph, is now a function of `termxtract.unsupervised.textrank`.
 - In-context learning with a large language model (#42), as
   `SupervisedTermExtractor(method="llm", client=...)`, following Banerjee,
   Chakravarthi & McCrae (2024). Each sentence is sent to the model with `k` training

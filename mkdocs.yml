@@ -37,6 +37,7 @@ nav:
   - Datasets: api/datasets.md
   - Filters and Layers: api/filters.md
   - Embeddings: api/embeddings.md
+  - Re-ranking: api/rerank.md
   - LLM Clients: api/llm.md
   - Data Augmentation: api/augmentation.md
   - Wikipedia: api/wikipedia.md

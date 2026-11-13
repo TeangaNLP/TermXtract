@@ -10,11 +10,12 @@ It covers the English datasets and three multilingual ones: HTEC (Hindi), RSDO5
 
 To reproduce the English results, install spaCy and its `en_core_web_sm` model, and
 run `python benchmarks/english.py`; for the multilingual results, run
-`python benchmarks/multilingual.py`, and for the few-shot results,
-`python benchmarks/fewshot.py` (see the scripts for the options). The llm method needs
+`python benchmarks/multilingual.py`, for the few-shot results,
+`python benchmarks/fewshot.py`, and for re-ranking, `python benchmarks/rerank.py` (see
+the scripts for the options). The llm method needs
 a model server: the results here are from `gemma4:26b`, served by Ollama 0.33 on the
 same machine. The scores below are from `benchmarks/english.json`,
-`benchmarks/multilingual.json` and `benchmarks/fewshot.json`.
+`benchmarks/multilingual.json`, `benchmarks/fewshot.json` and `benchmarks/rerank.json`.
 
 ## English
 
@@ -452,6 +453,88 @@ sentences, and of the same methods here (with 50 sentences in each prompt):
 - Reading the Wikipedia dumps for the four domains takes 17 minutes, once; the
   MediaWiki API (`WikipediaAPI`) gives the same links in 2 to 4 seconds per domain,
   but for those edited since the dumps.
+
+### Re-ranking
+
+AdaText (Zhang, Petrak & Maynard, 2018) and SemRe-Rank (Zhang, Gao & Ciravegna, 2018)
+revise the scores of any method by those of its terms' words in a graph of
+semantically related words (see `termxtract.rerank`). `benchmarks/rerank.py` re-ranks
+six of the methods that the papers re-ranked, run as above, on the ACL RD-TEC 2.0 and
+GENIA, the datasets of both papers. Seeds:
+
+- **verified**: the gold terms among each method's 200 most frequent candidates (124
+  to 130 terms). These stand in for SemRe-Rank's seeds, which a person picked from the
+  200 most frequent candidates. AdaText's seeds were domain lexicons (named entities of
+  BioNLP 2011 and noun phrases of ACL titles), which are not used here.
+- **unsupervised**: all of the 200 most frequent candidates, as in the unsupervised
+  variant of SemRe-Rank.
+
+Words are embedded by `all-MiniLM-L6-v2`, where the papers used GloVe (AdaText) and
+word2vec trained on each corpus (SemRe-Rank). The table gives the mean of the
+precision at 50, 100, 500, 1,000 and 2,000, as in the papers, with the change from the
+method alone. AdaText is run with each threshold of similarity to a seed, and
+SemRe-Rank with each minimum similarity of strongly related words (`rel_min`).
+
+#### ACL RD-TEC 2.0
+
+| Re-ranker | tfidf | cvalue | basic | combobasic | weirdness | relevance |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 63.5 | 68.7 | 64.2 | 65.7 | 68.9 | 68.7 |
+| verified seeds | 130 | 130 | 130 | 130 | 130 | 130 |
+| semrerank-0.3-verified | 66.9 (+3.3) | 68.4 (-0.2) | 64.2 (-0.0) | 65.8 (+0.2) | 69.2 (+0.4) | 65.6 (-3.2) |
+| semrerank-0.4-verified | 66.0 (+2.5) | 68.5 (-0.1) | 64.0 (-0.2) | 65.8 (+0.1) | 69.3 (+0.4) | 66.2 (-2.6) |
+| semrerank-0.5-verified | 65.5 (+2.0) | 69.6 (+1.0) | 65.7 (+1.5) | 66.5 (+0.8) | 69.7 (+0.8) | 68.5 (-0.2) |
+| adatext-0.5-verified | 65.7 (+2.1) | 67.9 (-0.7) | 64.9 (+0.6) | 65.5 (-0.2) | 69.6 (+0.7) | 69.0 (+0.2) |
+| adatext-0.6-verified | 65.8 (+2.2) | 68.8 (+0.2) | 67.0 (+2.8) | 66.7 (+1.0) | 69.8 (+0.9) | 71.6 (+2.8) |
+| adatext-0.7-verified | 65.9 (+2.3) | 69.2 (+0.6) | 67.4 (+3.2) | 66.7 (+1.0) | 69.9 (+1.0) | 72.7 (+4.0) |
+| adatext-0.8-verified | 65.9 (+2.3) | 69.2 (+0.6) | 67.5 (+3.2) | 66.7 (+1.0) | 69.7 (+0.9) | 73.1 (+4.3) |
+| semrerank-0.3-unsupervised | 66.0 (+2.5) | 68.1 (-0.6) | 64.1 (-0.1) | 63.7 (-2.0) | 69.0 (+0.1) | 64.3 (-4.4) |
+| semrerank-0.4-unsupervised | 65.9 (+2.4) | 68.0 (-0.7) | 64.1 (-0.2) | 63.4 (-2.2) | 69.2 (+0.3) | 63.9 (-4.8) |
+| semrerank-0.5-unsupervised | 65.4 (+1.8) | 68.4 (-0.2) | 63.6 (-0.7) | 64.6 (-1.0) | 69.2 (+0.3) | 64.2 (-4.5) |
+| adatext-0.5-unsupervised | 65.2 (+1.7) | 67.7 (-1.0) | 64.9 (+0.7) | 65.8 (+0.1) | 69.5 (+0.6) | 68.0 (-0.8) |
+| adatext-0.6-unsupervised | 65.3 (+1.8) | 67.8 (-0.8) | 64.9 (+0.6) | 66.0 (+0.3) | 69.4 (+0.5) | 67.8 (-0.9) |
+| adatext-0.7-unsupervised | 65.1 (+1.6) | 67.9 (-0.8) | 65.3 (+1.1) | 66.5 (+0.8) | 69.5 (+0.6) | 68.0 (-0.7) |
+| adatext-0.8-unsupervised | 65.2 (+1.6) | 68.3 (-0.4) | 65.4 (+1.2) | 66.4 (+0.8) | 69.3 (+0.5) | 67.8 (-0.9) |
+
+#### GENIA
+
+| Re-ranker | tfidf | cvalue | basic | combobasic | weirdness | relevance |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 86.3 | 77.2 | 73.7 | 72.1 | 84.3 | 80.7 |
+| verified seeds | 124 | 124 | 124 | 124 | 124 | 124 |
+| semrerank-0.3-verified | 84.2 (-2.0) | 79.2 (+2.0) | 75.6 (+1.8) | 74.4 (+2.3) | 85.5 (+1.2) | 82.6 (+1.9) |
+| semrerank-0.4-verified | 84.5 (-1.8) | 80.0 (+2.8) | 76.2 (+2.5) | 75.2 (+3.2) | 85.0 (+0.8) | 83.0 (+2.3) |
+| semrerank-0.5-verified | 84.8 (-1.5) | 79.7 (+2.4) | 76.1 (+2.3) | 75.1 (+3.0) | 85.7 (+1.4) | 83.5 (+2.8) |
+| adatext-0.5-verified | 86.0 (-0.3) | 78.6 (+1.4) | 74.9 (+1.2) | 73.8 (+1.7) | 84.8 (+0.5) | 83.8 (+3.1) |
+| adatext-0.6-verified | 86.1 (-0.2) | 78.7 (+1.5) | 74.9 (+1.2) | 73.8 (+1.7) | 84.8 (+0.5) | 83.5 (+2.9) |
+| adatext-0.7-verified | 86.0 (-0.3) | 78.7 (+1.5) | 74.9 (+1.2) | 73.7 (+1.7) | 84.8 (+0.6) | 83.6 (+2.9) |
+| adatext-0.8-verified | 86.0 (-0.3) | 78.7 (+1.4) | 74.9 (+1.2) | 73.4 (+1.3) | 84.8 (+0.6) | 83.6 (+2.9) |
+| semrerank-0.3-unsupervised | 84.2 (-2.1) | 78.3 (+1.0) | 75.4 (+1.7) | 74.3 (+2.2) | 85.4 (+1.1) | 80.1 (-0.6) |
+| semrerank-0.4-unsupervised | 84.5 (-1.8) | 78.7 (+1.5) | 76.5 (+2.8) | 74.3 (+2.2) | 85.0 (+0.8) | 81.7 (+1.0) |
+| semrerank-0.5-unsupervised | 85.0 (-1.3) | 78.6 (+1.3) | 75.9 (+2.1) | 74.6 (+2.6) | 85.5 (+1.3) | 82.8 (+2.2) |
+| adatext-0.5-unsupervised | 85.9 (-0.4) | 77.8 (+0.5) | 74.2 (+0.5) | 73.7 (+1.6) | 84.3 (+0.0) | 82.4 (+1.8) |
+| adatext-0.6-unsupervised | 85.9 (-0.3) | 78.1 (+0.9) | 74.3 (+0.5) | 73.3 (+1.3) | 84.3 (+0.0) | 82.1 (+1.4) |
+| adatext-0.7-unsupervised | 85.9 (-0.4) | 78.1 (+0.9) | 74.3 (+0.5) | 73.1 (+1.1) | 84.3 (+0.0) | 81.9 (+1.2) |
+| adatext-0.8-unsupervised | 86.2 (-0.1) | 77.9 (+0.6) | 74.0 (+0.2) | 72.9 (+0.8) | 84.4 (+0.1) | 81.6 (+1.0) |
+
+- **Both re-rankers help a little, but far less than in the papers.** With verified
+  seeds and the defaults (AdaText's threshold of 0.7 and SemRe-Rank's `rel_min` of 0.5),
+  AdaText improves 11 of the 12 rankings, by up to 4.0 points, and SemRe-Rank 10, by up
+  to 3.0. The largest loss is 1.5 points (SemRe-Rank on TF-IDF in GENIA). SemRe-Rank
+  reports gains of at least 1 point in most cases, and up to 15. AdaText reports up to
+  25.
+- **The bases are stronger than in the papers**, with other candidates and other
+  implementations. On GENIA, SemRe-Rank raised Weirdness by 8.6 points to 84.6; here
+  Weirdness starts at 84.3 and rises by 1.4. AdaText's bases (its Table 2) average
+  60 (C-value) and 41 (Weirdness) on the ACL RD-TEC, against 68.7 and 68.9 here.
+- **Unsupervised seeds help less**, as in SemRe-Rank. On the ACL RD-TEC, SemRe-Rank
+  then lowers Relevance by 4.5 points.
+- **The thresholds matter little.** AdaText does best at 0.7 or 0.8, and SemRe-Rank
+  at 0.5, the paper's value, although the encoder's word similarities are low: of the
+  pairs of 2,000 words of the ACL RD-TEC, half are less than 0.22 similar, and 1% more
+  than 0.45.
+- Each re-ranking takes under a second on the ACL RD-TEC and 1 to 2 seconds on GENIA,
+  after the words are embedded once.
 
 ## Multilingual
 
@@ -921,6 +1004,13 @@ F1 64.6.
 - Frantzi, K., Ananiadou, S., & Mima, H. (2000). Automatic recognition of multi-word
   terms: the C-value/NC-value method. *International Journal on Digital Libraries*,
   3(2), 115–130. https://doi.org/10.1007/s007999900023
+- Zhang, Z., Gao, J., & Ciravegna, F. (2018). SemRe-Rank: improving automatic term
+  extraction by incorporating semantic relatedness with personalised PageRank. *ACM
+  Transactions on Knowledge Discovery from Data*, 12(5), 57.
+  https://arxiv.org/abs/1711.03373
+- Zhang, Z., Petrak, J., & Maynard, D. (2018). Adapted TextRank for term extraction: a
+  generic method of improving automatic term extraction algorithms. *Procedia Computer
+  Science*, 137, 102–108. https://doi.org/10.1016/j.procs.2018.09.010
 - Boudin, F. (2016). pke: an open source python-based keyphrase extraction toolkit. In
   *Proceedings of COLING 2016: System Demonstrations*, 69–73.
   https://aclanthology.org/C16-2015

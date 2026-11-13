@@ -144,6 +144,8 @@ Words are read from the `words` layer or, if there is none, from a `tokens` laye
 
 All methods accept `n` (maximum n-gram length; by default 2 for the unithood methods, 3 for `yake`, `textrank` and `embedrank` and 1 for the others), `threshold` (minimum score), `stopwords` (default `"english"`, or the ISO 639-1 code of another language, such as `"fr"`), `min_frequency` (default 1), `word_pattern` (default `"alphanumeric"`, dropping words without a letter or digit), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `min_frequency`, `word_pattern`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
 
+Any method's ranking can be re-ranked by semantic relatedness to some seed terms with `rerank=AdaText(seeds=...)` or `rerank=SemReRank(seeds=...)` from `termxtract.rerank` (needs the `transformers` extra).
+
 ### Supervised — `SupervisedTermExtractor(method=...)`
 
 | `method`               | Description                                              | Extra parameters                                         |
