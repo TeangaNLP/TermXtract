@@ -145,5 +145,75 @@ class TestRAKE(unittest.TestCase):
         )
 
 
+# The example of Rose et al. (2010), Figure 1.1, without its stopwords and punctuation
+STOPLIST = ["of", "over", "the", "a", "and", "for", "are", "these", "is", "again"]
+DELIMITERS = list(".,;:!?()[]\"'")
+
+
+def rake_scores(text, stoplist=STOPLIST, delimiters=DELIMITERS):
+    results = RAKETermExtractor(stoplist, delimiters).extract_terms_strings([text])
+    return {t["term"]: t["score"] for t in results.terms[0]["terms"]}
+
+
+def test_candidates_split_at_stopwords():
+    extractor = RAKETermExtractor(STOPLIST, DELIMITERS)
+    assert extractor.generate_candidate_keywords(
+        "Compatibility of systems of linear constraints over the set of natural "
+        "numbers. Criteria (of compatibility) are given."
+    ) == [
+        ["compatibility"],
+        ["systems"],
+        ["linear", "constraints"],
+        ["set"],
+        ["natural", "numbers"],
+        ["criteria"],
+        ["compatibility"],
+        ["given"],
+    ]
+
+
+def test_tokenize():
+    extractor = RAKETermExtractor(STOPLIST, [",", "--"])
+    assert extractor.tokenize("Heart--failure,  the  Pump") == [
+        "heart",
+        "--",
+        "failure",
+        ",",
+        "the",
+        "pump",
+    ]
+    assert RAKETermExtractor(STOPLIST, []).tokenize("A b.") == ["a", "b."]
+
+
+def test_scores():
+    # Degree is the number of words of the candidates a word occurs in, itself
+    # included, so "linear" has degree 2 and "compatibility" 2 over 2 occurrences
+    assert rake_scores(
+        "Compatibility of systems of linear constraints over the set of natural "
+        "numbers. Criteria of compatibility are given."
+    ) == {
+        "linear constraints": 4.0,
+        "natural numbers": 4.0,
+        "compatibility": 1.0,
+        "systems": 1.0,
+        "set": 1.0,
+        "criteria": 1.0,
+        "given": 1.0,
+    }
+
+
+def test_linked_keywords():
+    # "axis" and "evil" adjoin with only stopwords between them twice, so are joined
+    assert rake_scores("The axis of evil. Again the axis of evil.") == {
+        "axis of evil": 2.0,
+        "axis": 1.0,
+        "evil": 1.0,
+    }
+    # Only once, so not joined
+    assert "axis of evil" not in rake_scores("The axis of evil. The axis. The evil.")
+    # A delimiter between them, so not joined
+    assert "axis of evil" not in rake_scores("Axis, of evil. Axis, of evil.")
+
+
 if __name__ == "__main__":
     unittest.main()
