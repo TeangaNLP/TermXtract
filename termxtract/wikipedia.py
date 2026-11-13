@@ -9,7 +9,6 @@ take categories, articles and links in the same order, so that given the same Wi
 they find the same candidates.
 """
 
-import bisect
 import gzip
 import hashlib
 import json
@@ -20,6 +19,8 @@ import urllib.request
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Protocol
+
+import numpy as np
 
 from . import __version__
 from .datasets.base import data_home
@@ -284,15 +285,14 @@ ROWS = {
         rb"\((\d+)," + STRING + rb",'[^']*'," + STRING + rb",'(\w+)',\d+,(\d+)\)"
     ),
     "linktarget": re.compile(rb"\((\d+),(-?\d+)," + STRING + rb"\)"),
-    "pagelinks": re.compile(rb"\((\d+),(-?\d+),(\d+)\)"),
 }
-"""The start of each row of each table, with the columns `WikipediaDump` reads."""
+"""The start of a row of each table but `pagelinks`, with the columns read."""
 
-FIRST_ID = re.compile(rb"VALUES \((\d+),")
-"""The first key of an `INSERT` statement."""
+BLOCK = 1 << 26
+"""The size of the blocks in which the dumps are read."""
 
-LAST_ID = re.compile(rb"\),\((\d+),")
-"""A key after the first of an `INSERT` statement."""
+DIGITS = bytes(c if chr(c).isdigit() and c < 128 else 32 for c in range(256))
+"""A table that turns every byte but the digits into a space."""
 
 
 def unescape(value: bytes) -> bytes:
@@ -364,26 +364,18 @@ class WikipediaDump:
                 shutil.copyfileobj(response, f, 1 << 20)
             partial.replace(path)
 
-    def rows(
-        self,
-        table: str,
-        keys: set[int] | None = None,
-        needles: Iterable[bytes] = (),
-    ) -> Iterator[tuple[bytes, ...]]:
+    def blocks(self, table: str) -> Iterator[bytes]:
         """
-        Read rows of a table.
-
-        Statements whose rows contain none of `needles` and whose range of keys holds
-        none of `keys` are skipped without being parsed: the dumps are sorted by key.
+        Read the dump of a table in blocks of whole lines.
 
         Args:
             table (str): The table.
-            keys (Optional[Set[int]]): Keys of the rows wanted, or None for any.
-            needles (Iterable[bytes]): Text of which a statement must contain one,
-                unless it may hold one of `keys`.
 
         Returns:
-            Iterator[Tuple[bytes, ...]]: The columns of `ROWS` of each row read.
+            Iterator[bytes]: Blocks of about 64 MB.
+
+        Raises:
+            FileNotFoundError: If the dump has not been downloaded.
         """
         path = self.path(table)
         if not path.exists():
@@ -391,19 +383,89 @@ class WikipediaDump:
                 f"{path} is missing: download it from {self.url(table)}, or call "
                 "download()."
             )
-        needles = list(needles)
-        wanted = sorted(keys) if keys is not None else None
-        pattern = ROWS[table]
+        rest = b""
         with gzip.open(path, "rb") as f:
-            for line in f:
-                if not line.startswith(b"INSERT INTO"):
+            while block := f.read(BLOCK):
+                block = rest + block
+                cut = block.rfind(b"\n") + 1
+                rest = block[cut:]
+                yield block[:cut]
+        if rest:
+            yield rest
+
+    def rows(
+        self,
+        table: str,
+        keys: set[int] | None = None,
+        needles: Iterable[bytes] = (),
+    ) -> Iterator[tuple[bytes, ...]]:
+        """
+        Read the rows of a table, one per line as the dumps write them, whose first
+        column is one of `keys` or that contain one of `needles`.
+
+        Args:
+            table (str): The table.
+            keys (Optional[Set[int]]): The first columns of the rows wanted, or None.
+            needles (Iterable[bytes]): Text of the rows wanted, which should be rare: a
+                row that has both a key and a needle is read twice.
+
+        Returns:
+            Iterator[Tuple[bytes, ...]]: The columns of `ROWS` of each row read.
+        """
+        pattern = ROWS[table]
+        wanted = {b"%d" % key for key in keys or ()}
+        needles = list(needles)
+        for block in self.blocks(table):
+            for needle in needles:
+                found = block.find(needle)
+                while found >= 0:
+                    start = block.rfind(b"\n", 0, found) + 1
+                    end = block.find(b"\n", found)
+                    if match := pattern.match(block, start, end):
+                        yield match.groups()
+                    found = block.find(needle, end)
+            if wanted:
+                for line in block.split(b"\n"):
+                    if line[1 : line.find(b",")] in wanted and (
+                        match := pattern.match(line)
+                    ):
+                        yield match.groups()
+
+    def links(self, pages: set[int]) -> Iterator[tuple[int, int]]:
+        """
+        Read the links from some pages to articles, parsing the numbers of `pagelinks`
+        with numpy, as it has billions of rows.
+
+        Args:
+            pages (Set[int]): The ids of the pages.
+
+        Returns:
+            Iterator[Tuple[int, int]]: The id of each page and of the link target of
+            each of its links.
+        """
+        wanted = np.array(sorted(pages), dtype=np.int64)
+        started = False
+        for block in self.blocks("pagelinks"):
+            # Only the rows have numbers: skip the header before them and the
+            # trailer after them, which have version numbers and dates. A block
+            # starts a line, so each line starts after a newline
+            text = b"\n" + block
+            start = 0
+            if not started:
+                start = text.find(b"\n(")
+                if start < 0:
                     continue
-                if (wanted is not None or needles) and not (
-                    any(needle in line for needle in needles)
-                    or (wanted is not None and _holds(line, wanted))
-                ):
-                    continue
-                yield from pattern.findall(line)
+                started = True
+            end = text.find(b"\n/*", start)
+            numbers = np.fromstring(  # type: ignore[call-overload]
+                text[start : len(text) if end < 0 else end].translate(DIGITS),
+                dtype=np.int64,
+                sep=" ",
+            ).reshape(-1, 3)
+            rows = numbers[np.isin(numbers[:, 0], wanted) & (numbers[:, 1] == 0)]
+            yield from zip(rows[:, 0].tolist(), rows[:, 2].tolist())
+            if end >= 0:
+                return
 
     def candidates(
         self, titles: list[str], max_candidates: int = 2000
@@ -494,9 +556,8 @@ class WikipediaDump:
 
         # The links of the pages
         link_targets: dict[int, list[int]] = {}
-        for page, namespace, target in self.rows("pagelinks", set(articles)):
-            if namespace == b"0" and int(page) in articles:
-                link_targets.setdefault(int(page), []).append(int(target))
+        for source, link in self.links(set(articles)):
+            link_targets.setdefault(source, []).append(link)
         names_of = self._targets({t for ts in link_targets.values() for t in ts}, 0)
         ids = {name: page for page, name in articles.items()}
         links = {
@@ -534,19 +595,3 @@ def _needles(titles: Iterable[str], namespace: int) -> list[bytes]:
         + b"',"
         for t in titles
     ]
-
-
-def _holds(line: bytes, keys: list[int]) -> bool:
-    """Whether the range of keys of an `INSERT` statement holds one of `keys`, which
-    are sorted."""
-    first = FIRST_ID.search(line)
-    last = None
-    end = line.rfind(b"),(")
-    if end >= 0:
-        last = LAST_ID.match(line, end)
-    if first is None:
-        return False
-    low = int(first.group(1))
-    high = int(last.group(1)) if last else low
-    i = bisect.bisect_left(keys, low)
-    return i < len(keys) and keys[i] <= high

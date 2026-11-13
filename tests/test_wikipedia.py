@@ -47,23 +47,33 @@ LINKS = [(1, 202), (4, 201), (4, 202), (4, 205), (5, 204), (5, 206), (7, 203)]
 
 def sql(value):
     """A value as written in a MySQL dump."""
+    if value is None:
+        return "NULL"
     if isinstance(value, int | float):
         return str(value)
     return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
 def write_dump(directory):
-    """Write the dumps, with each table in two statements."""
+    """Write the dumps as Wikimedia does, one row per line, with each table in two
+    statements."""
 
     def write(table, rows):
         statements = [rows[: len(rows) // 2], rows[len(rows) // 2 :]]
         with gzip.open(directory / f"enwiki-latest-{table}.sql.gz", "wt") as f:
-            f.write(f"CREATE TABLE `{table}` (...);\n")
+            f.write(
+                "-- MariaDB dump 10.19  Distrib 10.11.19-MariaDB\n"
+                f"CREATE TABLE `{table}` (\n  `id` int(8) unsigned NOT NULL\n);\n"
+            )
             for statement in statements:
-                values = ",".join(
+                values = ",\n".join(
                     "(" + ",".join(sql(v) for v in row) + ")" for row in statement
                 )
-                f.write(f"INSERT INTO `{table}` VALUES {values};\n")
+                f.write(f"INSERT INTO `{table}` VALUES\n{values};\n")
+            f.write(
+                f"/*!40000 ALTER TABLE `{table}` ENABLE KEYS */;\n"
+                "-- Dump completed on 2026-11-07 18:42:21\n"
+            )
 
     def name(title):
         return title.replace(" ", "_")
@@ -87,7 +97,10 @@ def write_dump(directory):
             for i, (ns, t) in sorted(PAGES.items())
         ],
     )
-    write("page_props", [(i, "hiddencat", "", 0) for i in sorted(HIDDEN)])
+    write(
+        "page_props",
+        [(i, "hiddencat", "", None) for i in sorted(HIDDEN)] + [(4, "toc", "", None)],
+    )
     write(
         "categorylinks",
         [
@@ -176,8 +189,10 @@ def test_collect():
     assert fetched == ["a1"]
 
 
-def test_dump(tmp_path):
+def test_dump(tmp_path, monkeypatch):
     write_dump(tmp_path)
+    # Small blocks, so that rows are split across them
+    monkeypatch.setattr("termxtract.wikipedia.BLOCK", 50)
     dump = WikipediaDump(tmp_path)
     found = dump.candidates(["Heart failure", "Missing"])
     # Heart diseases, by sort key, then Organ failure; Edema is in a hidden category,
