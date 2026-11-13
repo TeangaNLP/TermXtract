@@ -392,9 +392,7 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
         )
 
     def test_sentences_layer(self):
-        from termxtract.supervised.tokenextractor import (
-            TokenClassificationTermExtractor,
-        )
+        from termxtract.supervised.sentences import teanga_sentences
 
         corpus = Corpus()
         corpus.add_layer_meta("text")
@@ -407,11 +405,7 @@ class TestTokenClassificationTrainingData(unittest.TestCase):
             (38, 44),
         ]
         doc.sentences = [(0, 31), (32, 44)]
-        extractor = object.__new__(TokenClassificationTermExtractor)
-        extractor.words_layer = None
-        extractor.sentences_layer = None
-
-        [sentences] = extractor._teanga_sentences(corpus)
+        [sentences] = teanga_sentences(corpus)
 
         # The layer gives the sentences, so "Dr." does not end one
         self.assertEqual(

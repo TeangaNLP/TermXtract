@@ -15,7 +15,9 @@ part-of-speech tags and lemmas (ACTER, GENIA and Brown) are tagged with spaCy's
     python -m spacy download en_core_web_sm
 
 The tags are cached next to the datasets. The token-classification method needs the
-`transformers` extra, and a GPU to finish in reasonable time.
+`transformers` extra, and a GPU to finish in reasonable time. The llm method needs the
+`llm` extra too, and `LLM_MODEL` served by Ollama on this machine, or by the server at
+the `OPENAI_BASE_URL` environment variable; its answers are cached next to the datasets.
 
 The unsupervised methods use the candidates of ATR4S (Astrakhantsev, 2018), whose
 results BENCHMARKS.md compares with: sequences of up to four lemmas, counting only the
@@ -29,6 +31,7 @@ et al., 2021), and it keeps those it classifies as terms.
 
 import argparse
 import json
+import os
 import re
 import time
 import zipfile
@@ -42,7 +45,9 @@ from teanga import Corpus
 import termxtract
 from termxtract import ATEResults, SupervisedTermExtractor, TermExtractor, datasets
 from termxtract.datasets import base
+from termxtract.embeddings import Encoder
 from termxtract.evaluation import evaluate, normalize_term
+from termxtract.llm import OpenAIClient
 from termxtract.stopwords import load_stopwords
 
 N = 4
@@ -129,7 +134,33 @@ VARIANTS = {
 ENCODER = "sentence-transformers/all-MiniLM-L6-v2"
 """The sentence encoder of EmbedRank and MDERank."""
 REFERENCE_METHODS = {"relevance", "domainpertinence", "weirdness"}
-SUPERVISED = ["roger", "features", "token-classification"]
+SUPERVISED = ["roger", "features", "token-classification", "llm"]
+
+LLM_MODEL = "gemma4:26b"
+"""The model of in-context learning, as Ollama names it, asked without reasoning."""
+LLM = {"k": 5, "n_jobs": 4}
+"""The options of in-context learning: five demonstrations, the most similar."""
+
+
+def llm(
+    encoder: str = ENCODER, stopwords: str = "english", **options: Any
+) -> SupervisedTermExtractor:
+    """An in-context learning extractor with the benchmark settings, choosing its
+    demonstrations with `encoder`, and `options` in place of those of `LLM`."""
+    client = OpenAIClient(
+        LLM_MODEL,
+        base_url=os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1"),
+        cache_dir=base.data_home() / "benchmark-llm",
+        reasoning_effort="none",
+    )
+    return SupervisedTermExtractor(
+        method="llm",
+        client=client,
+        encoder=Encoder(encoder),
+        words_layer="tokens",
+        stopwords=stopwords,
+        **{**LLM, **options},
+    )
 
 
 def method_options(method: str, encoder: str = ENCODER) -> dict:
@@ -321,8 +352,11 @@ def supervised(
 ) -> ATEResults:
     """Train a supervised extractor on the gold terms of the training corpus and
     extract the terms of the test corpus. Roger and the features method take every
-    other candidate as a non-term, and token classification learns from each
-    annotated occurrence."""
+    other candidate as a non-term, token classification learns from each annotated
+    occurrence, and in-context learning shows each training sentence with its
+    annotated terms."""
+    if method == "llm":
+        return llm().fit(train).predict(test)
     if method == "token-classification":
         train_options = DATASETS[dataset][1]
         assert train_options is not None
@@ -388,9 +422,10 @@ def run(
             assert train is not None
             results = supervised(dataset, method, train, test, reference)
             gold = written_gold
-            # Token classification tags terms rather than ranking candidates, so its
-            # terms are not filtered, as in Lang et al. (2021), and the features
-            # method keeps the candidates it classifies as terms
+            # Token classification and in-context learning find terms rather than
+            # ranking candidates, so their terms are not filtered, as in Lang et al.
+            # (2021), and the features method keeps the candidates it classifies as
+            # terms
             ranked = ranking(results, keep_written if method == "roger" else bool)
         elif method == "rake":
             results = unsupervised(method, reference).extract(test)

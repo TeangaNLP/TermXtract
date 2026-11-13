@@ -1,4 +1,3 @@
-import math
 import re
 import tempfile
 from bisect import bisect_left
@@ -20,10 +19,11 @@ from transformers import (
     set_seed,
 )
 
-from ..datasets.base import GOLD_LAYER, SENTENCES_LAYER
-from ..layers import find_layer, word_annotations, word_spans
+from ..datasets.base import GOLD_LAYER
+from ..layers import find_layer
 from ..stopwords import Stopwords, load_stopwords
 from ..utils import ATEResults, rank_terms
+from .sentences import teanga_lemmas, teanga_sentences
 
 
 def tag_spans(tags: list[str]) -> list[tuple[int, int]]:
@@ -580,74 +580,10 @@ class TokenClassificationTermExtractor:
         """
         return [
             [(tokens, " ".join(tokens)) for tokens, _ in sentences]
-            for sentences in self._teanga_sentences(corpus)
+            for sentences in teanga_sentences(
+                corpus, self.words_layer, self.sentences_layer
+            )
         ]
-
-    def _teanga_sentences(
-        self, corpus: Corpus
-    ) -> list[list[tuple[list[str], list[tuple[int, int]]]]]:
-        """
-        Split each document of a Teanga corpus into sentences, by the sentences layer
-        or, if there is none, after each word that is ".", "!" or "?".
-
-        Returns:
-            For each document, the words and the word spans of each sentence.
-        """
-        layer = self.sentences_layer
-        if layer is not None or SENTENCES_LAYER in corpus.meta:
-            layer = find_layer(
-                corpus.meta, layer, (SENTENCES_LAYER,), "sentences_layer"
-            )
-        documents = []
-        for doc_id in corpus.doc_ids:
-            doc = corpus.doc_by_id(doc_id)
-            ends = iter(sorted(end for _, end in doc[layer])) if layer else iter(())
-            sentence_end = next(ends, math.inf)
-            sentences = []
-            tokens: list[str] = []
-            spans: list[tuple[int, int]] = []
-            for start, end in word_spans(doc, self.words_layer):
-                # A word that starts after the end of the sentence starts a new one
-                while start >= sentence_end:
-                    sentence_end = next(ends, math.inf)
-                    if tokens:
-                        sentences.append((tokens, spans))
-                        tokens, spans = [], []
-                tokens.append(doc.text[start:end])
-                spans.append((start, end))
-                if layer is None and tokens[-1] in (".", "!", "?"):
-                    sentences.append((tokens, spans))
-                    tokens, spans = [], []
-            if tokens:
-                sentences.append((tokens, spans))
-            documents.append(sentences)
-        return documents
-
-    def _teanga_lemmas(
-        self,
-        corpus: Corpus,
-        documents: list[list[tuple[list[str], list[tuple[int, int]]]]],
-    ) -> list[list[list[str]]] | None:
-        """
-        Get the lemma of each word of each sentence from `_teanga_sentences`, or None
-        if `lemma_layer` is not set.
-        """
-        if self.lemma_layer is None:
-            return None
-        lemmas = []
-        for doc_id, sentences in zip(corpus.doc_ids, documents):
-            words = iter(
-                word_annotations(
-                    corpus.doc_by_id(doc_id),
-                    self.lemma_layer,
-                    (),
-                    "lemma_layer",
-                    self.words_layer,
-                )
-            )
-            # The sentences hold every word of the document, in order
-            lemmas.append([[next(words) for _ in tokens] for tokens, _ in sentences])
-        return lemmas
 
     def _teanga_training_data(
         self, corpus: Corpus, labels: dict[str, int] | None
@@ -656,9 +592,11 @@ class TokenClassificationTermExtractor:
         Tag the words of a Teanga corpus with the terms labelled 1 or, if `labels` is
         None, with the gold terms of `terms_layer`.
         """
-        documents = self._teanga_sentences(corpus)
+        documents = teanga_sentences(corpus, self.words_layer, self.sentences_layer)
         if labels is not None:
-            lemmas = self._teanga_lemmas(corpus, documents)
+            lemmas = teanga_lemmas(
+                corpus, documents, self.lemma_layer, self.words_layer
+            )
             return self.create_training_data(
                 [(tokens, " ".join(tokens)) for doc in documents for tokens, _ in doc],
                 labels,
@@ -867,13 +805,13 @@ class TokenClassificationTermExtractor:
         Returns:
             ATEResults: The terms tagged in each document, with their offsets.
         """
-        sentences = self._teanga_sentences(corpus)
+        sentences = teanga_sentences(corpus, self.words_layer, self.sentences_layer)
         return self.extract_documents(
             corpus,
             list(corpus.doc_ids),
             [[(tokens, " ".join(tokens)) for tokens, _ in doc] for doc in sentences],
             [[spans for _, spans in doc] for doc in sentences],
-            self._teanga_lemmas(corpus, sentences),
+            teanga_lemmas(corpus, sentences, self.lemma_layer, self.words_layer),
         )
 
     def extract_terms_teanga(

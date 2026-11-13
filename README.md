@@ -31,7 +31,7 @@ The transformer-based `token-classification` and `embedrank` extractors need PyT
 pip install "termxtract[transformers]"
 ```
 
-All other methods work with the base install.
+The `llm` method talks to a large language model through the OpenAI API or a compatible local server, such as Ollama; install its client with `pip install "termxtract[llm]"`. All other methods work with the base install.
 
 ## Quickstart
 
@@ -151,8 +151,9 @@ All methods accept `n` (maximum n-gram length; by default 2 for the unithood met
 | `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state`, `max_negatives`, `patience`, `n_jobs` |
 | `features`             | Classifier over the scores of the unsupervised methods and other features, as in HAMLET | `classifier`, `threshold`, `reference_corpus`, `random_state`, `n_jobs`, `min_frequency`, `word_pattern` |
 | `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language`, `random_state`, `patience`, `sentences_layer` |
+| `llm`                  | In-context learning with a large language model, prompted with similar training sentences and their terms (needs the `llm` extra, and `transformers` for `selection="knn"`) | `client` (required), `k`, `template`, `selection`, `encoder`, `random_state`, `n_jobs`, `sentences_layer` |
 
-All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger`, 4 for `features` and 6 for `token-classification`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates (except for `features`, which filters both), and `words_layer`, `lemma_layer` and `pos_layer` for Teanga input.
+All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger`, 4 for `features`, 6 for `token-classification` and 10 for `llm`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates (except for `features`, which filters both), and `words_layer`, `lemma_layer` and `pos_layer` for Teanga input.
 
 ## Results
 

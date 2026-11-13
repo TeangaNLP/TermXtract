@@ -1,6 +1,6 @@
 # Supervised Methods Tutorial
 
-This tutorial shows how to train a term extractor from examples with `SupervisedTermExtractor`. It covers the format of the training labels, and the three supervised methods: **Roger**, the **features** classifier and **token classification**.
+This tutorial shows how to train a term extractor from examples with `SupervisedTermExtractor`. It covers the format of the training labels, and the four supervised methods: **Roger**, the **features** classifier, **token classification** and **in-context learning** with a large language model.
 
 ## How supervised extraction works
 
@@ -225,11 +225,58 @@ extractor.fit(train_corpus, labels, validation=validation_corpus)
 
 Any Hugging Face model that supports token classification can be used as `model_name`. A model pre-trained on text from your domain usually works best.
 
+## In-context learning with a large language model
+
+The `llm` method trains nothing. It sends each sentence to a large language model in a prompt with `k` training sentences and their terms, the *demonstrations*, and reads the terms from the model's answer, as in Banerjee, Chakravarthi and McCrae (2024). With the default `selection="knn"`, the demonstrations are the training sentences most similar to the sentence, by the cosine of their [embeddings](../api/embeddings.md) (Liu et al., 2022); `selection="random"` samples them instead.
+
+The model is reached through a client. `OpenAIClient` speaks the OpenAI API, which local servers such as [Ollama](https://ollama.com/), vLLM and llama.cpp also offer. It needs the `llm` extra, and the "knn" selection needs the `transformers` extra:
+
+```bash
+pip install 'termxtract[llm,transformers]'
+```
+
+The example below is not run when this documentation is built, as it needs a model server. Here it uses a model served by Ollama on this machine:
+
+```python
+from termxtract import SupervisedTermExtractor
+from termxtract.llm import OpenAIClient
+
+client = OpenAIClient(
+    "qwen2.5:7b", base_url="http://localhost:11434/v1", cache_dir="llm-cache"
+)
+extractor = SupervisedTermExtractor(method="llm", client=client, k=5)
+results = extractor.fit(corpus, labels).predict(["Acute heart failure is common."])
+```
+
+Each prompt looks like this, with the most similar demonstration last:
+
+```text
+Find the domain-specific terms in the following text.
+
+Input: Patients with chronic heart failure often receive beta-blockers.
+Output: chronic heart failure, heart failure, beta-blockers
+
+Input: Acute heart failure is common.
+Output:
+```
+
+Things to know about this method:
+
+- **The model is asked at temperature 0**, so that the same prompt gets the same answer. With `cache_dir`, every answer is kept on disk, and a prompt that was answered before is not sent again.
+- **Only the terms the model finds in the sentence are kept.** The answer is split at commas (or else at newlines and semicolons), and each term is looked for in the sentence, ignoring case and spacing. Terms that are not there, such as a term the model made up, are dropped, as are numbers, terms longer than `n` words (default 10), and terms that start or end with a stopword.
+- **Every extracted term has a score of 1.0**, as for token classification.
+- `template` picks one of the eight prompt templates of `termxtract.supervised.llm.TEMPLATES`, which pair four instructions with two kinds of markers, `Input:`/`Output:` and `Text:`/`Terminology:`. Template 5, the default, did best in the paper, by a point or two of F1. You can also pass your own `(instruction, input marker, output marker)` tuple.
+- **A sentence is never its own demonstration**, so `extract` can find the terms of the training corpus without being shown them.
+- `k=0` asks the model with no demonstrations at all.
+- `n_jobs` sends several prompts at once. A local server only answers them in parallel if it is set up to, for example with `OLLAMA_NUM_PARALLEL` for Ollama.
+
+In the paper, with GPT-3.5-Turbo on ACTER, in-context learning beat fine-tuning XLM-RoBERTa by far with 5 training sentences, and by less as the training set grew: by 30 sentences the two were close. More demonstrations helped in-context learning only a little, about 2 points of F1 from 5 to 30 sentences, and kNN selection beat random selection by 1 to 2 points. With TermXtract and the open model `gemma4:26b`, in-context learning beat fine-tuning at every size up to 30 sentences on all four domains of ACTER, and with all of ACTER's training data it came within 4 points of F1 of token classification (see the [benchmarks](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md)). So in-context learning is the method to try when only a handful of sentences are labelled, and fine-tuning when there are many.
+
 ## Using a Teanga corpus
 
-Both methods also accept a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` with a `words` layer in place of the list of strings, with labels in the same format. As for the unsupervised methods, the results then include the offsets of each extracted term.
+All the methods also accept a [Teanga](https://github.com/TeangaNLP/teanga) `Corpus` with a `words` layer in place of the list of strings, with labels in the same format. As for the unsupervised methods, the results then include the offsets of each extracted term.
 
-If the corpus marks its gold terms in a `terms` span layer, as the corpora of `termxtract.datasets` do, `fit` can learn from them without labels. Token classification then tags each annotated occurrence, rather than every occurrence of a labelled term, and Roger takes the annotated terms as terms and every other candidate as a non-term. Here a model is trained on three domains of ACTER and tags the fourth:
+If the corpus marks its gold terms in a `terms` span layer, as the corpora of `termxtract.datasets` do, `fit` can learn from them without labels. Token classification then tags each annotated occurrence, rather than every occurrence of a labelled term, Roger takes the annotated terms as terms and every other candidate as a non-term, and in-context learning gives each sentence with its annotated terms as a demonstration. Here a model is trained on three domains of ACTER and tags the fourth:
 
 ```python
 from termxtract import datasets
@@ -240,8 +287,8 @@ extractor = SupervisedTermExtractor(method="token-classification", random_state=
 results = extractor.fit(train).predict(test)
 ```
 
-Token classification splits a Teanga document into sentences by its `sentences` layer, if it has one, or else after each `.`, `!` and `?`.
+Token classification and in-context learning split a Teanga document into sentences by its `sentences` layer, if it has one, or else after each `.`, `!` and `?`.
 
-If the corpus has a lemma layer, such as the `lemma` layer of RSDO5 or the ACL RD-TEC, pass `lemma_layer="lemma"` to give each term by its lemmas, so that `cell` and `cells` are one term, as for the unsupervised methods. Roger then computes its measures over the lemmas, while token classification still tags the words as written and only names the tagged terms by their lemmas. Gold terms of the `terms` layer are read by their lemmas too, but labels are matched to the lemmas as given, so write them as lemmas. To evaluate, read the gold terms in the same way, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
+If the corpus has a lemma layer, such as the `lemma` layer of RSDO5 or the ACL RD-TEC, pass `lemma_layer="lemma"` to give each term by its lemmas, so that `cell` and `cells` are one term, as for the unsupervised methods. Roger then computes its measures over the lemmas, while token classification and in-context learning still read the words as written and only name the terms they find by their lemmas. Gold terms of the `terms` layer are read by their lemmas too, but labels are matched to the lemmas as given, so write them as lemmas. To evaluate, read the gold terms in the same way, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
 
-See the API reference for [`SupervisedTermExtractor`](../api/supervised_term_extractor.md), [Roger](../api/supervised/roger.md) and [Token Classification](../api/supervised/token_classification.md) for all parameters.
+See the API reference for [`SupervisedTermExtractor`](../api/supervised_term_extractor.md), [Roger](../api/supervised/roger.md), [Token Classification](../api/supervised/token_classification.md) and [In-Context Learning](../api/supervised/llm.md) for all parameters.

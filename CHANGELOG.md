@@ -91,6 +91,14 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   `termxtract.embeddings.Encoder` (by default `all-MiniLM-L6-v2`), caches the
   embeddings of candidates and can be shared between extractors. `n` defaults to 3.
   `TermExtractor`'s `variant` now defaults to None, the method's own default.
+- In-context learning with a large language model (#42), as
+  `SupervisedTermExtractor(method="llm", client=...)`, following Banerjee,
+  Chakravarthi & McCrae (2024). Each sentence is sent to the model with `k` training
+  sentences and their terms, chosen as the most similar by their embeddings or at
+  random, in one of the paper's eight prompt templates or the user's own. The terms of
+  the answer are kept where they occur in the sentence. `termxtract.llm.OpenAIClient`
+  reaches the OpenAI API or a compatible server such as Ollama, at temperature 0 and
+  with an optional cache of answers on disk; it needs the new `llm` extra.
 - Graph-based ranking (#49): TextRank (Mihalcea & Tarau, 2004), SingleRank (Wan &
   Xiao, 2008) and PositionRank (Florescu & Caragea, 2017), as
   `TermExtractor(method="textrank", variant="plain" | "single" | "position")`. Words
