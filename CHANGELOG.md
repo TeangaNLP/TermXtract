@@ -202,6 +202,9 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
   corpora, so with one reference corpus candidates are ranked as Weirdness ranks them.
   `tie_break="frequency"` orders them by their frequency in the target corpus, and
   `tie_break=None` keeps the previous scores.
+- The documentation has tutorials for every method, a page on which method to use,
+  summarising the benchmarks, and the list of methods and the development notes that
+  were in the README. The supervised tutorial is split into a page per method.
 
 ### Removed
 

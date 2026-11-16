@@ -1,6 +1,6 @@
 # TF-IDF Tutorial
 
-This tutorial shows how to extract terms with **TF-IDF** (term frequency–inverse document frequency), the simplest method in TermXtract. You will learn how to run it on plain text and on a Teanga corpus, how to read the scores, how to choose a threshold, and how to extract multi-word terms.
+This tutorial shows how to extract terms with **TF-IDF** (term frequency–inverse document frequency), the simplest method in TermXtract. You will learn how to run it on plain text and on a Teanga corpus, how to read the scores, how to choose a threshold, and how to extract multi-word terms. Most of this applies to every method. The tutorial ends with **Residual IDF**, a variant of IDF.
 
 ## How TF-IDF scores a term
 
@@ -17,7 +17,7 @@ Two consequences are worth knowing before you start:
 
 ## Setup
 
-Install TermXtract (see the [README](https://github.com/TeangaNLP/TermXtract#installation)) and import the `TermExtractor`:
+Install TermXtract (see [Installation](../index.md#installation)) and import the `TermExtractor`:
 
 ```python
 from termxtract import TermExtractor
@@ -243,28 +243,41 @@ Like `pos_pattern`, these filters are applied before scoring: only the occurrenc
 
 By default, `cell` and `cells` are different candidates, each with its own frequency. If your corpus has a lemma layer, such as the `lemma` layer of Teanga's spaCy service or of the ACL RD-TEC dataset, pass `lemma_layer="lemma"` to read every word as its lemma. Inflected forms are then counted together, and each term is returned as its lemmas, such as `cell` or `degree of freedom`, while `results.offsets` still gives the position of every form in the text. The lemma layer must be a sequence layer based on the words layer, and `pos_pattern` matches the lemmas' tags as before. To compare with gold terms, read those by their lemmas too, with `datasets.gold_terms(corpus, lemma_layer="lemma")`.
 
-## Re-ranking with related words
+## Residual IDF
 
-Any method's ranking can be revised with a re-ranker from `termxtract.rerank`, passed as `rerank`. It raises the terms whose words are related to some seed terms that you know belong to the domain, in a graph of the corpus's words:
+**Residual IDF** (`method="ridf"`; Church & Gale, 1999) also rewards terms that are concentrated in a few documents, but compares a term's IDF with what chance would predict. A word that occurs `cf` times, scattered at random over `D` documents, would be expected to occur in about `D (1 - e^(-cf/D))` of them. Residual IDF is the amount by which its actual IDF exceeds that of chance:
+
+`log2(D / df) + log2(1 - e^(-cf / D))`
+
+A term that occurs several times in the same document is more concentrated than chance, and scores above 0, while a term spread over as many documents as it has occurrences scores below 0. Unlike TF-IDF, Residual IDF scores each term once for the whole corpus, so a term has the same score in every document. Here, with `min_frequency=2` to keep only the n-grams that occur at least twice (see [Rare and noisy candidates](#rare-and-noisy-candidates)), we merge the documents' terms into one ranking:
 
 ```python
-from termxtract.rerank import SemReRank
-
-seeds = ["photosynthesis", "neural network", "gravity"]
-extractor = TermExtractor(method="tfidf", n=2, rerank=SemReRank(seeds=seeds))
+extractor = TermExtractor(method="ridf", n=2, min_frequency=2)
 results = extractor.extract(corpus)
+
+scores = {t["term"]: t["score"] for doc in results.terms for t in doc["terms"]}
+for term, score in sorted(scores.items(), key=lambda item: item[1], reverse=True):
+    print(f"{score:.3f}  {term}")
 ```
 
-- `SemReRank` (Zhang, Gao & Ciravegna, 2018) links each document's words to the words most similar to them, and scores them by PageRank, jumping to the words of the seeds.
-- `AdaText` (Zhang, Petrak & Maynard, 2018) runs TextRank over the words of the corpus that are similar to a seed, so its seeds can be any phrases of the domain, such as the entries of a glossary, even if they do not occur in the corpus.
-- With `seeds=200`, the seeds are the 200 most frequent terms, so no seeds are needed, but then the most frequent non-terms are seeds too.
+```text
+0.766  energy
+-0.234  photosynthesis
+-0.234  neural
+-0.234  neural network
+-0.234  network
+-0.234  weights
+-0.234  gravity
+-0.346  light
+```
 
-Words are compared by the embeddings of a sentence encoder, so re-rankers need the optional `transformers` dependencies. On the ACL RD-TEC and GENIA, with seeds picked from the most frequent candidates, they raised the precision of most methods by up to 4 points, and lowered a few by up to 1.5 (see the [benchmarks](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md)).
+`energy` occurs twice in the first document and nowhere else, so it is the only term more concentrated than chance. The terms that occur once in each of two documents tie, and `light`, in three documents, comes last.
 
 ## Limitations and tips
 
 - **Stopwords are only removed from the edges of candidates.** Other general words, such as `converts` or `updates`, still score highly when they are rare in your corpus. Use a larger corpus, add them to `stopwords`, use a [part-of-speech pattern](#part-of-speech-patterns), or try a method that compares with a reference corpus.
 - **Use enough documents.** With very few documents, IDF can only take a handful of values and many terms tie.
 - **Compare against a reference corpus.** To find terms typical of a *domain* rather than of individual documents, try the [reference corpus methods](reference_corpus_tutorial.md), which compare your corpus with general-language text.
+- **Try other methods.** The [other tutorials](getting_started.md) cover the rest of the methods, and [Which method should I use?](../benchmarks.md) compares them.
 
-See the [TF-IDF API reference](../api/unsupervised/tfidf.md) for the full list of parameters and methods.
+See the [TF-IDF](../api/unsupervised/tfidf.md) and [Residual IDF](../api/unsupervised/ridf.md) API references for the full list of parameters and methods.
