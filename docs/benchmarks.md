@@ -86,7 +86,7 @@ The unsupervised methods rank the same candidates, except for the unithood metho
 
 ### Re-ranking
 
-AdaText and SemRe-Rank revise any method's ranking by how related its terms' words are to some seed terms. They were tested on the ACL RD-TEC and GENIA, with the gold terms among the 200 most frequent candidates as seeds. AdaText improved 11 of 12 rankings, by up to 4 points of mean precision, and SemRe-Rank 10 of 12, by up to 3: far less than the papers reported. With all of the 200 most frequent candidates as seeds, without checking which are terms, they help less and sometimes hurt (see [re-ranking](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md#re-ranking)).
+AdaText and SemRe-Rank revise any method's ranking by how related its terms' words are to some seed terms. They were tested on the ACL RD-TEC and GENIA, with the gold terms among the 200 most frequent candidates as seeds. AdaText improved 13 of 14 rankings, by up to 4 points of mean precision, and SemRe-Rank 12 of 14, by up to 3: far less than the papers reported. With all of the 200 most frequent candidates as seeds, without checking which are terms, they help less and sometimes hurt (see [re-ranking](https://github.com/TeangaNLP/TermXtract/blob/main/BENCHMARKS.md#re-ranking)).
 
 ## Speed
 
