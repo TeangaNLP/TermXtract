@@ -24,11 +24,24 @@ plugins:
 
 nav:
 - Home: index.md
+- Methods: methods.md
+- Which Method?: benchmarks.md
 - Tutorials:
-  - Getting Started: tutorials/getting_started.md
+  - Overview: tutorials/getting_started.md
   - TF-IDF: tutorials/tfidf_tutorial.md
+  - C-Value and Related Methods: tutorials/cvalue_tutorial.md
   - Reference Corpus Methods: tutorials/reference_corpus_tutorial.md
-  - Supervised Methods: tutorials/supervised_tutorial.md
+  - Unithood Methods: tutorials/unithood_tutorial.md
+  - Keyphrase Methods: tutorials/keyword_tutorial.md
+  - Topic Model Methods: tutorials/topic_model_tutorial.md
+  - Embedding Methods: tutorials/embedding_tutorial.md
+  - Supervised Methods:
+    - Overview: tutorials/supervised_tutorial.md
+    - Roger: tutorials/supervised/roger.md
+    - Features: tutorials/supervised/features.md
+    - Token Classification: tutorials/supervised/token_classification.md
+    - In-Context Learning: tutorials/supervised/llm.md
+    - Synthetic Training Data: tutorials/supervised/augmentation.md
 - API Reference:
   - TermExtractor: api/term_extractor.md
   - SupervisedTermExtractor: api/supervised_term_extractor.md
@@ -65,3 +78,4 @@ nav:
     - Features: api/supervised/features.md
     - Token Classification: api/supervised/token_classification.md
     - In-Context Learning: api/supervised/llm.md
+- Development: development.md

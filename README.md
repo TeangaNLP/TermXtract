@@ -50,18 +50,12 @@ extractor = TermExtractor(method="cvalue", n=2)  # consider unigrams and bigrams
 results = extractor.extract(corpus)
 
 for doc in results.terms:
-    print(doc["doc_id"], doc["terms"][:3])
-# doc_0 [{'term': 'machine learning', 'score': 1.0}, {'term': 'artificial intelligence', 'score': 1.0}, {'term': 'machine', 'score': 0.0}]
+    print(doc["doc_id"], [(t["term"], round(t["score"], 2)) for t in doc["terms"][:3]])
+# doc_0 [('machine learning', 3.21), ('artificial intelligence', 1.07), ('learning', 0.28)]
 # ...
 ```
 
-Each document's terms are ranked from highest to lowest score.
-
-Pass `threshold=...` to keep only terms scoring at or above a minimum.
-
-Candidates that start or end with a stopword, such as `is a` or `of machine`, are dropped by default, using a built-in list of English function words. Stopwords inside a term, as in `degree of freedom`, are kept. Pass `stopwords=None` to keep every candidate, or a list of words to use your own stopwords.
-
-If a Teanga corpus has part-of-speech tags, `pos_pattern="noun_phrase"` keeps only noun phrases, such as `machine learning` or `degree of freedom` (see [Using a Teanga corpus](#using-a-teanga-corpus)).
+Each document's terms are ranked from highest to lowest score. Pass `threshold=...` to keep only terms scoring at or above a minimum. Candidates that start or end with a stopword, such as `is a` or `of machine`, are dropped by default; pass `stopwords=None` to keep them, or a list of words to use your own stopwords.
 
 ### Methods that need a reference corpus
 
@@ -114,84 +108,24 @@ doc.words = [(0, 4), (5, 13), (14, 16), (17, 18), (19, 27), (28, 30), (31, 38), 
 results = TermExtractor(method="basic", n=2).extract(corpus)
 ```
 
-Words are read from the `words` layer or, if there is none, from a `tokens` layer, as written by Teanga's CoNLL-U reader and spaCy service; pass `words_layer=...` to use another layer. If the corpus has part-of-speech tags in a `upos` or `pos` layer based on the words, pass `pos_pattern` to keep only the terms whose tags match a pattern, either `"noun_phrase"` or your own pattern such as `"<ADJ|NOUN>*<NOUN>"`, and if it has lemmas, pass `lemma_layer="lemma"` to count `cell` and `cells` as one term. See the [TF-IDF tutorial](https://teanga.io/TermXtract/tutorials/tfidf_tutorial/#part-of-speech-patterns).
+Words are read from the `words` layer or, if there is none, from a `tokens` layer, as written by Teanga's CoNLL-U reader and spaCy service. If the corpus has part-of-speech tags, `pos_pattern="noun_phrase"` keeps only noun phrases, and if it has lemmas, `lemma_layer="lemma"` counts `cell` and `cells` as one term (see the [TF-IDF tutorial](https://teanga.io/TermXtract/tutorials/tfidf_tutorial/#part-of-speech-patterns)).
 
-## Available methods
+## Methods
 
-`TermExtractor.METHODS` and `SupervisedTermExtractor.METHODS` map each method name to its implementation, so `list(TermExtractor.METHODS)` lists the available methods. Passing an unknown `method` raises a `ValueError` that lists them too.
+TermXtract has 21 unsupervised methods, from TF-IDF, C-value and weirdness to TextRank, YAKE! and MDERank, and four supervised ones: Roger, a feature-based classifier, token classification with a fine-tuned transformer, and in-context learning with a large language model. Any ranking can be re-ranked by related seed terms, and training data can be extended with synthetic sentences. See [the methods](https://teanga.io/TermXtract/methods/) for the full list and their parameters, and [the tutorials](https://teanga.io/TermXtract/tutorials/getting_started/) for how to use them.
 
-### Unsupervised — `TermExtractor(method=...)`
+## Benchmarks
 
-| `method`           | Description                                         | Extra parameters                      |
-|--------------------|-----------------------------------------------------|---------------------------------------|
-| `tfidf`            | Term frequency–inverse document frequency           |                                       |
-| `ridf`             | Residual IDF                                        |                                       |
-| `cvalue`           | C-Value (frequent terms not nested in longer ones)  |                                       |
-| `ncvalue`          | NC-Value (C-Value re-ranked by context words)       | `window_size`, `top_terms`, `cvalue_weight` |
-| `basic`            | Basic                                               | `alpha`                               |
-| `combobasic`       | ComboBasic                                          | `alpha`, `beta`                       |
-| `rake`             | Rapid Automatic Keyword Extraction                  | `stoplist`, `phrase_delimiters` (required) |
-| `yake`             | YAKE! (local features of each document's words)     | `window_size`, `dedup_threshold`, `corpus_aggregation` |
-| `textrank`         | TextRank, SingleRank or PositionRank (PageRank over a word graph) | `variant`, `window_size`, `graph` |
-| `embedrank`        | EmbedRank or MDERank (sentence embeddings; needs the `transformers` extra) | `variant`, `corpus_aggregation`, `model_name`, `encoder`, `diversity` |
-| `domaincoherence`  | Domain coherence                                    | `window_size`, `seed_terms`, `context_words` |
-| `domainpertinence` | Domain pertinence                                   | `reference_corpus` (required), `tie_break` |
-| `weirdness`        | Weirdness                                           | `reference_corpus` (required)         |
-| `relevance`        | Relevance                                           | `reference_corpus` (required)         |
-| `topicmodeling`    | LDA topic-model-based scoring                       | `num_topics`, `top_words`             |
-| `nmf`              | NMF topic-model-based scoring                       | `n_topics`, `max_features`            |
-| `pmi`, `llr`, `chi2`, `dice`, `tscore` | Unithood: PMI, log-likelihood ratio, χ², Dice or t-score of the words of multi-word terms | `aggregation` |
+[BENCHMARKS.md](BENCHMARKS.md) scores every method on three English datasets and on Hindi, Slovenian and Irish ones, and compares them with published results. In short:
 
-All methods accept `n` (maximum n-gram length; by default 2 for the unithood methods, 3 for `yake`, `textrank` and `embedrank` and 1 for the others), `threshold` (minimum score), `stopwords` (default `"english"`, or the ISO 639-1 code of another language, such as `"fr"`), `min_frequency` (default 1), `word_pattern` (default `"alphanumeric"`, dropping words without a letter or digit), and, for Teanga input, `words_layer`, `lemma_layer`, `pos_pattern` and `pos_layer`. `rake` does not use `n`, `stopwords`, `min_frequency`, `word_pattern`, `words_layer` or `lemma_layer`; it splits candidates at its own `stoplist`.
+- **With labelled training data**, token classification and in-context learning with a large language model are far ahead of the other methods. Token classification has F1 of 58 to 68 on every dataset with training data, against at most 43 for any unsupervised method, and in-context learning is close behind everywhere but on Hindi. With only a few labelled sentences, in-context learning is best.
+- **Without training data**, the methods that compare the corpus with a general-language reference corpus (weirdness, domain pertinence and relevance) rank terms best on five of the nine test sets, followed by the t-score, MDERank and TF-IDF.
 
-Any method's ranking can be re-ranked by semantic relatedness to some seed terms with `rerank=AdaText(seeds=...)` or `rerank=SemReRank(seeds=...)` from `termxtract.rerank` (needs the `transformers` extra).
-
-### Supervised — `SupervisedTermExtractor(method=...)`
-
-| `method`               | Description                                              | Extra parameters                                         |
-|------------------------|----------------------------------------------------------|----------------------------------------------------------|
-| `roger`                | Ranking function of association measures, learned by evolution (multi-word terms only) | `population_size`, `offspring_size`, `generations`, `runs`, `random_state`, `max_negatives`, `patience`, `n_jobs` |
-| `features`             | Classifier over the scores of the unsupervised methods and other features, as in HAMLET | `classifier`, `threshold`, `reference_corpus`, `random_state`, `n_jobs`, `min_frequency`, `word_pattern` |
-| `token-classification` | Fine-tuned Hugging Face token-classification model (needs the `transformers` extra) | `model_name`, `epochs`, `batch_size`, `learning_rate`, `max_length`, `language`, `random_state`, `patience`, `sentences_layer` |
-| `llm`                  | In-context learning with a large language model, prompted with similar training sentences and their terms (needs the `llm` extra, and `transformers` for `selection="knn"`) | `client` (required), `k`, `template`, `selection`, `encoder`, `random_state`, `n_jobs`, `sentences_layer` |
-
-All supervised methods accept `n` (maximum n-gram length; by default 2 for `roger`, 4 for `features`, 6 for `token-classification` and 10 for `llm`), and `stopwords` and `pos_pattern`, which filter the extracted terms but not the training candidates (except for `features`, which filters both), and `words_layer`, `lemma_layer` and `pos_layer` for Teanga input.
-
-`termxtract.augmentation.augment()` adds synthetic training sentences for any supervised method, written by a large language model from the training sentences or by replacing their terms with similar ones from Wikipedia, as in Banerjee (2025, ch. 5).
-
-## Results
-
-`extract()` returns an `ATEResults` object with:
-
-- `results.terms`: one entry per document, `{"doc_id": ..., "terms": [{"term": str, "score": float}, ...]}`, with terms ranked from highest to lowest score. Every method uses this format.
-- `results.offsets`: for Teanga input, one entry per document, `{"doc_id": ..., "offsets": [{"term": str, "offset": (start, end)}, ...]}`, giving the character offsets of every occurrence of each extracted term. It is `None` for plain-text input.
-- `results.corpus`: the input corpus.
+See [Which method should I use?](https://teanga.io/TermXtract/benchmarks/) for more.
 
 ## Development
 
-```bash
-git clone https://github.com/TeangaNLP/TermXtract.git
-cd TermXtract
-poetry install --with dev --extras transformers
-
-poetry run pytest                              # run the test suite
-poetry run pytest --cov                        # ...with a coverage report
-poetry run ruff check termxtract tests         # lint
-poetry run ruff format termxtract tests        # format
-poetry run mypy termxtract                     # type check
-poetry run mkdocs serve                        # preview the docs locally
-```
-
-CI runs all of these on every pull request, with the tests on Python 3.10–3.12, on Linux, macOS and Windows, and against the oldest dependency versions `pyproject.toml` allows. The codebase was reformatted in one commit, which `git blame` can skip with `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
-
-### Releasing
-
-Version numbers follow [Semantic Versioning](https://semver.org/): bump the patch version for bug fixes, the minor version for new features, and the major version for breaking changes (before 1.0, breaking changes bump the minor version).
-
-1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`, add a new empty `## [Unreleased]` section above it, and update the comparison links at the bottom of the file.
-2. Set the version with `poetry version X.Y.Z` (or `poetry version patch`, `minor` or `major`).
-3. Commit both files as `Release X.Y.Z` and get the commit onto `main`.
-4. On GitHub, draft a release with a new tag `vX.Y.Z` on that commit, paste the changelog section as the release notes, and publish it. The release workflow checks that the tag matches the version, builds the package and uploads it to PyPI.
+See [Development](https://teanga.io/TermXtract/development/) for how to run the tests and checks, and how to make a release.
 
 ## License
 
