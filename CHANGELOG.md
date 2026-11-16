@@ -216,6 +216,12 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 
 ### Fixed
 
+- RAKE splits phrases at its stoplist again (#102). It only split the text at
+  `phrase_delimiters`, so unless they included whitespace, every candidate was a whole
+  clause and every score 0, as in the benchmarks. The text is now split into words
+  first, as in Rose et al. (2010). A word's degree now counts the word itself, so
+  single-word keywords no longer score 0, and adjoining keywords are joined only if
+  they adjoin at least twice, scored once by the sum of their scores.
 - Plain-text input is split into words that keep their combining marks, such as the
   vowel signs and viramas of Devanagari, which Python's `\w` does not match. Hindi
   words such as `शिक्षा` used to be split into fragments. The `atr4s` word pattern

@@ -1,5 +1,6 @@
 import re
-from collections import Counter, defaultdict
+from collections import Counter
+from itertools import pairwise
 
 from teanga import Corpus
 
@@ -8,7 +9,20 @@ from .base_extractor import BaseTermExtractor
 
 
 class RAKETermExtractor(BaseTermExtractor):
-    """RAKE-based term extraction with support for n-grams and keyword linking."""
+    """
+    Rapid Automatic Keyword Extraction (RAKE; Rose et al., 2010).
+
+    The text is split into words at whitespace and at the phrase delimiters, which are
+    words of their own, and the candidates are the longest sequences of words that are
+    neither stopwords nor phrase delimiters. Each word is scored by its degree, the
+    number of words in the candidates it occurs in, divided by its frequency, and each
+    candidate by the sum of the scores of its words. Two candidates that are separated
+    only by stopwords at least twice in a document, in the same order, are also joined
+    into one, such as "axis of evil", scored by the sum of their scores.
+
+    Words are read in lower case, and keep any punctuation that is not a phrase
+    delimiter, so the delimiters should include the punctuation of the text.
+    """
 
     def __init__(
         self,
@@ -21,15 +35,77 @@ class RAKETermExtractor(BaseTermExtractor):
 
         Args:
             stoplist (List[str]): List of stop words (required).
-            phrase_delimiters (List[str]): List of delimiters to split phrases (e.g., punctuation) (required).
+            phrase_delimiters (List[str]): The strings, such as punctuation, that end a
+                phrase wherever they occur, within words or not (required).
             threshold (Optional[float]): Minimum score for term inclusion.
         """
         if stoplist is None or phrase_delimiters is None:
             raise ValueError("RAKE requires both a stoplist and phrase delimiters.")
         # Candidates are already split at the stoplist, so no extra stopword filtering
         super().__init__(threshold=threshold, stopwords=None)
-        self.stoplist = set(stoplist)
+        self.stoplist = {word.lower() for word in stoplist}
         self.phrase_delimiters = set(phrase_delimiters)
+        # Longest first, so that a delimiter that contains another is split whole
+        self.delimiter_pattern = (
+            re.compile(
+                "("
+                + "|".join(
+                    map(
+                        re.escape, sorted(self.phrase_delimiters, key=len, reverse=True)
+                    )
+                )
+                + ")"
+            )
+            if self.phrase_delimiters
+            else None
+        )
+
+    def tokenize(self, text: str) -> list[str]:
+        """
+        Split a text into lower-case words, with each phrase delimiter a word.
+
+        Args:
+            text (str): Document text.
+
+        Returns:
+            List[str]: The words, in order.
+        """
+        pieces = (
+            [text.lower()]
+            if self.delimiter_pattern is None
+            else self.delimiter_pattern.split(text.lower())
+        )
+        words = []
+        for piece in pieces:
+            if piece in self.phrase_delimiters:
+                words.append(piece)
+            else:
+                words.extend(piece.split())
+        return words
+
+    def phrases(self, words: list[str]) -> list[tuple[int, int]]:
+        """
+        Find the candidates in a document's words.
+
+        Args:
+            words (List[str]): The words of the document, from `tokenize`.
+
+        Returns:
+            List[Tuple[int, int]]: The index of the first word of each candidate and of
+            the word after its last, in order.
+        """
+        spans = []
+        start = None
+        for i, word in enumerate(words):
+            if word in self.stoplist or word in self.phrase_delimiters:
+                if start is not None:
+                    spans.append((start, i))
+                    start = None
+            elif start is None:
+                start = i
+        if start is not None:
+            spans.append((start, len(words)))
+        return spans
 
     def generate_candidate_keywords(self, text: str) -> list[list[str]]:
         """
@@ -41,26 +117,12 @@ class RAKETermExtractor(BaseTermExtractor):
         Returns:
             List[List[str]]: Candidate keywords as lists of words.
         """
-        delimiters = "|".join(map(re.escape, self.phrase_delimiters))
-        words = re.split(f"({delimiters})", text.lower())
-        candidates = []
-        current_phrase: list[str] = []
-
-        for word in words:
-            word = word.strip()
-            if word in self.stoplist or word in self.phrase_delimiters:
-                if current_phrase:
-                    candidates.append(current_phrase)
-                    current_phrase = []
-            elif word:
-                current_phrase.append(word)
-        if current_phrase:
-            candidates.append(current_phrase)
-        return candidates
+        words = self.tokenize(text)
+        return [words[i:j] for i, j in self.phrases(words)]
 
     def compute_word_scores(self, candidates: list[list[str]]) -> dict[str, float]:
         """
-        Compute scores for individual words based on degree and frequency.
+        Score each word by its degree divided by its frequency.
 
         Args:
             candidates (List[List[str]]): Candidate keywords as lists of words.
@@ -73,9 +135,8 @@ class RAKETermExtractor(BaseTermExtractor):
         for phrase in candidates:
             for word in phrase:
                 word_frequency[word] += 1
-                word_degree[word] += (
-                    len(phrase) - 1
-                )  # Degree = co-occurrences in the phrase
+                # A word co-occurs with every word of its phrase, itself included
+                word_degree[word] += len(phrase)
 
         # Compute degree-to-frequency ratio
         word_scores = {
@@ -106,29 +167,31 @@ class RAKETermExtractor(BaseTermExtractor):
         self, text: str, candidate_scores: dict[str, float]
     ) -> dict[str, float]:
         """
-        Link adjoining keywords with interior stop words.
+        Join the candidates that are separated only by stopwords at least twice.
 
         Args:
             text (str): Document text.
             candidate_scores (Dict[str, float]): Scores for original candidate keywords.
 
         Returns:
-            Dict[str, float]: Updated keyword scores including linked keywords.
+            Dict[str, float]: The candidate scores, with each joined keyword scored by
+            the sum of the scores of its two candidates.
         """
-        linked_keywords: defaultdict[str, float] = defaultdict(float)
-        words = text.lower().split()
-        for i, word in enumerate(words):
-            if word in candidate_scores:
-                j = i + 1
-                while j < len(words) and words[j] in self.stoplist:
-                    j += 1
-                if j < len(words) and words[j] in candidate_scores:
-                    linked_keyword = f"{word} {' '.join(words[i + 1 : j])} {words[j]}"
-                    linked_keywords[linked_keyword] += (
-                        candidate_scores[word] + candidate_scores[words[j]]
-                    )
-        candidate_scores.update(linked_keywords)
-        return candidate_scores
+        words = self.tokenize(text)
+        spans = self.phrases(words)
+        linked: Counter[tuple[str, str, str]] = Counter()
+        for (i, j), (k, m) in pairwise(spans):
+            if all(word in self.stoplist for word in words[j:k]):
+                linked[
+                    " ".join(words[i:j]), " ".join(words[j:k]), " ".join(words[k:m])
+                ] += 1
+        scores = dict(candidate_scores)
+        for (first, stops, second), count in linked.items():
+            if count >= 2:
+                scores[f"{first} {stops} {second}"] = (
+                    candidate_scores[first] + candidate_scores[second]
+                )
+        return scores
 
     def extract_terms_teanga(self, corpus: Corpus) -> ATEResults:
         """
