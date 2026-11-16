@@ -1,6 +1,6 @@
 [project]
 name = "termxtract"
-version = "0.1.0"
+version = "0.2.0"
 description = "Automatic term extraction (ATE) from plain text or Teanga corpora, with unsupervised and supervised methods."
 authors = [
     { name = "Shubhanker Banerjee", email = "shubcode1@gmail.com" },

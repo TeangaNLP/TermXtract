@@ -9,6 +9,8 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
 ### Added
 
 - `termxtract.evaluate()`, which scores extracted terms against a gold standard: a set of
@@ -354,5 +356,6 @@ previously only available from GitHub.
   (`eval_strategy`).
 - Docstrings no longer raise `SyntaxWarning` on import.
 
-[Unreleased]: https://github.com/TeangaNLP/TermXtract/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/TeangaNLP/TermXtract/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/TeangaNLP/TermXtract/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TeangaNLP/TermXtract/releases/tag/v0.1.0
