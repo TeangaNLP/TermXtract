@@ -9,6 +9,12 @@ breaking changes may happen in minor releases (0.x.0) and are listed here under
 
 ## [Unreleased]
 
+### Changed
+
+- The re-ranking benchmark (`benchmarks/rerank.py`) also re-ranks RAKE, which it had
+  left out while RAKE's scores were all 0. As in the English benchmark, RAKE is scored
+  against the gold terms as written.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

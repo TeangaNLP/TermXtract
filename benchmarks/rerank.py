@@ -29,7 +29,15 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from english import ENCODER, TITLES, load_brown, ranking, tag, unsupervised
+from english import (
+    ENCODER,
+    TITLES,
+    load_brown,
+    ranking,
+    tag,
+    unsupervised,
+    written_filter,
+)
 from teanga import Corpus
 
 import termxtract
@@ -40,9 +48,8 @@ from termxtract.rerank import AdaText, Reranker, SemReRank
 
 DATASETS = ["acl-rd-tec", "genia"]
 
-METHODS = ["tfidf", "cvalue", "basic", "combobasic", "weirdness", "relevance"]
-"""The base methods: those of TermXtract that the papers re-ranked, except RAKE, whose
-scores in the English benchmark's setup are all 0."""
+METHODS = ["tfidf", "cvalue", "basic", "combobasic", "rake", "weirdness", "relevance"]
+"""The base methods: those of TermXtract that the papers re-ranked."""
 
 KS = (50, 100, 500, 1000, 2000)
 """The numbers of top-ranked terms that precision is reported at, as in the papers."""
@@ -94,13 +101,19 @@ def run(
 ) -> None:
     """Re-rank the methods on a dataset, adding the scores to `out` and saving."""
     test = tag(datasets.load(dataset), dataset)
+    # As in the English benchmark, RAKE finds words as written, and the other methods
+    # lemmas
     lemma_gold = {
         normalize_term(t) for t in datasets.gold_terms(test, lemma_layer="lemma")
     }
+    written_gold = {normalize_term(t) for t in datasets.gold_terms(test)}
+    keep_written = written_filter(test)
     for method in methods:
         extractor = unsupervised(method, reference)
         results = extractor.extract(test)
-        gold = lemma_gold
+        gold, keep = (
+            (written_gold, keep_written) if method == "rake" else (lemma_gold, bool)
+        )
         docs = [
             [text for _, _, text in extractor.extractor.teanga_words(test.doc_by_id(d))]
             for d in test.doc_ids
@@ -114,12 +127,12 @@ def run(
         frequent = Reranker.most_frequent(lower, terms, SEEDS)
         verified = [term for term in frequent if normalize_term(term) in gold]
         scores = out.setdefault(method, {})
-        scores["base"] = precisions(ranking(results, bool), gold)
+        scores["base"] = precisions(ranking(results, keep), gold)
         scores["seeds"] = {"verified": len(verified), "unsupervised": len(frequent)}
         print(f"{dataset} {method}: {scores['base']['mean']:.3f}", flush=True)
         for name, reranker in rerankers(encoder, verified, frequent).items():
             start = time.perf_counter()
-            reranked = ranking(reranker.rerank(results, docs), bool)
+            reranked = ranking(reranker.rerank(results, docs), keep)
             scores[name] = {
                 **precisions(reranked, gold),
                 "seconds": time.perf_counter() - start,
